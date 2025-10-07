@@ -12,6 +12,13 @@ import path from 'path'
 import dotenv from 'dotenv'
 import { fileURLToPath } from 'url'
 import authRoutes from './routes/auth.js'
+import eventRoutes from './routes/events.js'
+import venueRoutes from './routes/venues.js'
+import floorplanRoutes from './routes/floorplans.js'
+import arCampaignRoutes from './routes/ar-campaigns.js'
+import mobileSdkRoutes from './routes/mobile-sdk.js'
+import analyticsRoutes from './routes/analytics.js'
+
 
 // for esm mode
 const __filename = fileURLToPath(import.meta.url)
@@ -30,6 +37,13 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }))
  * API Routes
  */
 app.use('/api/auth', authRoutes)
+app.use('/api/events', eventRoutes)
+app.use('/api/venues', venueRoutes)
+app.use('/api/floorplans', floorplanRoutes)
+app.use('/api/ar-campaigns', arCampaignRoutes)
+app.use('/api/sdk', mobileSdkRoutes)
+app.use('/api/analytics', analyticsRoutes)
+
 
 /**
  * health

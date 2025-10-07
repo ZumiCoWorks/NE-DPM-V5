@@ -8,6 +8,12 @@ export interface AuthState {
   error: string | null
 }
 
+// Helper function to get access token
+export const getAccessToken = async (): Promise<string | null> => {
+  const { data: { session } } = await supabase.auth.getSession()
+  return session?.access_token || null
+}
+
 export const useAuth = () => {
   const [authState, setAuthState] = useState<AuthState>({
     user: null,
@@ -26,8 +32,13 @@ export const useAuth = () => {
         }
 
         if (session?.user) {
-          const userData = await fetchUserProfile(session.user.id)
-          setAuthState({ user: userData, loading: false, error: null })
+          try {
+            const userData = await fetchUserProfile(session.user.id)
+            setAuthState({ user: userData, loading: false, error: null })
+          } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'Failed to fetch user profile'
+            setAuthState({ user: null, loading: false, error: errorMessage })
+          }
         } else {
           setAuthState({ user: null, loading: false, error: null })
         }
@@ -42,8 +53,13 @@ export const useAuth = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (session?.user) {
-          const userData = await fetchUserProfile(session.user.id)
-          setAuthState({ user: userData, loading: false, error: null })
+          try {
+            const userData = await fetchUserProfile(session.user.id)
+            setAuthState({ user: userData, loading: false, error: null })
+          } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'Failed to fetch user profile'
+            setAuthState({ user: null, loading: false, error: errorMessage })
+          }
         } else {
           setAuthState({ user: null, loading: false, error: null })
         }
@@ -58,10 +74,14 @@ export const useAuth = () => {
       .from('users')
       .select('*')
       .eq('id', userId)
-      .single()
+      .maybeSingle()
 
     if (error) {
       throw new Error(`Failed to fetch user profile: ${error.message}`)
+    }
+
+    if (!data) {
+      throw new Error('User profile not found')
     }
 
     return data
@@ -186,11 +206,17 @@ export const useAuth = () => {
     }
   }
 
+  const getToken = async (): Promise<string | null> => {
+    const { data: { session } } = await supabase.auth.getSession()
+    return session?.access_token || null
+  }
+
   return {
     ...authState,
     signUp,
     signIn,
     signOut,
-    updateProfile
+    updateProfile,
+    getToken
   }
 }

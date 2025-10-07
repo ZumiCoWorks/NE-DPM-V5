@@ -24,13 +24,19 @@ export const authenticateUser = async (
 
     const token = authHeader.substring(7) // Remove 'Bearer ' prefix
     
-    const user = await getUserFromToken(token)
+    const supabaseUser = await getUserFromToken(token)
     
-    if (!user) {
+    if (!supabaseUser) {
       return res.status(401).json({ error: 'Invalid token' })
     }
 
-    req.user = user
+    // Map Supabase user to our expected format
+    req.user = {
+      id: supabaseUser.id,
+      email: supabaseUser.email || '',
+      full_name: supabaseUser.user_metadata?.full_name || '',
+      organization: supabaseUser.user_metadata?.organization || ''
+    }
     next()
   } catch (error) {
     console.error('Authentication error:', error)
@@ -48,9 +54,15 @@ export const optionalAuth = async (
     
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7)
-      const user = await getUserFromToken(token)
-      if (user) {
-        req.user = user
+      const supabaseUser = await getUserFromToken(token)
+      if (supabaseUser) {
+        // Map Supabase user to our expected format
+        req.user = {
+          id: supabaseUser.id,
+          email: supabaseUser.email || '',
+          full_name: supabaseUser.user_metadata?.full_name || '',
+          organization: supabaseUser.user_metadata?.organization || ''
+        }
       }
     }
     
