@@ -1,6 +1,8 @@
 import { supabase } from '../lib/supabase'
+import { mockApiResponses } from './mockData'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
+const USE_MOCK_DATA = true // Set to false to use real API
 
 // Helper function to get auth headers
 const getAuthHeaders = async () => {
@@ -15,6 +17,16 @@ const getAuthHeaders = async () => {
 
 // Generic API request function
 const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
+  // Return mock data if enabled
+  if (USE_MOCK_DATA) {
+    const mockResponse = mockApiResponses[endpoint as keyof typeof mockApiResponses]
+    if (mockResponse) {
+      // Simulate network delay
+      await new Promise(resolve => setTimeout(resolve, 200))
+      return mockResponse.data
+    }
+  }
+
   const headers = await getAuthHeaders()
   
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -130,6 +142,7 @@ export interface Event {
   end_date: string
   venue_id: string
   status: 'draft' | 'published' | 'active' | 'completed' | 'cancelled'
+  max_attendees?: number
   created_at: string
   updated_at: string
 }

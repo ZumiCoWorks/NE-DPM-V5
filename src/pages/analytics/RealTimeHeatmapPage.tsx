@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+// Removed React Router dependencies
 import { ArrowLeft, RefreshCw, Users, Clock, TrendingUp, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -30,9 +30,12 @@ interface HeatmapData {
   lastUpdated: string
 }
 
-const RealTimeHeatmapPage: React.FC = () => {
-  const { eventId } = useParams<{ eventId: string }>()
-  const navigate = useNavigate()
+interface RealTimeHeatmapPageProps {
+  eventId?: string
+  onNavigateBack?: () => void
+}
+
+const RealTimeHeatmapPage: React.FC<RealTimeHeatmapPageProps> = ({ eventId, onNavigateBack }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [heatmapData, setHeatmapData] = useState<HeatmapData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -45,7 +48,7 @@ const RealTimeHeatmapPage: React.FC = () => {
     try {
       const token = localStorage.getItem('token')
       if (!token) {
-        navigate('/auth')
+        onNavigateBack?.()
         return
       }
 
@@ -246,7 +249,7 @@ const RealTimeHeatmapPage: React.FC = () => {
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-4">
               <button
-                onClick={() => navigate('/dashboard')}
+                onClick={() => onNavigateBack?.()}
                 className="flex items-center text-gray-600 hover:text-gray-900"
               >
                 <ArrowLeft className="h-5 w-5 mr-2" />

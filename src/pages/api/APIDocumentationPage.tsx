@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { ArrowLeft, Code, Copy, CheckCircle, ExternalLink, Key, Book, Smartphone, Shield, Zap } from 'lucide-react'
 import { toast } from 'sonner'
@@ -41,8 +40,11 @@ interface SDKConfig {
   version: string
 }
 
-export const APIDocumentationPage: React.FC = () => {
-  const navigate = useNavigate()
+interface APIDocumentationPageProps {
+  onTabChange?: (tab: string) => void
+}
+
+export const APIDocumentationPage: React.FC<APIDocumentationPageProps> = ({ onTabChange }) => {
   const { getToken } = useAuth()
   const [endpoints, setEndpoints] = useState<APIEndpoint[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
@@ -353,7 +355,7 @@ if (response.status === 304) {
       {/* Header */}
       <div className="flex items-center space-x-4">
         <button
-          onClick={() => navigate('/dashboard')}
+          onClick={() => onTabChange?.('dashboard')}
           className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />

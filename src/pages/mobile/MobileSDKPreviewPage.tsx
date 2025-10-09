@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Smartphone, Play, Pause, RotateCcw, MapPin, Shield, Zap, Eye, Download, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -60,8 +59,11 @@ interface LogEntry {
   data?: LogData
 }
 
-function MobileSDKPreviewPage() {
-  const navigate = useNavigate()
+interface MobileSDKPreviewPageProps {
+  onTabChange?: (tab: string) => void
+}
+
+function MobileSDKPreviewPage({ onTabChange }: MobileSDKPreviewPageProps) {
   const [loading, setLoading] = useState(false)
   const [venues, setVenues] = useState<Venue[]>([])
   
@@ -284,7 +286,7 @@ function MobileSDKPreviewPage() {
       {/* Header */}
       <div className="flex items-center space-x-4">
         <button
-          onClick={() => navigate('/dashboard')}
+          onClick={() => onTabChange?.('dashboard')}
           className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />

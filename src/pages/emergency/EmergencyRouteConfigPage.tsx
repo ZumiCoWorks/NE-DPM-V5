@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+// Removed React Router dependencies
 import { useAuth } from '../../hooks/useAuth'
 import { ArrowLeft, Shield, AlertTriangle, CheckCircle, XCircle, Route, Clock, Users, MapPin, Plus, Edit, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -64,9 +64,15 @@ interface ComplianceCheck {
   details?: string
 }
 
-export const EmergencyRouteConfigPage: React.FC = () => {
-  const navigate = useNavigate()
-  const { floorplanId } = useParams<{ floorplanId: string }>()
+interface EmergencyRouteConfigPageProps {
+  floorplanId?: string
+  onNavigateBack?: () => void
+}
+
+export const EmergencyRouteConfigPage: React.FC<EmergencyRouteConfigPageProps> = ({ 
+  floorplanId,
+  onNavigateBack 
+}) => {
   const { getToken } = useAuth()
   const [validating, setValidating] = useState(false)
   const [venues, setVenues] = useState<Venue[]>([])
@@ -111,6 +117,31 @@ export const EmergencyRouteConfigPage: React.FC = () => {
     } catch (error) {
       console.error('Error fetching floorplans:', error)
       toast.error('Failed to load floorplans')
+    }
+  }, [getToken])
+
+  const validateCompliance = useCallback(async (floorplanId: string) => {
+    try {
+      setValidating(true)
+      const token = await getToken()
+      const response = await fetch('/api/emergency/validate-compliance', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ floor_id: floorplanId })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setComplianceChecks(data.checks || [])
+      }
+    } catch (error) {
+      console.error('Error validating compliance:', error)
+      toast.error('Failed to validate compliance')
+    } finally {
+      setValidating(false)
     }
   }, [getToken])
 
@@ -164,31 +195,6 @@ export const EmergencyRouteConfigPage: React.FC = () => {
       }
     } catch (error) {
       console.error('Error fetching compliance rules:', error)
-    }
-  }, [getToken])
-
-  const validateCompliance = useCallback(async (floorplanId: string) => {
-    try {
-      setValidating(true)
-      const token = await getToken()
-      const response = await fetch('/api/emergency/validate-compliance', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ floor_id: floorplanId })
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setComplianceChecks(data.checks || [])
-      }
-    } catch (error) {
-      console.error('Error validating compliance:', error)
-      toast.error('Failed to validate compliance')
-    } finally {
-      setValidating(false)
     }
   }, [getToken])
 
@@ -264,7 +270,7 @@ export const EmergencyRouteConfigPage: React.FC = () => {
       {/* Header */}
       <div className="flex items-center space-x-4">
         <button
-          onClick={() => navigate('/floorplans')}
+          onClick={() => onNavigateBack?.()}
           className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />

@@ -1,24 +1,22 @@
 import React from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
 import { LogOut } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import Floorplans from '../components/Floorplans'
 
-export const FloorplansPage: React.FC = () => {
+interface FloorplansPageProps {
+  onTabChange?: (tab: string) => void
+  venueId?: string
+}
+
+export const FloorplansPage: React.FC<FloorplansPageProps> = ({ onTabChange, venueId }) => {
   const { user, signOut } = useAuth()
-  const navigate = useNavigate()
-  const { venueId } = useParams<{ venueId: string }>()
 
   const handleSignOut = async () => {
     await signOut()
   }
 
   const handleBack = () => {
-    if (venueId) {
-      navigate('/venues')
-    } else {
-      navigate('/')
-    }
+    onTabChange?.('venues')
   }
 
   return (

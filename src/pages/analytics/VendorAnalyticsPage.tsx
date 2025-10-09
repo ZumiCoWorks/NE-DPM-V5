@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+// Removed React Router dependencies
 import { ArrowLeft, RefreshCw, Users, TrendingUp, DollarSign, Eye, Download, Key, Shield } from 'lucide-react'
 import { toast } from 'sonner'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts'
@@ -53,9 +53,12 @@ interface VendorData {
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4']
 
-const VendorAnalyticsPage: React.FC = () => {
-  const { eventId } = useParams<{ eventId: string }>()
-  const navigate = useNavigate()
+interface VendorAnalyticsPageProps {
+  eventId?: string
+  onNavigateBack?: () => void
+}
+
+const VendorAnalyticsPage: React.FC<VendorAnalyticsPageProps> = ({ eventId, onNavigateBack }) => {
   const [vendorData, setVendorData] = useState<VendorData | null>(null)
   const [selectedVendor, setSelectedVendor] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -71,7 +74,7 @@ const VendorAnalyticsPage: React.FC = () => {
     try {
       const token = localStorage.getItem('token')
       if (!token) {
-        navigate('/auth')
+        onNavigateBack?.()
         return
       }
 
@@ -304,7 +307,7 @@ const VendorAnalyticsPage: React.FC = () => {
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-4">
               <button
-                onClick={() => navigate('/dashboard')}
+                onClick={() => onNavigateBack?.()}
                 className="flex items-center text-gray-600 hover:text-gray-900"
               >
                 <ArrowLeft className="h-5 w-5 mr-2" />

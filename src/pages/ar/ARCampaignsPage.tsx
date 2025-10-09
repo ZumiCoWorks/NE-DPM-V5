@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { Link } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import {
   Plus,
@@ -210,13 +209,13 @@ export const ARCampaignsPage: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-900">AR Campaigns</h1>
           <p className="text-sm text-gray-500">Manage your augmented reality advertising campaigns with geographical targeting</p>
         </div>
-        <Link
-          to="/ar-campaigns/create"
+        <button
+          onClick={() => console.log('Navigate to create campaign')}
           className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
         >
           <Plus className="h-4 w-4 mr-2" />
           Create Campaign
-        </Link>
+        </button>
       </div>
 
       {/* Stats Cards */}
@@ -349,13 +348,13 @@ export const ARCampaignsPage: React.FC = () => {
             </p>
             {campaigns.length === 0 && (
               <div className="mt-6">
-                <Link
-                  to="/ar-campaigns/create"
+                <button
+                  onClick={() => console.log('Navigate to create campaign')}
                   className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Create Your First Campaign
-                </Link>
+                </button>
               </div>
             )}
           </div>
@@ -428,13 +427,13 @@ export const ARCampaignsPage: React.FC = () => {
                             <><Play className="h-4 w-4 mr-1" /> Activate</>
                           )}
                         </button>
-                        <Link
-                          to={`/ar-campaigns/${campaign.id}/edit`}
+                        <button
+                          onClick={() => console.log(`Edit campaign ${campaign.id}`)}
                           className="inline-flex items-center px-3 py-1 border border-gray-300 text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
                         >
                           <Edit className="h-4 w-4 mr-1" />
                           Edit
-                        </Link>
+                        </button>
                         <button
                           onClick={() => deleteCampaign(campaign.id)}
                           className="inline-flex items-center px-3 py-1 border border-transparent text-sm leading-4 font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200"

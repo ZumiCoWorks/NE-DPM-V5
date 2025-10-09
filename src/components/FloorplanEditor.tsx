@@ -389,35 +389,7 @@ export default function FloorplanEditor({ floorplanId, onSave }: FloorplanEditor
     toast.success('POI added successfully')
   }, [newPOIPosition, selectedPOIType])
 
-  // Finish drawing emergency path
-  const finishEmergencyPath = useCallback(() => {
-    if (pathPoints.length < 2) {
-      toast.error('Emergency path must have at least 2 points')
-      return
-    }
-    
-    const newPath: EmergencyPath = {
-      id: Date.now().toString(),
-      name: `Emergency Path ${emergencyPaths.length + 1}`,
-      points: pathPoints,
-      fromPOI: '',
-      toPOI: '',
-      isCompliant: false, // Default to non-compliant until validated
-      safetyFeatures: {
-        widthMeters: 1.2, // Default minimum width
-        emergencyLighting: false,
-        accessibilityCompliant: false
-      }
-    }
-    
-    setEmergencyPaths(prev => [...prev, newPath])
-    setIsDrawingPath(false)
-    setPathPoints([])
-    toast.success('Emergency path created successfully')
-    
-    // Trigger compliance check
-    validateCompliance()
-  }, [pathPoints, emergencyPaths.length, validateCompliance])
+
 
   // Validate compliance
   const validateCompliance = useCallback(() => {
@@ -465,6 +437,38 @@ export default function FloorplanEditor({ floorplanId, onSave }: FloorplanEditor
       toast.warning(`${issues.length} compliance issues found`)
     }
   }, [pois, emergencyPaths])
+
+  // Finish drawing emergency path
+  const finishEmergencyPath = useCallback(() => {
+    if (pathPoints.length < 2) {
+      toast.error('Emergency path must have at least 2 points')
+      return
+    }
+    
+    const newPath: EmergencyPath = {
+      id: Date.now().toString(),
+      name: `Emergency Path ${emergencyPaths.length + 1}`,
+      points: pathPoints,
+      fromPOI: '',
+      toPOI: '',
+      isCompliant: false, // Default to non-compliant until validated
+      safetyFeatures: {
+        widthMeters: 1.2, // Default minimum width
+        emergencyLighting: false,
+        accessibilityCompliant: false
+      }
+    }
+    
+    setEmergencyPaths(prev => [...prev, newPath])
+    setIsDrawingPath(false)
+    setPathPoints([])
+    toast.success('Emergency path created successfully')
+    
+    // Trigger compliance check
+    validateCompliance()
+  }, [pathPoints, emergencyPaths.length, validateCompliance])
+
+
   
   // Save floorplan data
   const handleSave = useCallback(() => {

@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { ArrowLeft, Upload, MapPin, Zap, Globe, Shield, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
@@ -41,8 +40,11 @@ interface FormData {
   priority: number
 }
 
-export const CreateARCampaignPage: React.FC = () => {
-  const navigate = useNavigate()
+interface CreateARCampaignPageProps {
+  onTabChange?: (tab: string) => void
+}
+
+export const CreateARCampaignPage: React.FC<CreateARCampaignPageProps> = ({ onTabChange }) => {
   const { getToken } = useAuth()
   const [loading, setLoading] = useState(false)
   const [venues, setVenues] = useState<Venue[]>([])
@@ -299,7 +301,7 @@ export const CreateARCampaignPage: React.FC = () => {
       
       const result = await response.json()
       toast.success('AR Campaign created successfully!')
-      navigate('/ar-campaigns')
+      onTabChange?.('ar-campaigns')
       
     } catch (error) {
       console.error('Error creating campaign:', error)
@@ -314,7 +316,7 @@ export const CreateARCampaignPage: React.FC = () => {
       {/* Header */}
       <div className="flex items-center space-x-4">
         <button
-          onClick={() => navigate('/ar-campaigns')}
+          onClick={() => onTabChange?.('ar-campaigns')}
           className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
@@ -692,7 +694,7 @@ export const CreateARCampaignPage: React.FC = () => {
           <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
             <button
               type="button"
-              onClick={() => navigate('/ar-campaigns')}
+              onClick={() => onTabChange?.('ar-campaigns')}
               className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
             >
               Cancel

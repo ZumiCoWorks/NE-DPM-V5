@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+// Removed React Router dependencies
 import { ArrowLeft, RefreshCw, TrendingUp, Clock, Users, BarChart3, Download } from 'lucide-react'
 import { toast } from 'sonner'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts'
@@ -48,9 +48,12 @@ interface EngagementReport {
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4']
 
-const EngagementVelocityPage: React.FC = () => {
-  const { eventId } = useParams<{ eventId: string }>()
-  const navigate = useNavigate()
+interface EngagementVelocityPageProps {
+  eventId?: string
+  onNavigateBack?: () => void
+}
+
+const EngagementVelocityPage: React.FC<EngagementVelocityPageProps> = ({ eventId, onNavigateBack }) => {
   const [reportData, setReportData] = useState<EngagementReport | null>(null)
   const [loading, setLoading] = useState(true)
   const [timeRange, setTimeRange] = useState('24h')
@@ -61,7 +64,7 @@ const EngagementVelocityPage: React.FC = () => {
     try {
       const token = localStorage.getItem('token')
       if (!token) {
-        navigate('/auth')
+        onNavigateBack?.()
         return
       }
 
@@ -175,7 +178,7 @@ const EngagementVelocityPage: React.FC = () => {
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-4">
               <button
-                onClick={() => navigate('/dashboard')}
+                onClick={() => onNavigateBack?.()}
                 className="flex items-center text-gray-600 hover:text-gray-900"
               >
                 <ArrowLeft className="h-5 w-5 mr-2" />
@@ -354,7 +357,7 @@ const EngagementVelocityPage: React.FC = () => {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  label={(props: any) => `${props.name || ''} ${((props.percent || 0) * 100).toFixed(0)}%`}
                   outerRadius={80}
                   fill="#8884d8"
                   dataKey="value"

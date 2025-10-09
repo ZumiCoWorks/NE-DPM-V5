@@ -15,3 +15,5 @@ P-4	Focus on Data Contracts	Prioritize stable backend API routes and PostgreSQL 
 P-5	Reuse Only Necessary Code	When integrating your previous codebase, only lift code for direct functionality (e.g., a login handler, a simple CRUD function). Do not port any large, complex, or unused modules (e.g., old payment processing, complex logging middleware).
 P-6	Functional UI Over Polish	The Organizer DPM portal must be highly functional and intuitive (easy to place nodes and zones), but we will accept a clean, simple Tailwind UI over time-consuming visual polish. Aesthetics are secondary to function.
 P-7	Single App, No Microservices	All backend logic (Auth, Event, Floorplan, AR) will reside in a single Node/Express application. Do not introduce microservices—this adds complexity we cannot afford in the MVP.
+
+Help me build this in managable bits (but keep in context that i really need this functional ASAP)

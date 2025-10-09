@@ -38,15 +38,6 @@ export default function Floorplans({ venueId, onBack }: FloorplansProps) {
     image_url: ''
   })
 
-  // Fetch venue details and floorplans
-  useEffect(() => {
-    if (venueId) {
-      fetchVenueAndFloorplans()
-    } else {
-      setLoading(false)
-    }
-  }, [venueId, fetchVenueAndFloorplans])
-
   const fetchVenueAndFloorplans = useCallback(async () => {
     try {
       setLoading(true)
@@ -93,6 +84,15 @@ export default function Floorplans({ venueId, onBack }: FloorplansProps) {
       setLoading(false)
     }
   }, [venueId])
+
+  // Fetch venue details and floorplans
+  useEffect(() => {
+    if (venueId) {
+      fetchVenueAndFloorplans()
+    } else {
+      setLoading(false)
+    }
+  }, [venueId, fetchVenueAndFloorplans])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

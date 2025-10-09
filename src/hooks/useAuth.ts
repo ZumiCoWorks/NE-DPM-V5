@@ -70,57 +70,40 @@ export const useAuth = () => {
   }, [])
 
   const fetchUserProfile = async (userId: string): Promise<User> => {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle()
+    // In mock mode, simulate authentication
+    const mockProfile = {
+      id: 'profile-1',
+      user_id: 'mock-user-id',
+      email: 'demo@naveaze.com',
+      full_name: 'Demo User',
+      role: 'organizer',
+      organization: 'NavEaze Demo',
+      created_at: '2024-01-01T00:00:00Z',
+      updated_at: '2024-01-01T00:00:00Z'
+    };
 
-    if (error) {
-      throw new Error(`Failed to fetch user profile: ${error.message}`)
-    }
-
-    if (!data) {
-      throw new Error('User profile not found')
-    }
-
-    return data
+    return mockProfile as User;
   }
 
   const signUp = async (email: string, password: string, fullName: string, organization?: string) => {
     setAuthState(prev => ({ ...prev, loading: true, error: null }))
     
     try {
-      // First, create the auth user
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      // Simulate sign up delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Mock successful sign up
+      const mockUser = {
+        id: 'mock-user-id',
         email,
-        password
-      })
-
-      if (authError) {
-        throw new Error(authError.message)
-      }
-
-      if (!authData.user) {
-        throw new Error('Failed to create user')
-      }
-
-      // Then create the user profile
-      const { error: profileError } = await supabase
-        .from('users')
-        .insert({
-          id: authData.user.id,
-          email,
-          full_name: fullName,
-          organization,
-          role: 'organizer'
-        })
-
-      if (profileError) {
-        throw new Error(`Failed to create user profile: ${profileError.message}`)
-      }
-
-      // The auth state will be updated by the onAuthStateChange listener
+        full_name: fullName,
+        role: 'organizer',
+        organization: organization || '',
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z'
+      };
+      
+      setAuthState({ user: mockUser as User, loading: false, error: null });
       return { success: true }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Sign up failed'
@@ -133,16 +116,21 @@ export const useAuth = () => {
     setAuthState(prev => ({ ...prev, loading: true, error: null }))
     
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      })
-
-      if (error) {
-        throw new Error(error.message)
-      }
-
-      // The auth state will be updated by the onAuthStateChange listener
+      // Simulate sign in delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Mock successful sign in - simulate auth state change
+      const mockUser = {
+        id: 'mock-user-id',
+        email: 'demo@naveaze.com',
+        full_name: 'Demo User',
+        role: 'organizer',
+        organization: 'NavEaze Demo',
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z'
+      };
+      
+      setAuthState({ user: mockUser as User, loading: false, error: null });
       return { success: true }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Sign in failed'
@@ -155,10 +143,8 @@ export const useAuth = () => {
     setAuthState(prev => ({ ...prev, loading: true, error: null }))
     
     try {
-      const { error } = await supabase.auth.signOut()
-      if (error) {
-        throw new Error(error.message)
-      }
+      // Simulate sign out delay
+      await new Promise(resolve => setTimeout(resolve, 300));
       
       setAuthState({ user: null, loading: false, error: null })
       return { success: true }

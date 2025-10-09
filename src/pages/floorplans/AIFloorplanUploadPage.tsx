@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+// Removed React Router dependencies
 import { useAuth } from '../../hooks/useAuth'
 import { ArrowLeft, Upload, Brain, MapPin, Shield, AlertTriangle, CheckCircle, XCircle, Zap } from 'lucide-react'
 import { toast } from 'sonner'
@@ -45,8 +45,11 @@ interface FormData {
   scale_factor: number
 }
 
-export const AIFloorplanUploadPage: React.FC = () => {
-  const navigate = useNavigate()
+interface AIFloorplanUploadPageProps {
+  onNavigateBack?: () => void
+}
+
+export const AIFloorplanUploadPage: React.FC<AIFloorplanUploadPageProps> = ({ onNavigateBack }) => {
   const { getToken } = useAuth()
   const [loading, setLoading] = useState(false)
   const [venues, setVenues] = useState<Venue[]>([])
@@ -278,7 +281,7 @@ export const AIFloorplanUploadPage: React.FC = () => {
       
       const result = await response.json()
       toast.success('Floorplan created successfully!')
-      navigate(`/floorplans/${result.floorplan.id}`)
+      onNavigateBack?.()
       
     } catch (error) {
       console.error('Error creating floorplan:', error)
@@ -293,7 +296,7 @@ export const AIFloorplanUploadPage: React.FC = () => {
       {/* Header */}
       <div className="flex items-center space-x-4">
         <button
-          onClick={() => navigate('/floorplans')}
+          onClick={() => onNavigateBack?.()}
           className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
@@ -597,7 +600,7 @@ export const AIFloorplanUploadPage: React.FC = () => {
           <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
             <button
               type="button"
-              onClick={() => navigate('/floorplans')}
+              onClick={() => onNavigateBack?.()}
               className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
             >
               Cancel

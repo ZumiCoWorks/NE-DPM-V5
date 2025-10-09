@@ -332,7 +332,7 @@ router.put('/bottlenecks/:alertId/resolve', authenticateUser, async (req: Authen
       .eq('id', alertId)
       .single()
 
-    if (alertError || !alert || alert.events.organizer_id !== req.user.id) {
+    if (alertError || !alert || (alert as any).events.organizer_id !== req.user.id) {
       return res.status(404).json({ error: 'Alert not found or access denied' })
     }
 

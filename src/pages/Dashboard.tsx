@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../hooks/useAuth'
-import { useNavigate } from 'react-router-dom'
 import { LogOut, Building, Calendar, Map, Zap, Plus, ArrowRight, Shield, Brain, Code, Smartphone, Upload, BarChart3, TrendingUp, AlertTriangle, Users } from 'lucide-react'
 import { eventsApi, venuesApi } from '../services/api'
 import type { Event, Venue } from '../services/api'
 
-export const Dashboard: React.FC = () => {
+interface DashboardProps {
+  onTabChange?: (tab: TabType) => void
+}
+
+type TabType = 'dashboard' | 'events' | 'venues' | 'floorplans' | 'ar' | 'emergency' | 'api' | 'mobile'
+
+export const Dashboard: React.FC<DashboardProps> = ({ onTabChange }) => {
   const { user, signOut } = useAuth()
-  const navigate = useNavigate()
   const [events, setEvents] = useState<Event[]>([])
   const [venues, setVenues] = useState<Venue[]>([])
   const [loading, setLoading] = useState(true)
@@ -126,7 +130,7 @@ export const Dashboard: React.FC = () => {
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-xl font-semibold text-gray-900">Recent Events</h3>
             <button
-              onClick={() => navigate('/events')}
+              onClick={() => onTabChange?.('events')}
               className="flex items-center text-blue-600 hover:text-blue-700 font-medium"
             >
               View All
@@ -142,7 +146,7 @@ export const Dashboard: React.FC = () => {
                 <h4 className="text-lg font-medium text-gray-900 mb-2">No events yet</h4>
                 <p className="text-gray-600 mb-4">Create your first event to get started</p>
                 <button
-                  onClick={() => navigate('/events')}
+                  onClick={() => onTabChange?.('events')}
                   className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
                 >
                   <Plus size={16} className="mr-2" />
@@ -172,7 +176,7 @@ export const Dashboard: React.FC = () => {
                           </div>
                         </div>
                         <button
-                          onClick={() => navigate('/events')}
+                          onClick={() => onTabChange?.('events')}
                           className="ml-4 text-blue-600 hover:text-blue-700 font-medium"
                         >
                           Edit
@@ -197,7 +201,7 @@ export const Dashboard: React.FC = () => {
               Create and manage your event venues with detailed information and floorplans.
             </p>
             <button
-              onClick={() => navigate('/venues')}
+              onClick={() => onTabChange?.('venues')}
               className="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
             >
               Manage Venues
@@ -213,7 +217,7 @@ export const Dashboard: React.FC = () => {
               Set up events, configure navigation paths, and manage emergency routes.
             </p>
             <button
-              onClick={() => navigate('/events')}
+              onClick={() => onTabChange?.('events')}
               className="w-full bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors"
             >
               Plan Events
@@ -229,7 +233,7 @@ export const Dashboard: React.FC = () => {
               Create and manage AR campaigns with geographical zones and asset uploads.
             </p>
             <button
-              onClick={() => navigate('/ar-campaigns')}
+              onClick={() => onTabChange?.('ar')}
               className="w-full bg-orange-600 text-white px-4 py-2 rounded-md hover:bg-orange-700 transition-colors"
             >
               Manage AR Campaigns
@@ -245,7 +249,7 @@ export const Dashboard: React.FC = () => {
               Upload floorplans with AI-powered POI suggestions and compliance validation.
             </p>
             <button
-              onClick={() => navigate('/ai-floorplan-upload')}
+              onClick={() => onTabChange?.('floorplans')}
               className="w-full bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors"
             >
               Upload with AI
@@ -261,7 +265,7 @@ export const Dashboard: React.FC = () => {
               Configure emergency routes with safety compliance indicators and validation.
             </p>
             <button
-              onClick={() => navigate('/emergency-routes')}
+              onClick={() => onTabChange?.('emergency')}
               className="w-full bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors"
             >
               Configure Safety
@@ -277,7 +281,7 @@ export const Dashboard: React.FC = () => {
               Access comprehensive API documentation for third-party SDK integration.
             </p>
             <button
-              onClick={() => navigate('/api-documentation')}
+              onClick={() => onTabChange?.('api')}
               className="w-full bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors"
             >
               View API Docs
@@ -298,10 +302,7 @@ export const Dashboard: React.FC = () => {
                 Visualize visitor movement patterns and zone popularity in real-time.
               </p>
               <button
-                onClick={() => {
-                  const eventId = events[0]?.id || 'demo'
-                  navigate(`/analytics/heatmap/${eventId}`)
-                }}
+                onClick={() => onTabChange?.('api')}
                 className="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
               >
                 View Heatmap
@@ -317,10 +318,7 @@ export const Dashboard: React.FC = () => {
                 Track visitor engagement velocity and zone performance metrics.
               </p>
               <button
-                onClick={() => {
-                  const eventId = events[0]?.id || 'demo'
-                  navigate(`/analytics/engagement/${eventId}`)
-                }}
+                onClick={() => onTabChange?.('api')}
                 className="w-full bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors"
               >
                 View Reports
@@ -336,10 +334,7 @@ export const Dashboard: React.FC = () => {
                 Monitor crowd density and receive automated bottleneck alerts.
               </p>
               <button
-                onClick={() => {
-                  const eventId = events[0]?.id || 'demo'
-                  navigate(`/analytics/bottlenecks/${eventId}`)
-                }}
+                onClick={() => onTabChange?.('api')}
                 className="w-full bg-orange-600 text-white px-4 py-2 rounded-md hover:bg-orange-700 transition-colors"
               >
                 View Alerts
@@ -355,7 +350,7 @@ export const Dashboard: React.FC = () => {
                 Manage vendor access and provide data monetization services.
               </p>
               <button
-                onClick={() => navigate('/analytics/vendors')}
+                onClick={() => onTabChange?.('api')}
                 className="w-full bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors"
               >
                 Manage Vendors
@@ -377,7 +372,7 @@ export const Dashboard: React.FC = () => {
                 Test and preview mobile SDK functionality with real-time data visualization and performance monitoring.
               </p>
               <button
-                onClick={() => navigate('/mobile-sdk-preview')}
+                onClick={() => onTabChange?.('mobile')}
                 className="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
               >
                 Launch SDK Preview
@@ -394,13 +389,13 @@ export const Dashboard: React.FC = () => {
               </p>
               <div className="flex space-x-2">
                 <button
-                  onClick={() => navigate('/ai-floorplan-upload')}
+                  onClick={() => onTabChange?.('floorplans')}
                   className="flex-1 bg-green-600 text-white px-3 py-2 rounded-md hover:bg-green-700 transition-colors text-sm"
                 >
                   AI Upload
                 </button>
                 <button
-                  onClick={() => navigate('/emergency-routes')}
+                  onClick={() => onTabChange?.('emergency')}
                   className="flex-1 bg-red-600 text-white px-3 py-2 rounded-md hover:bg-red-700 transition-colors text-sm"
                 >
                   Safety Check

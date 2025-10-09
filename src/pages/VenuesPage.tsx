@@ -1,19 +1,22 @@
 import React from 'react'
-import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, LogOut } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import Venues from '../components/Venues'
 
-export const VenuesPage: React.FC = () => {
+interface VenuesPageProps {
+  onTabChange?: (tab: string) => void
+}
+
+export const VenuesPage: React.FC<VenuesPageProps> = ({ onTabChange }) => {
   const { user, signOut } = useAuth()
-  const navigate = useNavigate()
 
   const handleSignOut = async () => {
     await signOut()
   }
 
   const handleVenueFloorplans = (venueId: string) => {
-    navigate(`/venues/${venueId}/floorplans`)
+    // Navigate to floorplans tab with venue context
+    onTabChange?.('floorplans')
   }
 
   return (
@@ -24,7 +27,7 @@ export const VenuesPage: React.FC = () => {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-4">
               <button
-                onClick={() => navigate('/')}
+                onClick={() => onTabChange?.('dashboard')}
                 className="flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-colors"
               >
                 <ArrowLeft className="w-4 h-4" />

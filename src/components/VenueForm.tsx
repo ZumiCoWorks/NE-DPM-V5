@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { ArrowLeft, Building, MapPin, FileText, Users, Tag } from 'lucide-react'
+import { ArrowLeft, Building, MapPin, FileText, Users, Tag, Phone } from 'lucide-react'
 import { Venue, ContactInfo } from '../services/api'
 
 interface VenueFormProps {
@@ -40,12 +40,12 @@ export const VenueForm: React.FC<VenueFormProps> = ({
         state: venue.state || '',
         zip_code: venue.zip_code || '',
         country: venue.country || '',
-        contact_info: venue.contact_info || {
-          phone: '',
-          email: '',
-          website: '',
-          manager_name: '',
-          emergency_contact: ''
+        contact_info: {
+          phone: venue.contact_info?.phone || '',
+          email: venue.contact_info?.email || '',
+          website: venue.contact_info?.website || '',
+          manager_name: venue.contact_info?.manager_name || '',
+          emergency_contact: venue.contact_info?.emergency_contact || ''
         }
       })
     }

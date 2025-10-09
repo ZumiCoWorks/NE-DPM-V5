@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+// Removed React Router dependencies
 import { ArrowLeft, RefreshCw, AlertTriangle, CheckCircle, Clock, Users, MapPin, Filter } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -33,9 +33,15 @@ interface BottleneckData {
   lastUpdated: string
 }
 
-const BottleneckAlertPage: React.FC = () => {
-  const { eventId } = useParams<{ eventId: string }>()
-  const navigate = useNavigate()
+interface BottleneckAlertPageProps {
+  eventId?: string
+  onNavigateBack?: () => void
+}
+
+const BottleneckAlertPage: React.FC<BottleneckAlertPageProps> = ({ 
+  eventId,
+  onNavigateBack 
+}) => {
   const [alertData, setAlertData] = useState<BottleneckData | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectedSeverity, setSelectedSeverity] = useState<string>('all')
@@ -47,7 +53,7 @@ const BottleneckAlertPage: React.FC = () => {
     try {
       const token = localStorage.getItem('token')
       if (!token) {
-        navigate('/auth')
+        onNavigateBack?.()
         return
       }
 
@@ -225,7 +231,7 @@ const BottleneckAlertPage: React.FC = () => {
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-4">
               <button
-                onClick={() => navigate('/dashboard')}
+                onClick={() => onNavigateBack?.()}
                 className="flex items-center text-gray-600 hover:text-gray-900"
               >
                 <ArrowLeft className="h-5 w-5 mr-2" />
