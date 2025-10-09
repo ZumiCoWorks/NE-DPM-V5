@@ -5,15 +5,16 @@ import { Dashboard } from './pages/Dashboard'
 import { EventsPage } from './pages/EventsPage'
 import { VenuesPage } from './pages/VenuesPage'
 import { FloorplansPage } from './pages/FloorplansPage'
+import { CDVPage } from './pages/CDVPage'
 import { ARCampaignsPage } from './pages/ar/ARCampaignsPage'
 import { EmergencyRouteConfigPage } from './pages/emergency/EmergencyRouteConfigPage'
 import { APIDocumentationPage } from './pages/api/APIDocumentationPage'
 import MobileSDKPreviewPage from './pages/mobile/MobileSDKPreviewPage'
 import { OnboardingFlow } from './components/OnboardingFlow'
-import { Building, Calendar, Map, Zap, Shield, Code, Smartphone, LogOut } from 'lucide-react'
+import { Building, Calendar, Map, Zap, Shield, Code, Smartphone, LogOut, Brain } from 'lucide-react'
 import './index.css'
 
-type TabType = 'dashboard' | 'events' | 'venues' | 'floorplans' | 'ar' | 'emergency' | 'api' | 'mobile'
+type TabType = 'dashboard' | 'events' | 'venues' | 'floorplans' | 'cdv' | 'ar' | 'emergency' | 'api' | 'mobile'
 
 function App() {
   const { user, loading, signOut } = useAuth()
@@ -44,6 +45,7 @@ function App() {
     { id: 'events' as TabType, label: 'Events', icon: Calendar },
     { id: 'venues' as TabType, label: 'Venues', icon: Building },
     { id: 'floorplans' as TabType, label: 'Floorplans', icon: Map },
+    { id: 'cdv' as TabType, label: 'CDV Intelligence', icon: Brain },
     { id: 'ar' as TabType, label: 'AR Campaigns', icon: Zap },
     { id: 'emergency' as TabType, label: 'Emergency', icon: Shield },
     { id: 'api' as TabType, label: 'API Docs', icon: Code },
@@ -60,6 +62,8 @@ function App() {
         return <VenuesPage />
       case 'floorplans':
         return <FloorplansPage />
+      case 'cdv':
+        return <CDVPage />
       case 'ar':
         return <ARCampaignsPage />
       case 'emergency':

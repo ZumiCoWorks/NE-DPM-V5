@@ -8,7 +8,7 @@ interface DashboardProps {
   onTabChange?: (tab: TabType) => void
 }
 
-type TabType = 'dashboard' | 'events' | 'venues' | 'floorplans' | 'ar' | 'emergency' | 'api' | 'mobile'
+type TabType = 'dashboard' | 'events' | 'venues' | 'floorplans' | 'cdv' | 'ar' | 'emergency' | 'api' | 'mobile'
 
 export const Dashboard: React.FC<DashboardProps> = ({ onTabChange }) => {
   const { user, signOut } = useAuth()

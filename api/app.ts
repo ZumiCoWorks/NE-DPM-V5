@@ -18,6 +18,7 @@ import floorplanRoutes from './routes/floorplans.js'
 import arCampaignRoutes from './routes/ar-campaigns.js'
 import mobileSdkRoutes from './routes/mobile-sdk.js'
 import analyticsRoutes from './routes/analytics.js'
+import cdvReportsRoutes from './routes/cdv-reports.js'
 
 
 // for esm mode
@@ -43,6 +44,7 @@ app.use('/api/floorplans', floorplanRoutes)
 app.use('/api/ar-campaigns', arCampaignRoutes)
 app.use('/api/sdk', mobileSdkRoutes)
 app.use('/api/analytics', analyticsRoutes)
+app.use('/api', cdvReportsRoutes)
 
 
 /**

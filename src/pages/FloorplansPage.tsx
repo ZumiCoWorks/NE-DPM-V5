@@ -1,7 +1,7 @@
 import React from 'react'
 import { LogOut } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
-import Floorplans from '../components/Floorplans'
+import { HVZFloorplanEditor } from '../components/HVZFloorplanEditor'
 
 interface FloorplansPageProps {
   onTabChange?: (tab: string) => void
@@ -45,10 +45,12 @@ export const FloorplansPage: React.FC<FloorplansPageProps> = ({ onTabChange, ven
       </header>
 
       {/* Main Content */}
-      <main className="h-[calc(100vh-4rem)]">
-        <Floorplans 
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <HVZFloorplanEditor 
           venueId={venueId} 
-          onBack={handleBack}
+          onSave={(floorplan) => {
+            console.log('Floorplan saved:', floorplan)
+          }}
         />
       </main>
     </div>
