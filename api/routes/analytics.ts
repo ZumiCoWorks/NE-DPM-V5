@@ -5,8 +5,11 @@ import { AuthenticatedRequest, authenticateUser } from '../middleware/auth.js'
 interface VendorRequest extends AuthenticatedRequest {
   vendor?: {
     id: string
+    name: string
     api_key: string
     is_active: boolean
+    subscription_tier: string
+    data_access_level: string
   }
 }
 
@@ -340,7 +343,7 @@ router.put('/bottlenecks/:alertId/resolve', authenticateUser, async (req: Authen
       .eq('id', alertId)
       .single()
 
-    if (alertError || !alert || (alert as { events: { organizer_id: string } }).events.organizer_id !== req.user.id) {
+    if (alertError || !alert || (alert as { events: { organizer_id: string }[] }).events[0]?.organizer_id !== req.user.id) {
       return res.status(404).json({ error: 'Alert not found or access denied' })
     }
 

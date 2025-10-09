@@ -54,7 +54,7 @@ export const useAuth = () => {
       async (event, session) => {
         if (session?.user) {
           try {
-            const userData = await fetchUserProfile()
+            const userData = await fetchUserProfile(session.user.id)
             setAuthState({ user: userData, loading: false, error: null })
           } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Failed to fetch user profile'
@@ -69,8 +69,9 @@ export const useAuth = () => {
     return () => subscription.unsubscribe()
   }, [])
 
-  const fetchUserProfile = async (): Promise<User> => {
+  const fetchUserProfile = async (userId: string): Promise<User> => {
     // In mock mode, simulate authentication
+    console.log('Fetching profile for user:', userId)
     const mockProfile = {
       id: 'profile-1',
       user_id: 'mock-user-id',
@@ -112,7 +113,7 @@ export const useAuth = () => {
     }
   }
 
-  const signIn = async () => {
+  const signIn = async (email: string, password: string) => {
     setAuthState(prev => ({ ...prev, loading: true, error: null }))
     
     try {
@@ -120,6 +121,8 @@ export const useAuth = () => {
       await new Promise(resolve => setTimeout(resolve, 500));
       
       // Mock successful sign in - simulate auth state change
+      // In production, this would validate credentials
+      console.log('Signing in with:', email, password)
       const mockUser = {
         id: 'mock-user-id',
         email: 'demo@naveaze.com',
