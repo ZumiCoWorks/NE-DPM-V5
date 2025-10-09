@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 // Removed React Router dependencies
-import { ArrowLeft, RefreshCw, Users, Clock, TrendingUp, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, RefreshCw, Users, Clock, TrendingUp } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface HeatZone {
@@ -145,6 +145,7 @@ const RealTimeHeatmapPage: React.FC<RealTimeHeatmapPageProps> = ({ eventId, onNa
     })
 
     // Draw heat intensity
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     Object.entries(visitorsByZone).forEach(([zoneId, visitors]) => {
       if (visitors.length === 0) return
 
@@ -395,7 +396,8 @@ const RealTimeHeatmapPage: React.FC<RealTimeHeatmapPageProps> = ({ eventId, onNa
                 <h4 className="text-lg font-medium text-gray-900 mb-4">Zone Analytics</h4>
                 {(() => {
                   const stats = getZoneStats(selectedZone)
-                  const zone = heatmapData?.zones.find(z => z.id === selectedZone)
+                  // Future use for zone-specific metadata
+                  // const zone = heatmapData?.zones.find(z => z.id === selectedZone)
                   
                   return (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

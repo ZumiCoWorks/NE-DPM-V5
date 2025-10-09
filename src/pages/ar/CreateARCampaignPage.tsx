@@ -299,7 +299,7 @@ export const CreateARCampaignPage: React.FC<CreateARCampaignPageProps> = ({ onTa
         throw new Error(errorData.message || 'Failed to create campaign')
       }
       
-      const result = await response.json()
+      // const result = await response.json() // Future use for response data
       toast.success('AR Campaign created successfully!')
       onTabChange?.('ar-campaigns')
       

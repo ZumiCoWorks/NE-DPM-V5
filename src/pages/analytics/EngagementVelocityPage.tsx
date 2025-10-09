@@ -2,17 +2,18 @@ import React, { useState, useEffect } from 'react'
 // Removed React Router dependencies
 import { ArrowLeft, RefreshCw, TrendingUp, Clock, Users, BarChart3, Download } from 'lucide-react'
 import { toast } from 'sonner'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 
-interface EngagementMetric {
-  id: string
-  event_id: string
-  zone_id: string
-  metric_type: string
-  value: number
-  timestamp: string
-  zone_name?: string
-}
+// Future use for granular engagement tracking
+// interface EngagementMetric {
+//   id: string
+//   event_id: string
+//   zone_id: string
+//   metric_type: string
+//   value: number
+//   timestamp: string
+//   zone_name?: string
+// }
 
 interface VelocityData {
   timestamp: string

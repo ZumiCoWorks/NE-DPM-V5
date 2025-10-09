@@ -212,7 +212,7 @@ export default function Floorplans({ venueId, onBack }: FloorplansProps) {
     setShowEditor(true)
   }
 
-  const handleEditorSave = async (data: any) => {
+  const handleEditorSave = async (data: { pois: unknown[]; zones: unknown[]; emergencyPaths: unknown[] }) => {
     // Here you would save the floorplan data (POIs, zones, emergency paths)
     // to your backend API
     console.log('Saving floorplan data:', data)

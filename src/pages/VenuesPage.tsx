@@ -14,6 +14,7 @@ export const VenuesPage: React.FC<VenuesPageProps> = ({ onTabChange }) => {
     await signOut()
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleVenueFloorplans = (venueId: string) => {
     // Navigate to floorplans tab with venue context
     onTabChange?.('floorplans')
