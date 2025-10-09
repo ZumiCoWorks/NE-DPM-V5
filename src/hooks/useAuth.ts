@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { User as SupabaseUser } from '@supabase/supabase-js'
 import { supabase, User } from '../lib/supabase'
 
 export interface AuthState {
@@ -42,7 +41,8 @@ export const useAuth = () => {
         } else {
           setAuthState({ user: null, loading: false, error: null })
         }
-      } catch (err) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (_err) {
         setAuthState({ user: null, loading: false, error: 'Failed to get session' })
       }
     }
@@ -54,7 +54,7 @@ export const useAuth = () => {
       async (event, session) => {
         if (session?.user) {
           try {
-            const userData = await fetchUserProfile(session.user.id)
+            const userData = await fetchUserProfile()
             setAuthState({ user: userData, loading: false, error: null })
           } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Failed to fetch user profile'
@@ -69,7 +69,7 @@ export const useAuth = () => {
     return () => subscription.unsubscribe()
   }, [])
 
-  const fetchUserProfile = async (userId: string): Promise<User> => {
+  const fetchUserProfile = async (): Promise<User> => {
     // In mock mode, simulate authentication
     const mockProfile = {
       id: 'profile-1',
@@ -112,7 +112,7 @@ export const useAuth = () => {
     }
   }
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = async () => {
     setAuthState(prev => ({ ...prev, loading: true, error: null }))
     
     try {

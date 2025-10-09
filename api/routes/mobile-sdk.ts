@@ -1,6 +1,6 @@
 import { Router, Response, Request, NextFunction } from 'express'
 import { supabase } from '../lib/supabase.js'
-import { authenticateUser, AuthenticatedRequest } from '../middleware/auth.js'
+import { AuthenticatedRequest } from '../middleware/auth.js'
 
 const router = Router()
 
@@ -99,7 +99,7 @@ interface CampaignData {
 }
 
 // Helper function for time-based filtering
-const isWithinTimeWindow = (timeConditions: any): boolean => {
+const isWithinTimeWindow = (timeConditions: { start?: string; end?: string } | null | undefined): boolean => {
   if (!timeConditions) return true
   const now = new Date()
   const start = timeConditions.start ? new Date(timeConditions.start) : null
@@ -143,7 +143,7 @@ const authenticateApiKey = async (req: ApiKeyRequest, res: Response, next: NextF
 router.get('/venues/:venue_id/map-data', authenticateApiKey, async (req: ApiKeyRequest, res: Response) => {
   try {
     const { venue_id } = req.params
-    const { bandwidth = 'auto', format = 'optimized' } = req.query
+    const { bandwidth = 'auto' } = req.query
 
     // Get venue with floorplans and navigation data
     const { data: venue, error: venueError } = await supabase
@@ -165,7 +165,7 @@ router.get('/venues/:venue_id/map-data', authenticateApiKey, async (req: ApiKeyR
       .single()
 
     // Get additional floorplan data
-    const { data: floorplans, error: floorplanError } = await supabase
+    const { data: floorplans } = await supabase
       .from('floorplans')
       .select(`
         id,
@@ -175,7 +175,7 @@ router.get('/venues/:venue_id/map-data', authenticateApiKey, async (req: ApiKeyR
         navigation_nodes(*),
         navigation_paths(*)
       `)
-      .eq('venue_id', venue_id) as { data: FloorplanData[] | null, error: any }
+      .eq('venue_id', venue_id) as { data: FloorplanData[] | null; error: unknown }
 
     if (venueError || !venue) {
       return res.status(404).json({ error: 'Venue not found' })
@@ -258,7 +258,7 @@ router.get('/campaigns/:campaign_id/ar-content', authenticateApiKey, async (req:
       .eq('id', campaign_id)
       .eq('organizer_id', req.user.id)
       .eq('is_active', true)
-      .single() as { data: CampaignData | null, error: any }
+      .single() as { data: CampaignData | null; error: unknown }
 
     if (error || !campaign) {
       return res.status(404).json({ error: 'AR campaign not found or inactive' })
@@ -375,7 +375,7 @@ router.get('/events/:event_id/emergency-info', authenticateApiKey, async (req: A
       `)
       .eq('id', event_id)
       .eq('organizer_id', req.user.id)
-      .single() as { data: EventData & { venue: VenueData & { floorplans?: FloorplanData[] } } | null, error: any }
+      .single() as { data: EventData & { venue: VenueData & { floorplans?: FloorplanData[] } } | null; error: unknown }
 
     if (error || !event) {
       return res.status(404).json({ error: 'Event not found' })

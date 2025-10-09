@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express'
-import { supabaseAdmin, getUserFromToken } from '../lib/supabase'
+import { getUserFromToken } from '../lib/supabase'
 
 export interface AuthenticatedRequest extends Request {
   user?: {
@@ -67,7 +67,8 @@ export const optionalAuth = async (
     }
     
     next()
-  } catch (error) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  } catch (_error) {
     // Continue without authentication for optional auth
     next()
   }

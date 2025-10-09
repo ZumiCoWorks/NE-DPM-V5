@@ -165,7 +165,7 @@ router.put('/:id', authenticateUser, async (req: AuthenticatedRequest, res: Resp
       address?: string
       description?: string
       capacity?: number
-      contact_info?: any
+      contact_info?: Record<string, unknown>
       updated_at?: string
     }
 

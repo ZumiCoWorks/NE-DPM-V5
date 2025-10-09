@@ -22,6 +22,9 @@ import analyticsRoutes from './routes/analytics.js'
 
 // for esm mode
 const __filename = fileURLToPath(import.meta.url)
+// const __dirname is available but not currently used in the file
+// Keeping it for future use when serving static files or other path operations
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const __dirname = path.dirname(__filename)
 
 // load env
@@ -50,7 +53,7 @@ app.use('/api/analytics', analyticsRoutes)
  */
 app.use(
   '/api/health',
-  (req: Request, res: Response, next: NextFunction): void => {
+  (req: Request, res: Response): void => {
     res.status(200).json({
       success: true,
       message: 'ok',
@@ -61,7 +64,8 @@ app.use(
 /**
  * error handler middleware
  */
-app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+app.use((error: Error, req: Request, res: Response, _next: NextFunction) => {
   res.status(500).json({
     success: false,
     error: 'Server internal error',

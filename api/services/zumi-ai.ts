@@ -1,6 +1,3 @@
-import { createReadStream } from 'fs'
-import { Readable } from 'stream'
-
 // Zumi AI Configuration
 interface ZumiAIConfig {
   apiKey: string
@@ -82,7 +79,7 @@ class ZumiAIService {
 
     try {
       // Validate file
-      this.validateFile(fileBuffer, filename)
+      this.validateFile(fileBuffer)
 
       // Default processing options
       const processingOptions = {
@@ -114,15 +111,15 @@ class ZumiAIService {
   /**
    * Analyze asset content using AI
    */
-  async analyzeAsset(fileBuffer: Buffer, filename: string): Promise<AIAnalysisResult> {
+  async analyzeAsset(fileBuffer: Buffer): Promise<AIAnalysisResult> {
     try {
-      this.validateFile(fileBuffer, filename)
+      this.validateFile(fileBuffer)
 
       // Simulate AI analysis (replace with actual Zumi AI API calls)
-      return this.simulateAIAnalysis(fileBuffer, filename)
+      return this.simulateAIAnalysis()
     } catch (error) {
       console.error('Asset analysis failed:', error)
-      throw new Error(`Asset analysis failed: ${error.message}`)
+      throw new Error(`Asset analysis failed: ${(error as Error).message}`)
     }
   }
 
@@ -145,7 +142,7 @@ class ZumiAIService {
   /**
    * Validate uploaded file
    */
-  private validateFile(fileBuffer: Buffer, filename: string): void {
+  private validateFile(fileBuffer: Buffer): void {
     if (!fileBuffer || fileBuffer.length === 0) {
       throw new Error('File buffer is empty')
     }
@@ -223,7 +220,7 @@ class ZumiAIService {
   /**
    * Simulate AI analysis (replace with actual Zumi AI API integration)
    */
-  private async simulateAIAnalysis(fileBuffer: Buffer, filename: string): Promise<AIAnalysisResult> {
+  private async simulateAIAnalysis(): Promise<AIAnalysisResult> {
     // Simulate analysis delay
     await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 1000))
 
@@ -264,13 +261,14 @@ class ZumiAIService {
     filename: string,
     bandwidth: 'low' | 'medium' | 'high'
   ): Promise<string> {
-    const compressionSettings = {
-      low: { quality: 60, maxWidth: 512 },
-      medium: { quality: 75, maxWidth: 768 },
-      high: { quality: 90, maxWidth: 1024 }
-    }
+    // Compression settings for future use when implementing actual compression
+    // const compressionSettings = {
+    //   low: { quality: 60, maxWidth: 512 },
+    //   medium: { quality: 75, maxWidth: 768 },
+    //   high: { quality: 90, maxWidth: 1024 }
+    // }
 
-    const settings = compressionSettings[bandwidth]
+    // const settings = compressionSettings[bandwidth]
     const assetId = this.generateAssetId()
     
     // Simulate processing
