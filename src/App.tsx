@@ -9,11 +9,12 @@ import { ARCampaignsPage } from './pages/ar/ARCampaignsPage'
 import { EmergencyRouteConfigPage } from './pages/emergency/EmergencyRouteConfigPage'
 import { APIDocumentationPage } from './pages/api/APIDocumentationPage'
 import MobileSDKPreviewPage from './pages/mobile/MobileSDKPreviewPage'
+import { CDVPage } from './pages/CDVPage'
 import { OnboardingFlow } from './components/OnboardingFlow'
-import { Building, Calendar, Map, Zap, Shield, Code, Smartphone, LogOut } from 'lucide-react'
+import { Building, Calendar, Map, Zap, Shield, Code, Smartphone, LogOut, Brain } from 'lucide-react'
 import './index.css'
 
-type TabType = 'dashboard' | 'events' | 'venues' | 'floorplans' | 'ar' | 'emergency' | 'api' | 'mobile'
+type TabType = 'dashboard' | 'events' | 'venues' | 'floorplans' | 'ar' | 'emergency' | 'api' | 'mobile' | 'cdv'
 
 function App() {
   const { user, loading, signOut } = useAuth()
@@ -46,6 +47,7 @@ function App() {
     { id: 'floorplans' as TabType, label: 'Floorplans', icon: Map },
     { id: 'ar' as TabType, label: 'AR Campaigns', icon: Zap },
     { id: 'emergency' as TabType, label: 'Emergency', icon: Shield },
+    { id: 'cdv' as TabType, label: 'CDV Intelligence', icon: Brain },
     { id: 'api' as TabType, label: 'API Docs', icon: Code },
     { id: 'mobile' as TabType, label: 'Mobile SDK', icon: Smartphone },
   ]
@@ -64,6 +66,8 @@ function App() {
         return <ARCampaignsPage />
       case 'emergency':
         return <EmergencyRouteConfigPage />
+      case 'cdv':
+        return <CDVPage />
       case 'api':
         return <APIDocumentationPage />
       case 'mobile':
