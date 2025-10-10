@@ -1,11 +1,22 @@
-import { Router, Response } from 'express'
+import { Router, Response, NextFunction } from 'express'
 import { supabaseAdmin } from '../lib/supabase.js'
 import { AuthenticatedRequest, authenticateUser } from '../middleware/auth.js'
+
+interface VendorRequest extends AuthenticatedRequest {
+  vendor?: {
+    id: string
+    name: string
+    api_key: string
+    is_active: boolean
+    subscription_tier: string
+    data_access_level: string
+  }
+}
 
 const router = Router()
 
 // Middleware to validate vendor API key for vendor-specific endpoints
-const authenticateVendor = async (req: any, res: Response, next: any) => {
+const authenticateVendor = async (req: VendorRequest, res: Response, next: NextFunction) => {
   try {
     const apiKey = req.headers['x-api-key'] || req.query.api_key
     
@@ -56,7 +67,7 @@ router.get('/heatmap/:eventId', authenticateUser, async (req: AuthenticatedReque
 
     // Calculate time range
     const now = new Date()
-    let startTime = new Date()
+    const startTime = new Date()
     
     switch (timeRange) {
       case '15m':
@@ -154,7 +165,7 @@ router.get('/engagement/:eventId', authenticateUser, async (req: AuthenticatedRe
 
     // Calculate time range for engagement metrics
     const now = new Date()
-    let startTime = new Date()
+    const startTime = new Date()
     
     switch (period) {
       case '1h':
@@ -282,7 +293,7 @@ router.get('/bottlenecks/:eventId', authenticateUser, async (req: AuthenticatedR
         .gte('timestamp', new Date(Date.now() - 5 * 60 * 1000).toISOString()) // Last 5 minutes
 
       if (!occupancyError && occupancyData) {
-        const occupancyCount = occupancyData.reduce((acc: any, item: any) => {
+        const occupancyCount = occupancyData.reduce((acc: Record<string, number>, item: { zone_id: string }) => {
           acc[item.zone_id] = (acc[item.zone_id] || 0) + 1
           return acc
         }, {})
@@ -332,7 +343,7 @@ router.put('/bottlenecks/:alertId/resolve', authenticateUser, async (req: Authen
       .eq('id', alertId)
       .single()
 
-    if (alertError || !alert || (alert as any).events.organizer_id !== req.user.id) {
+    if (alertError || !alert || (alert as { events: { organizer_id: string }[] }).events[0]?.organizer_id !== req.user.id) {
       return res.status(404).json({ error: 'Alert not found or access denied' })
     }
 
@@ -360,7 +371,7 @@ router.put('/bottlenecks/:alertId/resolve', authenticateUser, async (req: Authen
 })
 
 // Vendor-specific analytics endpoint
-router.get('/vendor/:vendorId/analytics', authenticateVendor, async (req: any, res: Response) => {
+router.get('/vendor/:vendorId/analytics', authenticateVendor, async (req: VendorRequest, res: Response) => {
   try {
     const { vendorId } = req.params
     const { eventId, startDate, endDate, dataType = 'aggregated' } = req.query
@@ -431,7 +442,7 @@ router.get('/vendor/:vendorId/analytics', authenticateVendor, async (req: any, r
         summary: {
           totalDataPoints: metrics.length,
           avgEngagement: metrics.length > 0 
-            ? metrics.reduce((sum: number, m: any) => sum + m.engagement_score, 0) / metrics.length 
+            ? metrics.reduce((sum: number, m: { engagement_score: number }) => sum + m.engagement_score, 0) / metrics.length 
             : 0
         }
       }

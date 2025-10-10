@@ -220,7 +220,7 @@ const BottleneckAlertPage: React.FC<BottleneckAlertPageProps> = ({
   }
 
   const filteredAlerts = alertData?.alerts || []
-  const activeAlerts = filteredAlerts.filter(alert => !alert.resolved_at)
+  // const activeAlerts = filteredAlerts.filter(alert => !alert.resolved_at) // Future use for filtering
   const criticalAlerts = filteredAlerts.filter(alert => alert.severity === 'critical' && !alert.resolved_at)
 
   return (

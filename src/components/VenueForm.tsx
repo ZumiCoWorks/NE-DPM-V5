@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { ArrowLeft, Building, MapPin, FileText, Users, Tag, Phone } from 'lucide-react'
-import { Venue, ContactInfo } from '../services/api'
+import { ArrowLeft, Building, MapPin, Phone } from 'lucide-react'
+import { Venue } from '../services/api'
 
 interface VenueFormProps {
   venue?: Venue | null

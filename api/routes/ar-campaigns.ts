@@ -357,7 +357,7 @@ router.post('/:id/assets', upload.array('assets', 10), async (req: Authenticated
           processedAsset = await zumiAI.processAsset(file.buffer, file.originalname, processingOptions)
           
           // Analyze asset content
-          aiAnalysis = await zumiAI.analyzeAsset(file.buffer, file.originalname)
+          aiAnalysis = await zumiAI.analyzeAsset(file.buffer)
           
           aiProcessingMetadata = {
             original_size: file.size,
@@ -577,7 +577,7 @@ router.post('/assets/:asset_id/reprocess', async (req: AuthenticatedRequest, res
     // Simulate reprocessing (in real implementation, fetch original file)
     const mockBuffer = Buffer.from('mock-file-data')
     const processedAsset = await zumiAI.processAsset(mockBuffer, 'reprocessed.jpg', processingOptions)
-    const aiAnalysis = await zumiAI.analyzeAsset(mockBuffer, 'reprocessed.jpg')
+    const aiAnalysis = await zumiAI.analyzeAsset(mockBuffer)
     
     const updatedMetadata = {
       processed_at: new Date().toISOString(),

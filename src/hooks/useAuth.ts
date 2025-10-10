@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { User as SupabaseUser } from '@supabase/supabase-js'
 import { supabase, User } from '../lib/supabase'
 
 export interface AuthState {
@@ -42,7 +41,8 @@ export const useAuth = () => {
         } else {
           setAuthState({ user: null, loading: false, error: null })
         }
-      } catch (err) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (_err) {
         setAuthState({ user: null, loading: false, error: 'Failed to get session' })
       }
     }
@@ -71,6 +71,7 @@ export const useAuth = () => {
 
   const fetchUserProfile = async (userId: string): Promise<User> => {
     // In mock mode, simulate authentication
+    console.log('Fetching profile for user:', userId)
     const mockProfile = {
       id: 'profile-1',
       user_id: 'mock-user-id',
@@ -120,6 +121,8 @@ export const useAuth = () => {
       await new Promise(resolve => setTimeout(resolve, 500));
       
       // Mock successful sign in - simulate auth state change
+      // In production, this would validate credentials
+      console.log('Signing in with:', email, password)
       const mockUser = {
         id: 'mock-user-id',
         email: 'demo@naveaze.com',

@@ -26,7 +26,7 @@ export interface Venue {
   name: string
   description?: string
   address?: string
-  contact_info?: any
+  contact_info?: Record<string, unknown>
   created_at: string
   updated_at: string
 }
@@ -48,7 +48,7 @@ export interface Floorplan {
   id: string
   venue_id: string
   image_url: string
-  image_metadata?: any
+  image_metadata?: Record<string, unknown>
   scale_factor: number
   created_at: string
   updated_at: string
@@ -63,7 +63,7 @@ export interface NavigationNode {
   y_coordinate: number
   is_emergency_exit: boolean
   is_first_aid: boolean
-  metadata?: any
+  metadata?: Record<string, unknown>
   created_at: string
   updated_at: string
 }
@@ -76,7 +76,7 @@ export interface NavigationPath {
   weight: number
   is_emergency_path: boolean
   is_accessible: boolean
-  metadata?: any
+  metadata?: Record<string, unknown>
   created_at: string
   updated_at: string
 }
@@ -100,7 +100,7 @@ export interface ARAsset {
   name: string
   asset_type: '3d_model' | 'video' | 'image' | 'audio'
   file_url: string
-  metadata?: any
+  metadata?: Record<string, unknown>
   created_at: string
   updated_at: string
 }
@@ -110,9 +110,9 @@ export interface ARZone {
   campaign_id: string
   floorplan_id: string
   name: string
-  polygon_coordinates: any
+  polygon_coordinates: number[][]
   trigger_asset_id?: string
-  trigger_conditions?: any
+  trigger_conditions?: Record<string, unknown>
   created_at: string
   updated_at: string
 }
