@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react'
-import { Plus, Move, Square, Navigation, Save, Trash2, Edit3, Shield, AlertTriangle, CheckCircle, XCircle } from 'lucide-react'
+import { Plus, Move, Square, Navigation, Save, Trash2, Shield, AlertTriangle, CheckCircle, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface POI {
@@ -77,7 +77,7 @@ const ZONE_TYPES = [
   { type: 'emergency', label: 'Emergency Zone', color: '#fca5a5' }
 ] as const
 
-export default function FloorplanEditor({ floorplanId, onSave }: FloorplanEditorProps) {
+export default function FloorplanEditor({ onSave }: FloorplanEditorProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [tool, setTool] = useState<'select' | 'poi' | 'zone' | 'path'>('select')
   const [selectedPOIType, setSelectedPOIType] = useState<POI['type']>('entrance')
@@ -86,7 +86,10 @@ export default function FloorplanEditor({ floorplanId, onSave }: FloorplanEditor
   const [zones, setZones] = useState<Zone[]>([])
   const [emergencyPaths, setEmergencyPaths] = useState<EmergencyPath[]>([])
   const [selectedItem, setSelectedItem] = useState<string | null>(null)
+  // State for future drag-and-drop functionality
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isDragging, setIsDragging] = useState(false)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   const [isDrawingZone, setIsDrawingZone] = useState(false)
   const [zoneStart, setZoneStart] = useState<{ x: number; y: number } | null>(null)
@@ -193,7 +196,7 @@ export default function FloorplanEditor({ floorplanId, onSave }: FloorplanEditor
       ctx.fillStyle = '#374151'
       ctx.font = '10px sans-serif'
       ctx.textAlign = 'center'
-      const textWidth = ctx.measureText(poi.name).width
+      // const textWidth = ctx.measureText(poi.name).width // Future use for text background
       ctx.fillText(poi.name, poi.x, poi.y + (isEmergencyPOI && complianceMode ? 25 : 20))
     })
   }, [pois, selectedItem, complianceMode])

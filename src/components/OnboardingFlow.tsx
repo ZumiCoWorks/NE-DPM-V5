@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { CheckCircle, Circle, ArrowRight, ArrowLeft, Building, Calendar, Map, Zap } from 'lucide-react'
+import { CheckCircle, ArrowRight, ArrowLeft, Building, Calendar, Zap } from 'lucide-react'
 
 interface OnboardingFlowProps {
   onComplete: () => void

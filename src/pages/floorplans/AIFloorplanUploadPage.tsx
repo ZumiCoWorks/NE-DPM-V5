@@ -279,7 +279,7 @@ export const AIFloorplanUploadPage: React.FC<AIFloorplanUploadPageProps> = ({ on
         throw new Error(errorData.message || 'Failed to create floorplan')
       }
       
-      const result = await response.json()
+      // const result = await response.json() // Future use for response data
       toast.success('Floorplan created successfully!')
       onNavigateBack?.()
       

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react'
 // Removed React Router dependencies
-import { ArrowLeft, RefreshCw, Users, TrendingUp, DollarSign, Eye, Download, Key, Shield } from 'lucide-react'
+import { ArrowLeft, RefreshCw, Users, TrendingUp, DollarSign, Eye, Download, Key } from 'lucide-react'
 import { toast } from 'sonner'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts'
 
 interface Vendor {
   id: string
@@ -51,7 +51,8 @@ interface VendorData {
   }
 }
 
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4']
+// Future use for chart colors
+// const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4']
 
 interface VendorAnalyticsPageProps {
   eventId?: string

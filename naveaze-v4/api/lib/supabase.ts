@@ -5,7 +5,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 
 // Load environment variables
-const __filename = fileURLToPath((import.meta as any).url)
+const __filename = fileURLToPath((import.meta as { url: string }).url)
 const __dirname = path.dirname(__filename)
 config({ path: path.resolve(__dirname, '../../.env') })
 

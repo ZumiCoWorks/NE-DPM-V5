@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 // Removed React Router dependencies
 import { useAuth } from '../../hooks/useAuth'
-import { ArrowLeft, Shield, AlertTriangle, CheckCircle, XCircle, Route, Clock, Users, MapPin, Plus, Edit, Trash2 } from 'lucide-react'
+import { ArrowLeft, Shield, AlertTriangle, CheckCircle, XCircle, Route, Clock, Users, MapPin } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface Venue {
@@ -84,8 +84,12 @@ export const EmergencyRouteConfigPage: React.FC<EmergencyRouteConfigPageProps> =
   const [selectedFloorplan, setSelectedFloorplan] = useState<string>(floorplanId || '')
   const [selectedVenue, setSelectedVenue] = useState<string>('')
   const [editingNode, setEditingNode] = useState<EmergencyNode | null>(null)
+  // Future modal state for editing emergency paths and nodes
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [editingPath, setEditingPath] = useState<EmergencyPath | null>(null)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [showNodeModal, setShowNodeModal] = useState(false)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [showPathModal, setShowPathModal] = useState(false)
 
   const fetchVenues = useCallback(async () => {
