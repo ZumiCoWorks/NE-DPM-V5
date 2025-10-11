@@ -1,24 +1,41 @@
-# NavEaze V5 - Digital Product Management Portal
 
-A comprehensive digital product management system for event organizers to manage venues, events, navigation paths, and AR campaigns.
+# NE-DPM-V5: B2B Digital Product Management & CDV Intelligence Platform
 
-## 🚀 Features
+**Showcase Goal:**
+Deliver a comprehensive B2B Digital Product Management Portal for event organizers and sponsors, featuring a real-time Contextual Dwell Verification (CDV) intelligence system. The platform fulfills all B2B requirements (B2B-1 through B2B-6) for the November 15th showcase, providing advanced analytics, event/floorplan/venue management, AR campaign tools, emergency navigation, and API/mobile SDK access.
 
-### Core Functionality
-- **Venue Management**: Create and manage event venues with detailed information
-- **Event Planning**: Set up events with comprehensive configuration options
-- **Floorplan Management**: Upload and manage venue floorplans
-- **Navigation System**: Configure navigation nodes and emergency paths
-- **AR Campaign Management**: Create and manage augmented reality experiences
-- **User Authentication**: Secure organizer login and registration system
+## 🎯 Project Vision
+
+- Empower event organizers and sponsors with actionable real-time analytics and engagement insights
+- Centralize management of venues, events, floorplans, navigation, AR campaigns, and emergency protocols
+- Provide a robust CDV intelligence dashboard for dwell time, engagement, and compliance tracking
+- Enable seamless integration with mobile SDKs and external APIs
+- Support rapid onboarding and demo scenarios with mock authentication and test data
+
+---
+
+
+## 🚀 Key Features
+
+### B2B Platform Modules
+- **Dashboard**: Real-time analytics and engagement metrics
+- **Events**: Event creation, configuration, and management
+- **Venues**: Venue setup and details
+- **Floorplans**: Interactive floorplan editor and navigation
+- **AR Campaigns**: Augmented reality experience management
+- **Emergency**: Emergency navigation and protocols
+- **CDV Intelligence**: Contextual Dwell Verification dashboard with live stats
+- **API Docs & Mobile SDK**: Developer access and integration tools
 
 ### Technical Highlights
 - **Full-Stack TypeScript**: End-to-end type safety
-- **Real-time Database**: Supabase integration with Row Level Security
-- **Modern UI**: React with Tailwind CSS for responsive design
-- **RESTful API**: Express.js backend with comprehensive endpoints
-- **Authentication**: Supabase Auth with JWT tokens
+- **React 18 + Tailwind CSS**: Modern, responsive UI
+- **Express.js Backend**: RESTful API endpoints
+- **Supabase Integration**: Real-time database, authentication, and migrations
+- **Mock Authentication**: Demo credentials for rapid onboarding
 - **Database Migrations**: Version-controlled schema management
+
+---
 
 ## 🛠️ Tech Stack
 
