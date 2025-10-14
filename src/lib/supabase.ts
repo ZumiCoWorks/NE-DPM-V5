@@ -3,11 +3,16 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables')
-}
+// Use placeholder values for demo mode when env vars are missing
+const USE_MOCK_AUTH = import.meta.env.VITE_USE_MOCK_AUTH !== 'false'
+const DEMO_SUPABASE_URL = 'https://demo.supabase.co'
+const DEMO_SUPABASE_KEY = 'demo-key'
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Create client with actual or demo credentials
+export const supabase = createClient(
+  supabaseUrl || DEMO_SUPABASE_URL,
+  supabaseAnonKey || DEMO_SUPABASE_KEY
+)
 
 // Database types for TypeScript
 export interface User {
