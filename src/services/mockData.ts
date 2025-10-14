@@ -1,21 +1,32 @@
-// Mock data service for frontend-only mode
+// Mock data service for frontend-only mode - South African Demo Data 🇿🇦
 
 export const mockVenues = [
   {
     id: '1',
-    name: 'Grand Convention Center',
-    address: '123 Main St, Downtown',
-    description: 'Large convention center with multiple halls',
+    name: 'Sandton Convention Centre',
+    address: 'Maude Street, Sandton, Johannesburg, 2196',
+    description: 'Premier convention venue in the heart of Johannesburg\'s financial district',
+    capacity: 5000,
     created_at: '2024-01-15T10:00:00Z',
     updated_at: '2024-01-15T10:00:00Z'
   },
   {
     id: '2', 
-    name: 'Tech Hub Arena',
-    address: '456 Innovation Blvd, Tech District',
-    description: 'Modern tech conference venue',
+    name: 'Cape Town International Convention Centre',
+    address: 'Convention Square, 1 Lower Long Street, Cape Town, 8001',
+    description: 'World-class convention centre with stunning Table Mountain views',
+    capacity: 4500,
     created_at: '2024-01-20T14:30:00Z',
     updated_at: '2024-01-20T14:30:00Z'
+  },
+  {
+    id: '3',
+    name: 'Durban ICC',
+    address: '45 Bram Fischer Road, Durban, 4001',
+    description: 'Iconic waterfront venue on the Indian Ocean coastline',
+    capacity: 3500,
+    created_at: '2024-01-25T09:00:00Z',
+    updated_at: '2024-01-25T09:00:00Z'
   }
 ];
 
@@ -23,24 +34,38 @@ export const mockEvents = [
   {
     id: '1',
     venue_id: '1',
-    name: 'Tech Conference 2024',
-    description: 'Annual technology conference',
-    start_date: '2024-03-15T09:00:00Z',
-    end_date: '2024-03-17T18:00:00Z',
+    name: 'AfricaTech Summit 2025',
+    description: 'Leading technology and innovation conference in Africa featuring AI, fintech, and digital transformation',
+    start_date: '2025-11-15T08:00:00Z',
+    end_date: '2025-11-17T18:00:00Z',
     status: 'active',
+    expected_attendees: 3500,
     created_at: '2024-02-01T10:00:00Z',
     updated_at: '2024-02-01T10:00:00Z'
   },
   {
     id: '2',
     venue_id: '2',
-    name: 'Innovation Summit',
-    description: 'Startup and innovation showcase',
-    start_date: '2024-04-10T08:00:00Z',
-    end_date: '2024-04-12T20:00:00Z',
-    status: 'draft',
+    name: 'Cape Innovation Week',
+    description: 'Startup ecosystem showcase with venture capital, accelerators, and emerging tech',
+    start_date: '2025-12-10T08:00:00Z',
+    end_date: '2025-12-12T20:00:00Z',
+    status: 'upcoming',
+    expected_attendees: 2800,
     created_at: '2024-02-15T12:00:00Z',
     updated_at: '2024-02-15T12:00:00Z'
+  },
+  {
+    id: '3',
+    venue_id: '3',
+    name: 'Durban Business Expo',
+    description: 'Trade exhibition connecting businesses across Southern Africa',
+    start_date: '2026-01-20T09:00:00Z',
+    end_date: '2026-01-22T17:00:00Z',
+    status: 'draft',
+    expected_attendees: 4200,
+    created_at: '2024-03-01T14:00:00Z',
+    updated_at: '2024-03-01T14:00:00Z'
   }
 ];
 
@@ -174,33 +199,140 @@ export const mockVendorAnalytics = {
   vendors: [
     {
       vendor_id: 'vendor-1',
-      name: 'TechCorp Solutions',
-      booth_zones: ['booth1'],
+      name: 'MTN South Africa',
+      booth_zones: ['hvz-mtn'],
       metrics: {
-        total_visitors: 234,
-        unique_visitors: 189,
-        avg_dwell_time: 450,
-        conversion_rate: 0.23,
-        peak_hours: ['11:00', '14:00']
+        total_visitors: 1247,
+        unique_visitors: 892,
+        avg_dwell_time: 8.5,
+        conversion_rate: 0.34,
+        revenue_impact: 156750,
+        peak_hours: ['11:00', '14:00', '16:00']
       }
     },
     {
       vendor_id: 'vendor-2', 
-      name: 'Innovation Labs',
-      booth_zones: ['booth2'],
+      name: 'Discovery Health',
+      booth_zones: ['hvz-discovery'],
       metrics: {
-        total_visitors: 178,
-        unique_visitors: 156,
-        avg_dwell_time: 380,
-        conversion_rate: 0.31,
-        peak_hours: ['10:00', '15:00']
+        total_visitors: 1089,
+        unique_visitors: 756,
+        avg_dwell_time: 7.2,
+        conversion_rate: 0.41,
+        revenue_impact: 132400,
+        peak_hours: ['10:00', '13:00', '15:00']
+      }
+    },
+    {
+      vendor_id: 'vendor-3',
+      name: 'Nedbank',
+      booth_zones: ['hvz-nedbank'],
+      metrics: {
+        total_visitors: 923,
+        unique_visitors: 645,
+        avg_dwell_time: 6.8,
+        conversion_rate: 0.38,
+        revenue_impact: 98600,
+        peak_hours: ['09:00', '12:00', '14:00']
+      }
+    },
+    {
+      vendor_id: 'vendor-4',
+      name: 'Shoprite Holdings',
+      booth_zones: ['hvz-shoprite'],
+      metrics: {
+        total_visitors: 1456,
+        unique_visitors: 1034,
+        avg_dwell_time: 5.4,
+        conversion_rate: 0.29,
+        revenue_impact: 87300,
+        peak_hours: ['11:00', '13:00', '16:00']
       }
     }
   ],
   comparative_data: {
-    industry_avg_dwell_time: 320,
-    industry_avg_conversion: 0.18
+    industry_avg_dwell_time: 4.8,
+    industry_avg_conversion: 0.22,
+    total_event_revenue: 475050,
+    load_shedding_impact: 'Minimal - backup systems operational'
   }
+};
+
+// Mock CDV (Contextual Dwell Value) Analytics Data 🇿🇦
+export const mockCDVAnalytics = {
+  realtime_metrics: {
+    active_attendees: 3247,
+    high_value_zones: 8,
+    current_revenue_rate: 12450,
+    avg_engagement_score: 0.78,
+    load_shedding_status: 'Stage 0 - No load shedding',
+    last_updated: new Date().toISOString()
+  },
+  hvz_performance: [
+    {
+      zone_id: 'hvz-mtn',
+      sponsor: 'MTN South Africa',
+      attendees_in_zone: 47,
+      avg_dwell_time: 8.5,
+      hourly_rate: 1250,
+      current_revenue: 4985,
+      engagement_quality: 'high',
+      currency: 'ZAR'
+    },
+    {
+      zone_id: 'hvz-discovery',
+      sponsor: 'Discovery Health',
+      attendees_in_zone: 38,
+      avg_dwell_time: 7.2,
+      hourly_rate: 1150,
+      current_revenue: 3542,
+      engagement_quality: 'high',
+      currency: 'ZAR'
+    },
+    {
+      zone_id: 'hvz-nedbank',
+      sponsor: 'Nedbank',
+      attendees_in_zone: 29,
+      avg_dwell_time: 6.8,
+      hourly_rate: 950,
+      current_revenue: 2436,
+      engagement_quality: 'medium',
+      currency: 'ZAR'
+    },
+    {
+      zone_id: 'hvz-shoprite',
+      sponsor: 'Shoprite Holdings',
+      attendees_in_zone: 52,
+      avg_dwell_time: 5.4,
+      hourly_rate: 800,
+      current_revenue: 2347,
+      engagement_quality: 'medium',
+      currency: 'ZAR'
+    },
+    {
+      zone_id: 'hvz-standardbank',
+      sponsor: 'Standard Bank',
+      attendees_in_zone: 34,
+      avg_dwell_time: 7.9,
+      hourly_rate: 1100,
+      current_revenue: 2992,
+      engagement_quality: 'high',
+      currency: 'ZAR'
+    }
+  ],
+  time_series: Array.from({ length: 24 }, (_, i) => ({
+    hour: `${String(i).padStart(2, '0')}:00`,
+    revenue: Math.floor(8000 + Math.random() * 4000),
+    attendees: Math.floor(200 + Math.random() * 150),
+    avg_dwell: 5 + Math.random() * 4
+  })),
+  sponsor_leaderboard: [
+    { sponsor: 'MTN South Africa', revenue: 156750, growth: '+12%', emoji: '🥇' },
+    { sponsor: 'Discovery Health', revenue: 132400, growth: '+8%', emoji: '🥈' },
+    { sponsor: 'Nedbank', revenue: 98600, growth: '+15%', emoji: '🥉' },
+    { sponsor: 'Shoprite Holdings', revenue: 87300, growth: '+6%', emoji: '📊' },
+    { sponsor: 'Standard Bank', revenue: 76200, growth: '+10%', emoji: '📊' }
+  ]
 };
 
 export const mockUserProfile = {

@@ -1,16 +1,17 @@
 
-# NE-DPM-V5: B2B Digital Product Management & CDV Intelligence Platform
+# NE-DPM-V5: South African B2B Digital Product Management & CDV Intelligence Platform 🇿🇦
 
 **Showcase Goal:**
-Deliver a comprehensive B2B Digital Product Management Portal for event organizers and sponsors, featuring a real-time Contextual Dwell Verification (CDV) intelligence system. The platform fulfills all B2B requirements (B2B-1 through B2B-6) for the November 15th showcase, providing advanced analytics, event/floorplan/venue management, AR campaign tools, emergency navigation, and API/mobile SDK access.
+Deliver a comprehensive B2B Digital Product Management Portal specifically designed for South African event organizers and sponsors, featuring a real-time Contextual Dwell Verification (CDV) intelligence system. The platform fulfills all B2B requirements (B2B-1 through B2B-6) for the November 15th showcase, providing advanced analytics tailored for the SA market, load-shedding resilient architecture, event/floorplan/venue management, AR campaign tools, emergency navigation, and API/mobile SDK access.
 
 ## 🎯 Project Vision
 
-- Empower event organizers and sponsors with actionable real-time analytics and engagement insights
+- Empower South African event organizers and sponsors with actionable real-time analytics and engagement insights
 - Centralize management of venues, events, floorplans, navigation, AR campaigns, and emergency protocols
-- Provide a robust CDV intelligence dashboard for dwell time, engagement, and compliance tracking
-- Enable seamless integration with mobile SDKs and external APIs
-- Support rapid onboarding and demo scenarios with mock authentication and test data
+- Provide a robust CDV intelligence dashboard designed for SA market conditions (load shedding resilience)
+- Enable seamless integration with local partners like Quicket, MTN, Discovery, Standard Bank, and Nedbank
+- Support ZAR currency pricing and South African sponsor attribution
+- Deliver load-shedding resilient data streaming architecture for uninterrupted event analytics
 
 ---
 

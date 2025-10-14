@@ -77,6 +77,26 @@ router.post('/login', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Email and password are required' })
     }
 
+    // Demo mode: Check for demo credentials first
+    if (email === 'admin@naveaze.com' && password === 'demo123') {
+      // Return demo user profile for South African market
+      return res.status(200).json({
+        message: 'Login successful',
+        user: {
+          id: 'demo-user-sa-001',
+          email: 'admin@naveaze.com',
+          full_name: 'Demo Admin (SA)',
+          organization: 'NavEaze South Africa',
+          role: 'organizer'
+        },
+        session: {
+          access_token: 'demo-token-sa-' + Date.now(),
+          expires_at: Date.now() + 3600000 // 1 hour
+        }
+      })
+    }
+
+    // Try Supabase authentication for production credentials
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password

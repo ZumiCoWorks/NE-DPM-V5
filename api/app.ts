@@ -19,6 +19,8 @@ import arCampaignRoutes from './routes/ar-campaigns.js'
 import mobileSdkRoutes from './routes/mobile-sdk.js'
 import analyticsRoutes from './routes/analytics.js'
 import cdvReportsRoutes from './routes/cdv-reports.js'
+import hvzZonesRoutes from './routes/hvz-zones.js'
+import dataIntegrityRoutes from './routes/data-integrity.js'
 
 
 // for esm mode
@@ -33,9 +35,24 @@ dotenv.config()
 
 const app: express.Application = express()
 
+
 app.use(cors())
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true, limit: '10mb' }))
+
+// Logging middleware
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const start = Date.now();
+  console.log(`Incoming: ${req.method} ${req.originalUrl}`);
+  if (req.body && Object.keys(req.body).length > 0) {
+    console.log('Body:', JSON.stringify(req.body));
+  }
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    console.log(`Response: ${res.statusCode} (${duration}ms)`);
+  });
+  next();
+});
 
 /**
  * API Routes
@@ -48,6 +65,8 @@ app.use('/api/ar-campaigns', arCampaignRoutes)
 app.use('/api/sdk', mobileSdkRoutes)
 app.use('/api/analytics', analyticsRoutes)
 app.use('/api', cdvReportsRoutes)
+app.use('/api', hvzZonesRoutes)
+app.use('/api', dataIntegrityRoutes)
 
 
 /**

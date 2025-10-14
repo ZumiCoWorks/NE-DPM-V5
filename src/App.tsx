@@ -10,15 +10,17 @@ import { EmergencyRouteConfigPage } from './pages/emergency/EmergencyRouteConfig
 import { APIDocumentationPage } from './pages/api/APIDocumentationPage'
 import MobileSDKPreviewPage from './pages/mobile/MobileSDKPreviewPage'
 import { CDVPage } from './pages/CDVPage'
+import DemoWalkthrough from './pages/DemoWalkthrough'
 import { OnboardingFlow } from './components/OnboardingFlow'
-import { Building, Calendar, Map, Zap, Shield, Code, Smartphone, LogOut, Brain } from 'lucide-react'
+import { DataIntegrityDashboard } from './components/DataIntegrityDashboard'
+import { Building, Calendar, Map, Zap, Shield, Code, Smartphone, LogOut, Brain, Presentation } from 'lucide-react'
 import './index.css'
 
-type TabType = 'dashboard' | 'events' | 'venues' | 'floorplans' | 'ar' | 'emergency' | 'api' | 'mobile' | 'cdv'
+type TabType = 'demo' | 'dashboard' | 'events' | 'venues' | 'floorplans' | 'ar' | 'emergency' | 'api' | 'mobile' | 'cdv' | 'integrity'
 
 function App() {
   const { user, loading, signOut } = useAuth()
-  const [activeTab, setActiveTab] = useState<TabType>('dashboard')
+  const [activeTab, setActiveTab] = useState<TabType>('demo')
   const [showOnboarding, setShowOnboarding] = useState(false)
 
   if (loading) {
@@ -41,19 +43,25 @@ function App() {
   }
 
   const tabs = [
+    { id: 'demo' as TabType, label: '🇿🇦 Live Demo', icon: Presentation },
     { id: 'dashboard' as TabType, label: 'Dashboard', icon: Building },
+    { id: 'cdv' as TabType, label: 'CDV Intelligence', icon: Brain },
+    { id: 'integrity' as TabType, label: 'Data Integrity', icon: Shield },
     { id: 'events' as TabType, label: 'Events', icon: Calendar },
     { id: 'venues' as TabType, label: 'Venues', icon: Building },
     { id: 'floorplans' as TabType, label: 'Floorplans', icon: Map },
     { id: 'ar' as TabType, label: 'AR Campaigns', icon: Zap },
     { id: 'emergency' as TabType, label: 'Emergency', icon: Shield },
     { id: 'cdv' as TabType, label: 'CDV Intelligence', icon: Brain },
+    { id: 'integrity' as TabType, label: 'Data Integrity', icon: Shield },
     { id: 'api' as TabType, label: 'API Docs', icon: Code },
     { id: 'mobile' as TabType, label: 'Mobile SDK', icon: Smartphone },
   ]
 
   const renderContent = () => {
     switch (activeTab) {
+      case 'demo':
+        return <DemoWalkthrough />
       case 'dashboard':
         return <Dashboard onTabChange={setActiveTab} />
       case 'events':
@@ -68,12 +76,14 @@ function App() {
         return <EmergencyRouteConfigPage />
       case 'cdv':
         return <CDVPage />
+      case 'integrity':
+        return <DataIntegrityDashboard />
       case 'api':
         return <APIDocumentationPage />
       case 'mobile':
         return <MobileSDKPreviewPage />
       default:
-        return <Dashboard />
+        return <DemoWalkthrough />
     }
   }
 
@@ -84,7 +94,7 @@ function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <h1 className="text-xl font-semibold text-gray-900">NavEaze DPM</h1>
+              <h1 className="text-xl font-semibold text-gray-900">NavEaze DPM 🇿🇦</h1>
             </div>
             <div className="flex items-center space-x-4">
               <button

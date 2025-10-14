@@ -45,9 +45,9 @@ export const CDVDashboard: React.FC = () => {
         <div>
           <h2 className="text-2xl font-bold text-gray-900 flex items-center">
             <Brain className="mr-2 h-6 w-6 text-blue-600" />
-            CDV Intelligence Dashboard
+            CDV Intelligence Dashboard 🇿🇦
           </h2>
-          <p className="text-gray-600 mt-1">Real-time Contextual Dwell Verification</p>
+          <p className="text-gray-600 mt-1">Real-time Contextual Dwell Verification for SA Events</p>
         </div>
         <div className="flex items-center space-x-2">
           <button
@@ -60,7 +60,7 @@ export const CDVDashboard: React.FC = () => {
           </button>
           <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium flex items-center">
             <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
-            Quicket EMS Connected
+            Quicket South Africa Connected
           </div>
         </div>
       </div>

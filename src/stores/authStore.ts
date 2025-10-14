@@ -25,12 +25,18 @@ const USE_MOCK_AUTH = (import.meta as any)?.env?.VITE_USE_MOCK_AUTH !== 'false'
 
 const mockProfile: User = {
   id: 'mock-user-id',
-  email: 'demo@naveaze.com',
-  full_name: 'Demo User',
+  email: 'admin@naveaze.com',
+  full_name: 'SA Demo Admin',
   role: 'organizer',
-  organization: 'NavEaze Demo',
+  organization: 'NavEaze South Africa',
   created_at: '2024-01-01T00:00:00Z',
   updated_at: '2024-01-01T00:00:00Z',
+}
+
+// Valid demo credentials
+const DEMO_CREDENTIALS = {
+  email: 'admin@naveaze.com',
+  password: 'demo123'
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -67,8 +73,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ loading: true, error: null })
     try {
       if (USE_MOCK_AUTH) {
+          // Validate demo credentials
+          if (email !== DEMO_CREDENTIALS.email || password !== DEMO_CREDENTIALS.password) {
+            set({ loading: false, error: 'Invalid credentials. Use admin@naveaze.com / demo123' })
+            return { success: false, error: 'Invalid credentials' }
+          }
+        
         await new Promise((r) => setTimeout(r, 400))
-        set({ user: { ...mockProfile, email }, loading: false, error: null })
+          set({ user: mockProfile, loading: false, error: null })
         return { success: true }
       }
 
