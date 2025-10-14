@@ -62,8 +62,8 @@ Deliver a comprehensive B2B Digital Product Management Portal specifically desig
 ## 📋 Prerequisites
 
 - Node.js 18+ and npm
-- Supabase account and project
 - Git for version control
+- Supabase account and project (optional - only required for production deployment)
 
 ## 🚀 Quick Start
 
@@ -78,14 +78,21 @@ cd NE-DPM-V5
 npm install
 ```
 
-### 3. Environment Setup
-Create a `.env` file in the root directory:
+### 3. Environment Setup (Optional for Demo Mode)
+
+**Note:** The application includes built-in mock authentication and works without Supabase configuration. You can skip this step to run in demo mode.
+
+For production use with real Supabase backend, create a `.env` file in the root directory:
 ```env
 SUPABASE_URL=your_supabase_project_url
 SUPABASE_ANON_KEY=your_supabase_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 FRONTEND_URL=http://localhost:5173
 ```
+
+**Demo Mode Credentials:**
+- Email: `admin@naveaze.com`
+- Password: `demo123`
 
 ### 4. Database Setup
 Apply the database migrations:
