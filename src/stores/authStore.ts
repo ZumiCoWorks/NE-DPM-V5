@@ -48,8 +48,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ loading: true, error: null })
     try {
       if (USE_MOCK_AUTH) {
-        // Start unauthenticated in mock mode until user signs in
-        set({ user: null, loading: false, error: null })
+          // Auto-login demo user for demo-walkthrough branch
+          set({ user: mockProfile, loading: false, error: null })
         return
       }
 
