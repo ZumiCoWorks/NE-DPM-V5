@@ -18,10 +18,20 @@ import './index.css'
 
 type TabType = 'demo' | 'dashboard' | 'events' | 'venues' | 'floorplans' | 'ar' | 'emergency' | 'api' | 'mobile' | 'cdv' | 'integrity'
 
+interface NavSection {
+  title: string
+  tabs: Array<{
+    id: TabType
+    label: string
+    icon: typeof Building
+  }>
+}
+
 function App() {
   const { user, loading, signOut } = useAuth()
   const [activeTab, setActiveTab] = useState<TabType>('demo')
   const [showOnboarding, setShowOnboarding] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   if (loading) {
     return (
@@ -42,20 +52,43 @@ function App() {
     return <OnboardingFlow onComplete={() => setShowOnboarding(false)} />
   }
 
-  const tabs = [
-    { id: 'demo' as TabType, label: '🇿🇦 Live Demo', icon: Presentation },
-    { id: 'dashboard' as TabType, label: 'Dashboard', icon: Building },
-    { id: 'cdv' as TabType, label: 'CDV Intelligence', icon: Brain },
-    { id: 'integrity' as TabType, label: 'Data Integrity', icon: Shield },
-    { id: 'events' as TabType, label: 'Events', icon: Calendar },
-    { id: 'venues' as TabType, label: 'Venues', icon: Building },
-    { id: 'floorplans' as TabType, label: 'Floorplans', icon: Map },
-    { id: 'ar' as TabType, label: 'AR Campaigns', icon: Zap },
-    { id: 'emergency' as TabType, label: 'Emergency', icon: Shield },
-    { id: 'cdv' as TabType, label: 'CDV Intelligence', icon: Brain },
-    { id: 'integrity' as TabType, label: 'Data Integrity', icon: Shield },
-    { id: 'api' as TabType, label: 'API Docs', icon: Code },
-    { id: 'mobile' as TabType, label: 'Mobile SDK', icon: Smartphone },
+  const navSections: NavSection[] = [
+    {
+      title: 'Overview',
+      tabs: [
+        { id: 'demo' as TabType, label: '🇿🇦 Live Demo', icon: Presentation },
+        { id: 'dashboard' as TabType, label: 'Dashboard', icon: Building },
+      ]
+    },
+    {
+      title: 'Core Management',
+      tabs: [
+        { id: 'events' as TabType, label: 'Events', icon: Calendar },
+        { id: 'venues' as TabType, label: 'Venues', icon: Building },
+        { id: 'floorplans' as TabType, label: 'Floorplans', icon: Map },
+      ]
+    },
+    {
+      title: 'Analytics',
+      tabs: [
+        { id: 'cdv' as TabType, label: 'CDV Intelligence', icon: Brain },
+        { id: 'integrity' as TabType, label: 'Data Integrity', icon: Shield },
+      ]
+    },
+    {
+      title: 'Advanced Features',
+      tabs: [
+        { id: 'ar' as TabType, label: 'AR Campaigns', icon: Zap },
+        { id: 'emergency' as TabType, label: 'Emergency', icon: Shield },
+      ]
+    },
+    {
+      title: 'Developer',
+      tabs: [
+        { id: 'api' as TabType, label: 'API Docs', icon: Code },
+        { id: 'mobile' as TabType, label: 'Mobile SDK', icon: Smartphone },
+      ]
+    }
   ]
 
   const renderContent = () => {
@@ -88,62 +121,97 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <h1 className="text-xl font-semibold text-gray-900">NavEaze DPM 🇿🇦</h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => setShowOnboarding(true)}
-                className="text-sm text-blue-600 hover:text-blue-800"
-              >
-                Quick Start
-              </button>
-              <button
-                onClick={signOut}
-                className="flex items-center space-x-2 text-sm text-gray-600 hover:text-gray-800"
-              >
-                <LogOut className="h-4 w-4" />
-                <span>Sign Out</span>
-              </button>
-            </div>
-          </div>
+    <div className="min-h-screen bg-gray-50 flex">
+      {/* Sidebar */}
+      <aside className={`bg-white border-r shadow-sm transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-64'} flex flex-col`}>
+        {/* Sidebar Header */}
+        <div className="h-16 flex items-center justify-between px-4 border-b">
+          {!sidebarCollapsed && (
+            <h1 className="text-lg font-semibold text-gray-900">NavEaze DPM 🇿🇦</h1>
+          )}
+          <button
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className="p-2 rounded-md hover:bg-gray-100 text-gray-600"
+          >
+            <Map className="h-5 w-5" />
+          </button>
         </div>
-      </header>
 
-      {/* Tab Navigation */}
-      <nav className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex space-x-8">
-            {tabs.map((tab) => {
-              const Icon = tab.icon
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === tab.id
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  <Icon className="h-4 w-4" />
-                  <span>{tab.label}</span>
-                </button>
-              )
-            })}
-          </div>
+        {/* Navigation Sections */}
+        <nav className="flex-1 overflow-y-auto py-4">
+          {navSections.map((section, sectionIdx) => (
+            <div key={section.title} className={sectionIdx > 0 ? 'mt-6' : ''}>
+              {!sidebarCollapsed && (
+                <h3 className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                  {section.title}
+                </h3>
+              )}
+              <div className="space-y-1 px-2">
+                {section.tabs.map((tab) => {
+                  const Icon = tab.icon
+                  const isActive = activeTab === tab.id
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                        isActive
+                          ? 'bg-blue-50 text-blue-600'
+                          : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                      }`}
+                      title={sidebarCollapsed ? tab.label : undefined}
+                    >
+                      <Icon className={`h-5 w-5 flex-shrink-0 ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
+                      {!sidebarCollapsed && <span>{tab.label}</span>}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+        </nav>
+
+        {/* Sidebar Footer */}
+        <div className="border-t p-4 space-y-2">
+          <button
+            onClick={() => setShowOnboarding(true)}
+            className={`w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 ${sidebarCollapsed ? 'justify-center' : ''}`}
+            title={sidebarCollapsed ? 'Quick Start' : undefined}
+          >
+            <Zap className="h-5 w-5 text-gray-400" />
+            {!sidebarCollapsed && <span>Quick Start</span>}
+          </button>
+          <button
+            onClick={signOut}
+            className={`w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 ${sidebarCollapsed ? 'justify-center' : ''}`}
+            title={sidebarCollapsed ? 'Sign Out' : undefined}
+          >
+            <LogOut className="h-5 w-5 text-gray-400" />
+            {!sidebarCollapsed && <span>Sign Out</span>}
+          </button>
         </div>
-      </nav>
+      </aside>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        {renderContent()}
-      </main>
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Top Bar */}
+        <header className="bg-white border-b shadow-sm h-16 flex items-center justify-between px-6">
+          <div className="flex items-center space-x-4">
+            <h2 className="text-xl font-semibold text-gray-900">
+              {navSections.flatMap(s => s.tabs).find(t => t.id === activeTab)?.label || 'NavEaze DPM'}
+            </h2>
+          </div>
+          <div className="flex items-center space-x-2 text-sm text-gray-600">
+            <span>Signed in as</span>
+            <span className="font-medium">{user?.email}</span>
+          </div>
+        </header>
+
+        {/* Page Content */}
+        <main className="flex-1 overflow-y-auto bg-gray-50 p-6">
+          {renderContent()}
+        </main>
+      </div>
     </div>
   )
 }
