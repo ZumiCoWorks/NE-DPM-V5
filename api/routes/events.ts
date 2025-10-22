@@ -4,6 +4,70 @@ import { AuthenticatedRequest, authenticateUser } from '../middleware/auth'
 
 const router = Router()
 
+// Public endpoint for mobile app - Get all active events
+router.get('/public', async (req, res: Response) => {
+  try {
+    // Try to fetch from database
+    const { data: dbEvents, error } = await supabaseAdmin
+      .from('events')
+      .select(`
+        *,
+        venues (
+          id,
+          name,
+          address,
+          description
+        )
+      `)
+      .eq('status', 'active')
+      .order('start_date', { ascending: true })
+
+    // If we have events in the database, return them
+    if (!error && dbEvents && dbEvents.length > 0) {
+      return res.json({ events: dbEvents })
+    }
+
+    // Otherwise, return demo/mock events for testing
+    const demoEvents = [
+      {
+        id: 'event-001',
+        name: 'Tech Expo 2025',
+        description: 'Annual technology and innovation showcase',
+        status: 'active',
+        start_date: '2025-11-01T09:00:00Z',
+        end_date: '2025-11-01T18:00:00Z',
+        venue_id: 'venue-001',
+        venues: {
+          id: 'venue-001',
+          name: 'Convention Center Hall A',
+          address: '123 Main Street, Downtown',
+          description: 'Large exhibition hall with 50+ booths'
+        }
+      },
+      {
+        id: 'event-002',
+        name: 'Food & Wine Festival',
+        description: 'Celebrate local cuisine and craft beverages',
+        status: 'active',
+        start_date: '2025-11-15T12:00:00Z',
+        end_date: '2025-11-15T22:00:00Z',
+        venue_id: 'venue-002',
+        venues: {
+          id: 'venue-002',
+          name: 'Riverside Park',
+          address: '456 River Road, Waterfront',
+          description: 'Outdoor venue with 30+ food stalls'
+        }
+      }
+    ];
+
+    res.json({ events: demoEvents })
+  } catch (error) {
+    console.error('Get public events error:', error)
+    res.json({ events: [] })
+  }
+})
+
 // Get all events for the authenticated organizer
 router.get('/', authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
   try {

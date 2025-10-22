@@ -11,16 +11,13 @@ import cors from 'cors'
 import path from 'path'
 import dotenv from 'dotenv'
 import { fileURLToPath } from 'url'
+// KEEP ONLY ESSENTIAL ROUTES FOR MVP
 import authRoutes from './routes/auth.js'
 import eventRoutes from './routes/events.js'
 import venueRoutes from './routes/venues.js'
-import floorplanRoutes from './routes/floorplans.js'
-import arCampaignRoutes from './routes/ar-campaigns.js'
-import mobileSdkRoutes from './routes/mobile-sdk.js'
-import analyticsRoutes from './routes/analytics.js'
+import boothRoutes from './routes/booths.js'
 import cdvReportsRoutes from './routes/cdv-reports.js'
-import hvzZonesRoutes from './routes/hvz-zones.js'
-import dataIntegrityRoutes from './routes/data-integrity.js'
+import quicketRoutes from './routes/quicket.js'
 
 
 // for esm mode
@@ -55,18 +52,14 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 });
 
 /**
- * API Routes
+ * API Routes - SIMPLIFIED FOR MVP
  */
 app.use('/api/auth', authRoutes)
 app.use('/api/events', eventRoutes)
 app.use('/api/venues', venueRoutes)
-app.use('/api/floorplans', floorplanRoutes)
-app.use('/api/ar-campaigns', arCampaignRoutes)
-app.use('/api/sdk', mobileSdkRoutes)
-app.use('/api/analytics', analyticsRoutes)
+app.use('/api/booths', boothRoutes)
 app.use('/api', cdvReportsRoutes)
-app.use('/api', hvzZonesRoutes)
-app.use('/api', dataIntegrityRoutes)
+app.use('/api/quicket', quicketRoutes)
 
 
 /**

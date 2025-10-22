@@ -4,6 +4,75 @@ import { AuthenticatedRequest, authenticateUser } from '../middleware/auth.js'
 
 const router = Router()
 
+// Public endpoint for mobile app - Get venue details with booths
+router.get('/public/:id', async (req, res: Response) => {
+  try {
+    const { id } = req.params;
+    
+    // Try to fetch from database
+    const { data: dbVenue, error } = await supabaseAdmin
+      .from('venues')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    if (!error && dbVenue) {
+      // Fetch booths for this venue
+      const { data: dbBooths } = await supabaseAdmin
+        .from('booths')
+        .select('*')
+        .eq('venue_id', id)
+        .order('name', { ascending: true })
+
+      return res.json({
+        venue: {
+          ...dbVenue,
+          booths: dbBooths || []
+        }
+      })
+    }
+
+    // Otherwise, return mock venue data for testing
+    const mockVenues: any = {
+      'venue-001': {
+        id: 'venue-001',
+        name: 'Convention Center Hall A',
+        address: '123 Main Street, Downtown',
+        description: 'Large exhibition hall with 50+ booths',
+        booths: [
+          { id: 'booth-001', name: 'Microsoft', zone_name: 'Microsoft', x_coordinate: 20, y_coordinate: 20, qr_code: 'BOOTH-MS-001' },
+          { id: 'booth-002', name: 'Google', zone_name: 'Google', x_coordinate: 60, y_coordinate: 20, qr_code: 'BOOTH-GOOG-002' },
+          { id: 'booth-003', name: 'Apple', zone_name: 'Apple', x_coordinate: 100, y_coordinate: 20, qr_code: 'BOOTH-AAPL-003' },
+          { id: 'booth-004', name: 'Amazon', zone_name: 'Amazon', x_coordinate: 20, y_coordinate: 60, qr_code: 'BOOTH-AMZN-004' },
+          { id: 'booth-005', name: 'Meta', zone_name: 'Meta', x_coordinate: 60, y_coordinate: 60, qr_code: 'BOOTH-META-005' },
+          { id: 'booth-006', name: 'Tesla', zone_name: 'Tesla', x_coordinate: 100, y_coordinate: 60, qr_code: 'BOOTH-TSLA-006' }
+        ]
+      },
+      'venue-002': {
+        id: 'venue-002',
+        name: 'Riverside Park',
+        address: '456 River Road, Waterfront',
+        description: 'Outdoor venue with 30+ food stalls',
+        booths: [
+          { id: 'booth-101', name: 'Pizza Palace', zone_name: 'Pizza Palace', x_coordinate: 30, y_coordinate: 30, qr_code: 'BOOTH-PIZZA-101' },
+          { id: 'booth-102', name: 'Taco Truck', zone_name: 'Taco Truck', x_coordinate: 70, y_coordinate: 30, qr_code: 'BOOTH-TACO-102' },
+          { id: 'booth-103', name: 'Wine Tasting', zone_name: 'Wine Tasting', x_coordinate: 50, y_coordinate: 70, qr_code: 'BOOTH-WINE-103' }
+        ]
+      }
+    };
+
+    const venue = mockVenues[id];
+    if (!venue) {
+      return res.status(404).json({ error: 'Venue not found', venue: null });
+    }
+
+    res.json({ venue });
+  } catch (error) {
+    console.error('Get public venue error:', error);
+    res.status(500).json({ error: 'Internal server error', venue: null });
+  }
+});
+
 // Get all venues for the authenticated organizer
 router.get('/', authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
   try {

@@ -2,21 +2,16 @@ import React, { useState } from 'react'
 import { useAuth } from './hooks/useAuth'
 import { AuthPage } from './pages/AuthPage'
 import { Dashboard } from './pages/Dashboard'
-import { EventsPage } from './pages/EventsPage'
-import { VenuesPage } from './pages/VenuesPage'
-import { FloorplansPage } from './pages/FloorplansPage'
-import { ARCampaignsPage } from './pages/ar/ARCampaignsPage'
-import { EmergencyRouteConfigPage } from './pages/emergency/EmergencyRouteConfigPage'
-import { APIDocumentationPage } from './pages/api/APIDocumentationPage'
-import MobileSDKPreviewPage from './pages/mobile/MobileSDKPreviewPage'
 import { CDVPage } from './pages/CDVPage'
-import DemoWalkthrough from './pages/DemoWalkthrough'
+import { EventsManagementPage } from './pages/EventsManagementPage'
+import { VenuesManagementPage } from './pages/VenuesManagementPage'
+import { QuicketIntegrationPage } from './pages/QuicketIntegrationPage'
 import { OnboardingFlow } from './components/OnboardingFlow'
-import { DataIntegrityDashboard } from './components/DataIntegrityDashboard'
-import { Building, Calendar, Map, Zap, Shield, Code, Smartphone, LogOut, Brain, Presentation } from 'lucide-react'
+import { Building, LogOut, Brain, Calendar, MapPin, Link2 } from 'lucide-react'
 import './index.css'
 
-type TabType = 'demo' | 'dashboard' | 'events' | 'venues' | 'floorplans' | 'ar' | 'emergency' | 'api' | 'mobile' | 'cdv' | 'integrity'
+// Admin tabs for B2B configuration + CDV Revenue
+type TabType = 'dashboard' | 'events' | 'venues' | 'quicket' | 'cdv'
 
 interface NavSection {
   title: string
@@ -29,11 +24,15 @@ interface NavSection {
 
 function App() {
   const { user, loading, signOut } = useAuth()
-  const [activeTab, setActiveTab] = useState<TabType>('demo')
+  const [activeTab, setActiveTab] = useState<TabType>('dashboard')
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  
+  // DEMO MODE: Bypass authentication for B2B showcase
+  const demoMode = true
+  const demoUser = { email: 'demo@naveaze.co.za', id: 'demo-user-001' }
 
-  if (loading) {
+  if (loading && !demoMode) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -44,7 +43,7 @@ function App() {
     )
   }
 
-  if (!user) {
+  if (!user && !demoMode) {
     return <AuthPage />
   }
 
@@ -54,69 +53,36 @@ function App() {
 
   const navSections: NavSection[] = [
     {
-      title: 'Overview',
+      title: 'B2B Intelligence',
       tabs: [
-        { id: 'demo' as TabType, label: '🇿🇦 Live Demo', icon: Presentation },
-        { id: 'dashboard' as TabType, label: 'Dashboard', icon: Building },
+        { id: 'dashboard' as TabType, label: '🏠 Dashboard', icon: Building },
+        { id: 'cdv' as TabType, label: '💰 Revenue & Engagement', icon: Brain },
       ]
     },
     {
-      title: 'Core Management',
+      title: 'Configuration',
       tabs: [
-        { id: 'events' as TabType, label: 'Events', icon: Calendar },
-        { id: 'venues' as TabType, label: 'Venues', icon: Building },
-        { id: 'floorplans' as TabType, label: 'Floorplans', icon: Map },
-      ]
-    },
-    {
-      title: 'Analytics',
-      tabs: [
-        { id: 'cdv' as TabType, label: 'CDV Intelligence', icon: Brain },
-        { id: 'integrity' as TabType, label: 'Data Integrity', icon: Shield },
-      ]
-    },
-    {
-      title: 'Advanced Features',
-      tabs: [
-        { id: 'ar' as TabType, label: 'AR Campaigns', icon: Zap },
-        { id: 'emergency' as TabType, label: 'Emergency', icon: Shield },
-      ]
-    },
-    {
-      title: 'Developer',
-      tabs: [
-        { id: 'api' as TabType, label: 'API Docs', icon: Code },
-        { id: 'mobile' as TabType, label: 'Mobile SDK', icon: Smartphone },
+        { id: 'events' as TabType, label: '📅 Events', icon: Calendar },
+        { id: 'venues' as TabType, label: '📍 Venues & Booths', icon: MapPin },
+        { id: 'quicket' as TabType, label: '🎫 Quicket Integration', icon: Link2 },
       ]
     }
   ]
 
   const renderContent = () => {
     switch (activeTab) {
-      case 'demo':
-        return <DemoWalkthrough />
       case 'dashboard':
         return <Dashboard onTabChange={setActiveTab} />
       case 'events':
-        return <EventsPage />
+        return <EventsManagementPage />
       case 'venues':
-        return <VenuesPage />
-      case 'floorplans':
-        return <FloorplansPage />
-      case 'ar':
-        return <ARCampaignsPage />
-      case 'emergency':
-        return <EmergencyRouteConfigPage />
+        return <VenuesManagementPage />
+      case 'quicket':
+        return <QuicketIntegrationPage />
       case 'cdv':
         return <CDVPage />
-      case 'integrity':
-        return <DataIntegrityDashboard />
-      case 'api':
-        return <APIDocumentationPage />
-      case 'mobile':
-        return <MobileSDKPreviewPage />
       default:
-        return <DemoWalkthrough />
+        return <Dashboard onTabChange={setActiveTab} />
     }
   }
 
@@ -127,13 +93,16 @@ function App() {
         {/* Sidebar Header */}
         <div className="h-16 flex items-center justify-between px-4 border-b">
           {!sidebarCollapsed && (
-            <h1 className="text-lg font-semibold text-gray-900">NavEaze DPM 🇿🇦</h1>
+            <div>
+              <h1 className="text-lg font-semibold text-gray-900">NavEaze B2B 🇿🇦</h1>
+              <p className="text-xs text-gray-500">Intelligence & Assurance</p>
+            </div>
           )}
           <button
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
             className="p-2 rounded-md hover:bg-gray-100 text-gray-600"
           >
-            <Map className="h-5 w-5" />
+            <Brain className="h-5 w-5" />
           </button>
         </div>
 
@@ -172,15 +141,7 @@ function App() {
         </nav>
 
         {/* Sidebar Footer */}
-        <div className="border-t p-4 space-y-2">
-          <button
-            onClick={() => setShowOnboarding(true)}
-            className={`w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 ${sidebarCollapsed ? 'justify-center' : ''}`}
-            title={sidebarCollapsed ? 'Quick Start' : undefined}
-          >
-            <Zap className="h-5 w-5 text-gray-400" />
-            {!sidebarCollapsed && <span>Quick Start</span>}
-          </button>
+        <div className="border-t p-4">
           <button
             onClick={signOut}
             className={`w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 ${sidebarCollapsed ? 'justify-center' : ''}`}
@@ -203,7 +164,12 @@ function App() {
           </div>
           <div className="flex items-center space-x-2 text-sm text-gray-600">
             <span>Signed in as</span>
-            <span className="font-medium">{user?.email}</span>
+            <span className="font-medium">{demoMode ? demoUser.email : user?.email}</span>
+            {demoMode && (
+              <span className="ml-2 px-2 py-0.5 bg-yellow-100 text-yellow-800 text-xs rounded-full font-medium">
+                DEMO MODE
+              </span>
+            )}
           </div>
         </header>
 

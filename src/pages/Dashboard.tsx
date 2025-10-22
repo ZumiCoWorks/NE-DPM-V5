@@ -5,10 +5,8 @@ import { eventsApi, venuesApi } from '../services/api'
 import type { Event, Venue } from '../services/api'
 
 interface DashboardProps {
-  onTabChange?: (tab: TabType) => void
+  onTabChange?: (tab: any) => void
 }
-
-type TabType = 'dashboard' | 'events' | 'venues' | 'floorplans' | 'ar' | 'emergency' | 'api' | 'mobile'
 
 export const Dashboard: React.FC<DashboardProps> = ({ onTabChange }) => {
   const { user, signOut } = useAuth()
