@@ -10,7 +10,7 @@ const router = Router()
  */
 router.post('/log', async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { device_id, anchor_id, event_id, booth_id, timestamp } = req.body
+    const { device_id, anchor_id, event_id, booth_id, timestamp, attendee_id, attendee_name, ticket_tier } = req.body
 
     if (!device_id || !anchor_id || !event_id) {
       return res.status(400).json({
@@ -27,6 +27,9 @@ router.post('/log', async (req: AuthenticatedRequest, res: Response) => {
         event_id,
         booth_id,
         timestamp: timestamp || new Date().toISOString(),
+        attendee_id: attendee_id || null,
+        attendee_name: attendee_name || null,
+        ticket_tier: ticket_tier || null,
       })
       .select()
       .single()
@@ -65,7 +68,7 @@ router.get('/analytics/:eventId', authenticateToken, async (req: AuthenticatedRe
 
     const { data: scans, error } = await supabaseAdmin
       .from('anonymous_scans')
-      .select('booth_id, anchor_id, device_id')
+      .select('booth_id, anchor_id, device_id, attendee_id, attendee_name, ticket_tier')
       .eq('event_id', eventId)
 
     if (error) {
@@ -78,7 +81,7 @@ router.get('/analytics/:eventId', authenticateToken, async (req: AuthenticatedRe
     }
 
     // Aggregate data
-    const boothAnalytics: { [key: string]: { total_scans: number; unique_devices: Set<string> } } = {}
+    const boothAnalytics: { [key: string]: { total_scans: number; unique_devices: Set<string>; attendees: Map<string, { name?: string; ticket_tier?: string }> } } = {}
 
     scans.forEach((scan) => {
       const key = scan.booth_id || scan.anchor_id
@@ -86,16 +89,24 @@ router.get('/analytics/:eventId', authenticateToken, async (req: AuthenticatedRe
         boothAnalytics[key] = {
           total_scans: 0,
           unique_devices: new Set(),
+          attendees: new Map(),
         }
       }
       boothAnalytics[key].total_scans++
       boothAnalytics[key].unique_devices.add(scan.device_id)
+      if (scan.attendee_id) {
+        boothAnalytics[key].attendees.set(scan.attendee_id, {
+          name: scan.attendee_name || undefined,
+          ticket_tier: scan.ticket_tier || undefined,
+        })
+      }
     })
 
     const result = Object.entries(boothAnalytics).map(([key, data]) => ({
       booth_id: key,
       total_scans: data.total_scans,
       unique_devices: data.unique_devices.size,
+      unique_attendees: Array.from(data.attendees.entries()).map(([attendee_id, meta]) => ({ attendee_id, ...meta })),
     }))
 
     res.json({

@@ -173,6 +173,26 @@ export default function MVPScannerScreen() {
                   : 'Point your camera at the booth QR code to check in and track your visit.'
                 }
               </Text>
+
+              {/* Arrow hint + Re-scan helper */}
+              {!scanned && (
+                <View style={styles.hintContainer}>
+                  <View style={styles.arrowUp} />
+                  <Text style={styles.hintText}>Aim at the nearest QR marker. If tracking is lost, tap Re‑scan.</Text>
+                </View>
+              )}
+
+              <TouchableOpacity
+                accessibilityRole="button"
+                onPress={() => {
+                  setScanned(false)
+                  setScanning(false)
+                }}
+                style={styles.rescanButton}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.rescanText}>Re‑scan nearest marker</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -297,6 +317,38 @@ const styles = StyleSheet.create({
     color: '#86868b',
     textAlign: 'center',
     lineHeight: 22,
+  },
+  hintContainer: {
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  arrowUp: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 10,
+    borderRightWidth: 10,
+    borderBottomWidth: 16,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderBottomColor: '#0071e3',
+    marginBottom: 6,
+  },
+  hintText: {
+    fontSize: 12,
+    color: '#4b5563',
+    textAlign: 'center',
+  },
+  rescanButton: {
+    marginTop: 12,
+    backgroundColor: '#f1f5f9',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+  },
+  rescanText: {
+    color: '#0071e3',
+    fontWeight: '700',
+    fontSize: 14,
   },
   messageText: {
     fontSize: 18,

@@ -18,6 +18,7 @@ import cdvReportsRoutes from './routes/cdv-reports.js'
 import quicketRoutes from './routes/quicket.js'
 import analyticsRoutes from './routes/analytics.js'
 import scansRoutes from './routes/scans.js'
+import ticketsRoutes from './routes/tickets.js'
 
 // for esm mode
 // const __filename = fileURLToPath(import.meta.url)
@@ -43,6 +44,7 @@ app.use('/api/cdv-reports', cdvReportsRoutes)
 app.use('/api/quicket', quicketRoutes)
 app.use('/api/analytics', analyticsRoutes)
 app.use('/api/scans', scansRoutes)
+app.use('/api/tickets', ticketsRoutes)
 
 /**
  * health

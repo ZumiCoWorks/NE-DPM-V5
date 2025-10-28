@@ -45,7 +45,12 @@ export const ApiClient = {
   async getEvents() {
     try {
       const res = await fetch(`${API_BASE}/events/public`)
-      return await res.json()
+      const json = await res.json()
+      // Normalize to { events: [...] } for callers
+      if (json && Array.isArray(json.data)) {
+        return { events: json.data }
+      }
+      return json
     } catch (error) {
       console.error('Error fetching events:', error)
       return { events: [] }
@@ -204,13 +209,19 @@ export const ApiClient = {
   }): Promise<any> {
     try {
       const deviceId = await this.getDeviceId()
+      const attendeeId = await AsyncStorage.getItem('attendee_id')
+      const attendeeName = await AsyncStorage.getItem('attendee_name')
+      const ticketTier = await AsyncStorage.getItem('ticket_tier')
       
       const payload = {
         device_id: deviceId,
         anchor_id: data.anchorId,
         event_id: data.eventId,
         booth_id: data.boothId || null,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        attendee_id: attendeeId || null,
+        attendee_name: attendeeName || null,
+        ticket_tier: ticketTier || null,
       }
       
       console.log('Logging anonymous scan:', payload)
