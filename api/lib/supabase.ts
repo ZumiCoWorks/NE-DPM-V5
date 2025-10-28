@@ -1,47 +1,86 @@
 import { createClient } from '@supabase/supabase-js'
-import dotenv from 'dotenv'
+import { Database } from '../../src/types/database'
+import { config } from 'dotenv'
+import path from 'path'
+import { fileURLToPath } from 'url'
 
 // Load environment variables
-dotenv.config()
+const __filename = fileURLToPath((import.meta as { url: string }).url)
+const __dirname = path.dirname(__filename)
+config({ path: path.resolve(__dirname, '../../.env') })
 
+// Environment variables validation
 const supabaseUrl = process.env.SUPABASE_URL
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-if (!supabaseUrl || !supabaseServiceRoleKey) {
-  throw new Error('Missing Supabase environment variables for backend')
+if (!supabaseUrl) {
+  throw new Error('Missing SUPABASE_URL environment variable')
 }
 
-// Create Supabase client with service role key for backend operations
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
+if (!supabaseServiceKey) {
+  throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY environment variable')
+}
+
+// Create Supabase client with service role key for server-side operations
+export const supabaseAdmin = createClient<Database>(
+  supabaseUrl,
+  supabaseServiceKey,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
   }
-})
+)
 
-// Create regular client for user operations
-const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY
-if (!supabaseAnonKey) {
-  throw new Error('Missing Supabase anon key for user operations')
-}
+// Alias for backwards compatibility
+export const supabase = supabaseAdmin
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Helper function to get user by ID
+export const getUserById = async (userId: string) => {
+  const { data, error } = await supabaseAdmin
+    .from('users')
+    .select('*')
+    .eq('id', userId)
+    .single()
 
-// Helper function to get user from JWT token
-export const getUserFromToken = async (token: string) => {
-  const { data: { user }, error } = await supabase.auth.getUser(token)
   if (error) {
-    throw new Error(`Invalid token: ${error.message}`)
+    throw new Error(`Failed to fetch user: ${error.message}`)
   }
-  return user
+
+  if (!data) {
+    throw new Error('User not found')
+  }
+
+  return data
 }
 
-// Helper function to verify user authentication
-export const verifyAuth = async (authHeader: string | undefined) => {
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    throw new Error('Missing or invalid authorization header')
+// Helper function to check if user has specific role
+export const userHasRole = async (userId: string, allowedRoles: string[]) => {
+  const user = await getUserById(userId)
+  return allowedRoles.includes(user.role)
+}
+
+// Helper function to check if user owns resource
+export const userOwnsResource = async (
+  userId: string,
+  table: string,
+  resourceId: string,
+  ownerField = 'created_by'
+) => {
+  const { data, error } = await supabaseAdmin
+    .from(table)
+    .select(ownerField)
+    .eq('id', resourceId)
+    .single()
+
+  if (error) {
+    throw new Error(`Failed to check resource ownership: ${error.message}`)
   }
-  
-  const token = authHeader.substring(7) // Remove 'Bearer ' prefix
-  return await getUserFromToken(token)
+
+  if (!data) {
+    throw new Error('Resource not found')
+  }
+
+  return (data as Record<string, unknown>)[ownerField] === userId
 }

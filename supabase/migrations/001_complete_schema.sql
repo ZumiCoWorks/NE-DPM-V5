@@ -133,8 +133,11 @@ CREATE TABLE booths (
     sponsor_logo_url TEXT,
     sponsor_website TEXT,
     description TEXT,
+    zone_name VARCHAR(100),
     x_coordinate DECIMAL(10,6) NOT NULL,
     y_coordinate DECIMAL(10,6) NOT NULL,
+    gps_latitude DECIMAL(10,8),
+    gps_longitude DECIMAL(11,8),
     qr_code VARCHAR(255) UNIQUE NOT NULL,
     qr_code_url TEXT,
     is_active BOOLEAN DEFAULT true,
@@ -295,6 +298,7 @@ CREATE INDEX idx_booths_navigation_point_id ON booths(navigation_point_id);
 CREATE INDEX idx_booths_venue_id ON booths(venue_id);
 CREATE INDEX idx_booths_event_id ON booths(event_id);
 CREATE INDEX idx_booths_qr_code ON booths(qr_code);
+CREATE INDEX idx_booths_gps ON booths(gps_latitude, gps_longitude);
 CREATE INDEX idx_cdv_reports_event_id ON cdv_reports(event_id);
 CREATE INDEX idx_cdv_reports_venue_id ON cdv_reports(venue_id);
 CREATE INDEX idx_cdv_reports_booth_id ON cdv_reports(booth_id);

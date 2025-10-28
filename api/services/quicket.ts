@@ -91,24 +91,31 @@ class QuicketService {
   /**
    * Get user's events from Quicket
    */
-  async getUserEvents(userToken: string): Promise<QuicketEvent[]> {
+  async getUserEvents(apiKey: string): Promise<QuicketEvent[]> {
     if (this.config.mockMode) {
       return this.getMockEvents()
     }
 
     try {
-      const response = await axios.get(`${this.config.baseUrl}/users/me/events`, {
+      // Quicket API public events endpoint
+      // Only requires the API key in query string, no usertoken header needed
+      const response = await axios.get(`${this.config.baseUrl}/events`, {
         params: {
-          api_key: this.config.apiKey,
-          pageSize: 50
-        },
-        headers: { usertoken: userToken }
+          api_key: apiKey,
+          pageSize: 50,
+          page: 1
+        }
       })
 
       return response.data.results || []
     } catch (error: any) {
       console.error('Error fetching Quicket events:', error.response?.data || error.message)
-      return []
+      // Log more details
+      if (error.response) {
+        console.error('Response status:', error.response.status)
+        console.error('Response data:', error.response.data)
+      }
+      throw error
     }
   }
 

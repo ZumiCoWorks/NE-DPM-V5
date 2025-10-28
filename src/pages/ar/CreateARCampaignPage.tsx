@@ -1,6 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react'
-import { useAuth } from '../../hooks/useAuth'
-import { ArrowLeft, Upload, MapPin, Zap, Globe, Shield, AlertTriangle } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { supabase } from '../../lib/supabase'
+import { useAuth } from '../../contexts/AuthContext'
+import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
+import { ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface Venue {
@@ -14,14 +17,6 @@ interface Event {
   venue_id: string
 }
 
-interface GeographicalZone {
-  type: 'circle' | 'polygon'
-  coordinates: number[][]
-  radius?: number
-  name: string
-  description?: string
-}
-
 interface FormData {
   title: string
   description: string
@@ -29,29 +24,27 @@ interface FormData {
   event_id: string
   content_type: 'image' | 'video' | '3d_model'
   content_url: string
-  trigger_type: 'location' | 'marker' | 'face'
+  trigger_type: 'location' | 'image' | 'qr_code'
   trigger_data: Record<string, unknown>
-  geographical_zones: GeographicalZone[]
-  revenue_model: 'cpm' | 'cpc' | 'flat_rate'
+  position_x: number
+  position_y: number
+  position_z: number
+  rotation_x: number
+  rotation_y: number
+  rotation_z: number
+  scale_factor: number
   budget: number
-  target_audience: string
   start_date: string
   end_date: string
-  priority: number
+  target_audience: string
 }
 
-interface CreateARCampaignPageProps {
-  onTabChange?: (tab: string) => void
-}
-
-export const CreateARCampaignPage: React.FC<CreateARCampaignPageProps> = ({ onTabChange }) => {
-  const { getToken } = useAuth()
+export const CreateARCampaignPage: React.FC = () => {
+  const navigate = useNavigate()
+  const { profile } = useAuth()
   const [loading, setLoading] = useState(false)
   const [venues, setVenues] = useState<Venue[]>([])
   const [events, setEvents] = useState<Event[]>([])
-
-  const [processingAsset, setProcessingAsset] = useState(false)
-  const [assetProcessingStatus, setAssetProcessingStatus] = useState('')
   const [formData, setFormData] = useState<FormData>({
     title: '',
     description: '',
@@ -61,13 +54,17 @@ export const CreateARCampaignPage: React.FC<CreateARCampaignPageProps> = ({ onTa
     content_url: '',
     trigger_type: 'location',
     trigger_data: {},
-    geographical_zones: [],
-    revenue_model: 'cpm',
-    budget: 1000,
-    target_audience: '',
+    position_x: 0,
+    position_y: 0,
+    position_z: 0,
+    rotation_x: 0,
+    rotation_y: 0,
+    rotation_z: 0,
+    scale_factor: 1,
+    budget: 0,
     start_date: '',
     end_date: '',
-    priority: 1
+    target_audience: ''
   })
 
   useEffect(() => {
@@ -77,167 +74,62 @@ export const CreateARCampaignPage: React.FC<CreateARCampaignPageProps> = ({ onTa
   useEffect(() => {
     if (formData.venue_id) {
       fetchEvents(formData.venue_id)
+    } else {
+      setEvents([])
+      setFormData(prev => ({ ...prev, event_id: '' }))
     }
   }, [formData.venue_id])
 
-  const fetchVenues = useCallback(async () => {
+  const fetchVenues = async () => {
     try {
-      const token = await getToken()
-      const response = await fetch('/api/venues', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setVenues(data.venues || [])
-      }
+      const { data, error } = await supabase
+        .from('venues')
+        .select('id, name')
+        .eq('status', 'active')
+        .order('name')
+
+      if (error) throw error
+      setVenues(data || [])
     } catch (error) {
       console.error('Error fetching venues:', error)
       toast.error('Failed to load venues')
     }
-  }, [getToken])
+  }
 
-  const fetchEvents = useCallback(async (venueId: string) => {
+  const fetchEvents = async (venueId: string) => {
     try {
-      const token = await getToken()
-      const response = await fetch(`/api/events?venue_id=${venueId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setEvents(data.events || [])
-      }
+      const { data, error } = await supabase
+        .from('events')
+        .select('id, name, venue_id')
+        .eq('venue_id', venueId)
+        .eq('status', 'active')
+        .order('name')
+
+      if (error) throw error
+      setEvents(data || [])
     } catch (error) {
       console.error('Error fetching events:', error)
       toast.error('Failed to load events')
     }
-  }, [getToken])
+  }
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value, type } = e.target
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'number' ? parseFloat(value) || 0 : value
+      [name]: name.includes('position_') || name.includes('rotation_') || name === 'scale_factor' || name === 'budget'
+        ? parseFloat(value) || 0
+        : value
     }))
   }
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    // Validate file type
-    const allowedTypes = {
-      image: ['image/jpeg', 'image/png', 'image/webp'],
-      video: ['video/mp4', 'video/webm'],
-      '3d_model': ['model/gltf+json', 'model/gltf-binary', 'application/octet-stream']
-    }
-
-    if (!allowedTypes[formData.content_type].includes(file.type)) {
-      toast.error(`Invalid file type for ${formData.content_type}`)
-      return
-    }
-
-    // Validate file size (50MB max)
-    if (file.size > 50 * 1024 * 1024) {
-      toast.error('File size must be less than 50MB')
-      return
-    }
-
-    try {
-      setProcessingAsset(true)
-      setAssetProcessingStatus('Uploading asset...')
-      
-      const formDataUpload = new FormData()
-      formDataUpload.append('file', file)
-      formDataUpload.append('content_type', formData.content_type)
-      formDataUpload.append('optimize_bandwidth', 'true')
-
-      const token = await getToken()
-      const response = await fetch('/api/ar-campaigns/upload-asset', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formDataUpload
-      })
-
-      if (!response.ok) {
-        throw new Error('Upload failed')
-      }
-
-      const result = await response.json()
-      console.log('Upload result:', result)
-      
-      setAssetProcessingStatus('Processing with Zumi AI...')
-      
-      // Poll for processing status
-      const pollProcessing = async (assetId: string) => {
-        const token = await getToken()
-        const statusResponse = await fetch(`/api/ar-campaigns/asset-status/${assetId}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        })
-        
-        if (statusResponse.ok) {
-          const statusData = await statusResponse.json()
-          
-          if (statusData.status === 'completed') {
-            setFormData(prev => ({ ...prev, content_url: statusData.optimized_url }))
-            setAssetProcessingStatus('Asset processed successfully!')
-            toast.success('Asset uploaded and optimized successfully')
-            setProcessingAsset(false)
-          } else if (statusData.status === 'failed') {
-            throw new Error('Asset processing failed')
-          } else {
-            setAssetProcessingStatus(`Processing: ${statusData.progress || 0}%`)
-            setTimeout(() => pollProcessing(assetId), 2000)
-          }
-        }
-      }
-      
-      if (result.asset_id) {
-        pollProcessing(result.asset_id)
-      }
-      
-    } catch (error) {
-      console.error('Error uploading asset:', error)
-      toast.error('Failed to upload asset')
-      setProcessingAsset(false)
-      setAssetProcessingStatus('')
-    }
-  }
-
-  const addGeographicalZone = () => {
-    const newZone: GeographicalZone = {
-      type: 'circle',
-      coordinates: [[0, 0]], // Default coordinates
-      radius: 100,
-      name: `Zone ${formData.geographical_zones.length + 1}`,
-      description: ''
-    }
+  const handleTriggerDataChange = (key: string, value: string | number | boolean) => {
     setFormData(prev => ({
       ...prev,
-      geographical_zones: [...prev.geographical_zones, newZone]
-    }))
-  }
-
-  const updateGeographicalZone = (index: number, updates: Partial<GeographicalZone>) => {
-    setFormData(prev => ({
-      ...prev,
-      geographical_zones: prev.geographical_zones.map((zone, i) => 
-        i === index ? { ...zone, ...updates } : zone
-      )
-    }))
-  }
-
-  const removeGeographicalZone = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      geographical_zones: prev.geographical_zones.filter((_, i) => i !== index)
+      trigger_data: {
+        ...prev.trigger_data,
+        [key]: value
+      }
     }))
   }
 
@@ -250,20 +142,24 @@ export const CreateARCampaignPage: React.FC<CreateARCampaignPageProps> = ({ onTa
       toast.error('Please select a venue')
       return false
     }
-    if (!formData.content_url) {
-      toast.error('Please upload campaign content')
+    if (!formData.content_url.trim()) {
+      toast.error('Content URL is required')
       return false
     }
-    if (formData.geographical_zones.length === 0) {
-      toast.error('At least one geographical zone is required')
+    if (!formData.start_date) {
+      toast.error('Start date is required')
       return false
     }
-    if (!formData.start_date || !formData.end_date) {
-      toast.error('Start and end dates are required')
+    if (!formData.end_date) {
+      toast.error('End date is required')
       return false
     }
     if (new Date(formData.start_date) >= new Date(formData.end_date)) {
       toast.error('End date must be after start date')
+      return false
+    }
+    if (formData.budget <= 0) {
+      toast.error('Budget must be greater than 0')
       return false
     }
     return true
@@ -279,35 +175,107 @@ export const CreateARCampaignPage: React.FC<CreateARCampaignPageProps> = ({ onTa
       
       const campaignData = {
         ...formData,
-        trigger_data: formData.trigger_type === 'location' 
-          ? { geographical_zones: formData.geographical_zones }
-          : formData.trigger_data
+        advertiser_id: profile?.id,
+        event_id: formData.event_id || null,
+        is_active: false, // Start as inactive
+        current_views: 0,
+        total_interactions: 0,
+        click_through_rate: 0
       }
       
-      const token = await getToken()
-      const response = await fetch('/api/ar-campaigns', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(campaignData)
-      })
+      const { error } = await supabase
+        .from('ar_advertisements')
+        .insert([campaignData])
       
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || 'Failed to create campaign')
-      }
+      if (error) throw error
       
-      // const result = await response.json() // Future use for response data
-      toast.success('AR Campaign created successfully!')
-      onTabChange?.('ar-campaigns')
-      
+      toast.success('AR campaign created successfully!')
+      navigate('/ar-campaigns')
     } catch (error) {
       console.error('Error creating campaign:', error)
-      toast.error(error instanceof Error ? error.message : 'Failed to create campaign')
+      toast.error('Failed to create campaign')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const renderTriggerDataFields = () => {
+    switch (formData.trigger_type) {
+      case 'location':
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Latitude
+              </label>
+              <input
+                type="number"
+                step="any"
+                value={formData.trigger_data.latitude || ''}
+                onChange={(e) => handleTriggerDataChange('latitude', parseFloat(e.target.value))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter latitude"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Longitude
+              </label>
+              <input
+                type="number"
+                step="any"
+                value={formData.trigger_data.longitude || ''}
+                onChange={(e) => handleTriggerDataChange('longitude', parseFloat(e.target.value))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter longitude"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Radius (meters)
+              </label>
+              <input
+                type="number"
+                value={formData.trigger_data.radius || ''}
+                onChange={(e) => handleTriggerDataChange('radius', parseInt(e.target.value))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter radius in meters"
+              />
+            </div>
+          </div>
+        )
+      case 'image':
+        return (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Target Image URL
+            </label>
+            <input
+              type="url"
+              value={formData.trigger_data.image_url || ''}
+              onChange={(e) => handleTriggerDataChange('image_url', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Enter target image URL"
+            />
+          </div>
+        )
+      case 'qr_code':
+        return (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              QR Code Data
+            </label>
+            <input
+              type="text"
+              value={formData.trigger_data.qr_data || ''}
+              onChange={(e) => handleTriggerDataChange('qr_data', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Enter QR code data"
+            />
+          </div>
+        )
+      default:
+        return null
     }
   }
 
@@ -316,7 +284,7 @@ export const CreateARCampaignPage: React.FC<CreateARCampaignPageProps> = ({ onTa
       {/* Header */}
       <div className="flex items-center space-x-4">
         <button
-          onClick={() => onTabChange?.('ar-campaigns')}
+          onClick={() => navigate('/ar-campaigns')}
           className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
@@ -324,19 +292,16 @@ export const CreateARCampaignPage: React.FC<CreateARCampaignPageProps> = ({ onTa
         </button>
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Create AR Campaign</h1>
-          <p className="text-sm text-gray-500">Set up a new augmented reality campaign with geographical targeting</p>
+          <p className="text-sm text-gray-500">Set up a new augmented reality advertising campaign</p>
         </div>
       </div>
 
       {/* Form */}
       <div className="bg-white shadow rounded-lg">
-        <form onSubmit={handleSubmit} className="p-6 space-y-8">
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* Basic Information */}
           <div className="space-y-4">
-            <h3 className="text-lg font-medium text-gray-900 flex items-center">
-              <Zap className="h-5 w-5 mr-2 text-blue-500" />
-              Basic Information
-            </h3>
+            <h3 className="text-lg font-medium text-gray-900">Basic Information</h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -356,19 +321,19 @@ export const CreateARCampaignPage: React.FC<CreateARCampaignPageProps> = ({ onTa
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Revenue Model *
+                  Budget ($) *
                 </label>
-                <select
-                  name="revenue_model"
-                  value={formData.revenue_model}
+                <input
+                  type="number"
+                  name="budget"
+                  value={formData.budget}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter budget"
+                  min="0"
+                  step="0.01"
                   required
-                >
-                  <option value="cpm">CPM (Cost Per Mille)</option>
-                  <option value="cpc">CPC (Cost Per Click)</option>
-                  <option value="flat_rate">Flat Rate</option>
-                </select>
+                />
               </div>
             </div>
             
@@ -382,17 +347,14 @@ export const CreateARCampaignPage: React.FC<CreateARCampaignPageProps> = ({ onTa
                 onChange={handleInputChange}
                 rows={3}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Describe your AR campaign"
+                placeholder="Enter campaign description"
               />
             </div>
           </div>
 
           {/* Location & Event */}
           <div className="space-y-4">
-            <h3 className="text-lg font-medium text-gray-900 flex items-center">
-              <MapPin className="h-5 w-5 mr-2 text-green-500" />
-              Location &amp; Event
-            </h3>
+            <h3 className="text-lg font-medium text-gray-900">Location &amp; Event</h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -408,7 +370,9 @@ export const CreateARCampaignPage: React.FC<CreateARCampaignPageProps> = ({ onTa
                 >
                   <option value="">Select a venue</option>
                   {venues.map(venue => (
-                    <option key={venue.id} value={venue.id}>{venue.name}</option>
+                    <option key={venue.id} value={venue.id}>
+                      {venue.name}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -424,128 +388,20 @@ export const CreateARCampaignPage: React.FC<CreateARCampaignPageProps> = ({ onTa
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   disabled={!formData.venue_id}
                 >
-                  <option value="">No specific event</option>
+                  <option value="">Select an event</option>
                   {events.map(event => (
-                    <option key={event.id} value={event.id}>{event.name}</option>
+                    <option key={event.id} value={event.id}>
+                      {event.name}
+                    </option>
                   ))}
                 </select>
               </div>
             </div>
           </div>
 
-          {/* Geographical Zones */}
+          {/* Content */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-medium text-gray-900 flex items-center">
-                <Globe className="h-5 w-5 mr-2 text-purple-500" />
-                Geographical Zones *
-              </h3>
-              <button
-                type="button"
-                onClick={addGeographicalZone}
-                className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200"
-              >
-                Add Zone
-              </button>
-            </div>
-            
-            {formData.geographical_zones.length === 0 ? (
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                <Globe className="mx-auto h-8 w-8 text-gray-400" />
-                <p className="mt-2 text-sm text-gray-500">No geographical zones defined</p>
-                <p className="text-xs text-gray-400">Add zones to target specific areas for your AR campaign</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {formData.geographical_zones.map((zone, index) => (
-                  <div key={index} className="border border-gray-200 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="font-medium text-gray-900">Zone {index + 1}</h4>
-                      <button
-                        type="button"
-                        onClick={() => removeGeographicalZone(index)}
-                        className="text-red-600 hover:text-red-800 text-sm"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Zone Name
-                        </label>
-                        <input
-                          type="text"
-                          value={zone.name}
-                          onChange={(e) => updateGeographicalZone(index, { name: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="Zone name"
-                        />
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Type
-                        </label>
-                        <select
-                          value={zone.type}
-                          onChange={(e) => updateGeographicalZone(index, { type: e.target.value as 'circle' | 'polygon' })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="circle">Circle</option>
-                          <option value="polygon">Polygon</option>
-                        </select>
-                      </div>
-                      
-                      {zone.type === 'circle' && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Radius (meters)
-                          </label>
-                          <input
-                            type="number"
-                            value={zone.radius || 100}
-                            onChange={(e) => updateGeographicalZone(index, { radius: parseInt(e.target.value) })}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            min="10"
-                            max="10000"
-                          />
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className="mt-3">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Description
-                      </label>
-                      <input
-                        type="text"
-                        value={zone.description || ''}
-                        onChange={(e) => updateGeographicalZone(index, { description: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Zone description (optional)"
-                      />
-                    </div>
-                    
-                    <div className="mt-3 p-3 bg-blue-50 rounded-md">
-                      <p className="text-xs text-blue-600">
-                        <AlertTriangle className="h-4 w-4 inline mr-1" />
-                        Coordinates will be set automatically based on venue location. You can adjust them later in the campaign editor.
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* AR Content */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium text-gray-900 flex items-center">
-              <Upload className="h-5 w-5 mr-2 text-orange-500" />
-              AR Content *
-            </h3>
+            <h3 className="text-lg font-medium text-gray-900">AR Content</h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -557,7 +413,6 @@ export const CreateARCampaignPage: React.FC<CreateARCampaignPageProps> = ({ onTa
                   value={formData.content_type}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
                 >
                   <option value="image">Image</option>
                   <option value="video">Video</option>
@@ -567,85 +422,49 @@ export const CreateARCampaignPage: React.FC<CreateARCampaignPageProps> = ({ onTa
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Trigger Type *
+                  Content URL *
                 </label>
-                <select
-                  name="trigger_type"
-                  value={formData.trigger_type}
+                <input
+                  type="url"
+                  name="content_url"
+                  value={formData.content_url}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter content URL"
                   required
-                >
-                  <option value="location">Location-based</option>
-                  <option value="marker">Image Marker</option>
-                  <option value="face">Face Detection</option>
-                </select>
-              </div>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Upload Content *
-              </label>
-              <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
-                <div className="space-y-1 text-center">
-                  {processingAsset ? (
-                    <div className="space-y-2">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                      <p className="text-sm text-gray-600">{assetProcessingStatus}</p>
-                    </div>
-                  ) : formData.content_url ? (
-                    <div className="space-y-2">
-                      <Shield className="mx-auto h-8 w-8 text-green-500" />
-                      <p className="text-sm text-green-600">Asset uploaded and optimized successfully</p>
-                    </div>
-                  ) : (
-                    <>
-                      <Upload className="mx-auto h-12 w-12 text-gray-400" />
-                      <div className="flex text-sm text-gray-600">
-                        <label className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500">
-                          <span>Upload a file</span>
-                          <input
-                            type="file"
-                            className="sr-only"
-                            onChange={handleFileUpload}
-                            accept={formData.content_type === 'image' ? 'image/*' : formData.content_type === 'video' ? 'video/*' : '.gltf,.glb'}
-                          />
-                        </label>
-                        <p className="pl-1">or drag and drop</p>
-                      </div>
-                      <p className="text-xs text-gray-500">
-                        {formData.content_type === 'image' && 'PNG, JPG, WebP up to 50MB'}
-                        {formData.content_type === 'video' && 'MP4, WebM up to 50MB'}
-                        {formData.content_type === '3d_model' && 'GLTF, GLB up to 50MB'}
-                      </p>
-                    </>
-                  )}
-                </div>
+                />
               </div>
             </div>
           </div>
 
-          {/* Campaign Settings */}
+          {/* Trigger Configuration */}
           <div className="space-y-4">
-            <h3 className="text-lg font-medium text-gray-900">Campaign Settings</h3>
+            <h3 className="text-lg font-medium text-gray-900">Trigger Configuration</h3>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Budget ($) *
-                </label>
-                <input
-                  type="number"
-                  name="budget"
-                  value={formData.budget}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  min="1"
-                  required
-                />
-              </div>
-              
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Trigger Type
+              </label>
+              <select
+                name="trigger_type"
+                value={formData.trigger_type}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="location">Location-based</option>
+                <option value="image">Image Recognition</option>
+                <option value="qr_code">QR Code</option>
+              </select>
+            </div>
+            
+            {renderTriggerDataFields()}
+          </div>
+
+          {/* Campaign Schedule */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium text-gray-900">Campaign Schedule</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Start Date *
@@ -674,37 +493,49 @@ export const CreateARCampaignPage: React.FC<CreateARCampaignPageProps> = ({ onTa
                 />
               </div>
             </div>
+          </div>
+
+          {/* Target Audience */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium text-gray-900">Target Audience</h3>
             
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Target Audience
+                Audience Description
               </label>
-              <input
-                type="text"
+              <textarea
                 name="target_audience"
                 value={formData.target_audience}
                 onChange={handleInputChange}
+                rows={2}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="e.g., Young adults, Tech enthusiasts, Event attendees"
+                placeholder="Describe your target audience"
               />
             </div>
           </div>
 
-          {/* Submit */}
+          {/* Submit Button */}
           <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
             <button
               type="button"
-              onClick={() => onTabChange?.('ar-campaigns')}
+              onClick={() => navigate('/ar-campaigns')}
               className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={loading || processingAsset}
-              className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={loading}
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
             >
-              {loading ? 'Creating...' : 'Create Campaign'}
+              {loading ? (
+                <>
+                  <LoadingSpinner size="sm" className="mr-2" />
+                  Creating...
+                </>
+              ) : (
+                'Create Campaign'
+              )}
             </button>
           </div>
         </form>
@@ -712,5 +543,3 @@ export const CreateARCampaignPage: React.FC<CreateARCampaignPageProps> = ({ onTa
     </div>
   )
 }
-
-export default CreateARCampaignPage

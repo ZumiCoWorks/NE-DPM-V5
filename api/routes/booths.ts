@@ -1,6 +1,6 @@
 import { Router, Response } from 'express'
 import { supabaseAdmin } from '../lib/supabase.js'
-import { AuthenticatedRequest, authenticateUser } from '../middleware/auth.js'
+import { AuthenticatedRequest, authenticateToken } from '../middleware/auth.js'
 import { randomBytes } from 'crypto'
 
 const router = Router()
@@ -13,7 +13,7 @@ function generateQRCode(boothName: string): string {
 }
 
 // Get all booths for a specific venue
-router.get('/venue/:venueId', authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
+router.get('/venue/:venueId', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'User not authenticated' })
@@ -52,7 +52,7 @@ router.get('/venue/:venueId', authenticateUser, async (req: AuthenticatedRequest
 })
 
 // Get a specific booth by ID
-router.get('/:id', authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
+router.get('/:id', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'User not authenticated' })
@@ -90,7 +90,7 @@ router.get('/:id', authenticateUser, async (req: AuthenticatedRequest, res: Resp
 })
 
 // Create a new booth
-router.post('/', authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
+router.post('/', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'User not authenticated' })
@@ -156,7 +156,7 @@ router.post('/', authenticateUser, async (req: AuthenticatedRequest, res: Respon
 })
 
 // Update an existing booth
-router.put('/:id', authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
+router.put('/:id', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'User not authenticated' })
@@ -231,7 +231,7 @@ router.put('/:id', authenticateUser, async (req: AuthenticatedRequest, res: Resp
 })
 
 // Delete a booth
-router.delete('/:id', authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
+router.delete('/:id', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'User not authenticated' })
@@ -274,7 +274,7 @@ router.delete('/:id', authenticateUser, async (req: AuthenticatedRequest, res: R
 })
 
 // Regenerate QR code for a booth
-router.post('/:id/regenerate-qr', authenticateUser, async (req: AuthenticatedRequest, res: Response) => {
+router.post('/:id/regenerate-qr', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) {
       return res.status(401).json({ error: 'User not authenticated' })

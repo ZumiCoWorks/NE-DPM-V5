@@ -91,6 +91,152 @@ export const ApiClient = {
       console.error('Error sending CDV report:', error)
       return { success: false, error: error.message }
     }
+  },
+  
+  async getDeviceId(): Promise<string> {
+    try {
+      let deviceId = await AsyncStorage.getItem('device_id')
+      
+      if (!deviceId) {
+        deviceId = `device_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        await AsyncStorage.setItem('device_id', deviceId)
+      }
+      
+      return deviceId
+    } catch (error) {
+      console.error('Error getting device ID:', error)
+      return `device_${Date.now()}`
+    }
+  },
+  
+  async logBoothEngagement(data: {
+    eventId: string;
+    boothId: string;
+    qrCode: string;
+    activeEngagement: boolean;
+    timestamp: string;
+  }): Promise<any> {
+    try {
+      const deviceId = await this.getDeviceId()
+      
+      const res = await fetch(`${API_BASE}/cdv-report`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mobile_user_id: deviceId,
+          event_id: data.eventId,
+          booth_id: data.boothId,
+          zone_name: data.qrCode,
+          dwell_time_minutes: 0.5, // Initial QR scan
+          active_engagement_status: data.activeEngagement,
+          x_coordinate: 0,
+          y_coordinate: 0,
+          created_at: data.timestamp
+        })
+      })
+      
+      if (!res.ok) throw new Error('Failed to log engagement')
+      return await res.json()
+    } catch (error) {
+      console.error('Error logging booth engagement:', error)
+      return { success: false }
+    }
+  },
+  
+  async startBoothVisitTracking(boothId: string, eventId: string): Promise<any> {
+    try {
+      const deviceId = await this.getDeviceId()
+      
+      // Store visit start time locally
+      await AsyncStorage.setItem(
+        `booth_visit_${boothId}`,
+        JSON.stringify({
+          eventId,
+          startTime: new Date().toISOString()
+        })
+      )
+      
+      return { success: true, boothId, startTime: new Date().toISOString() }
+    } catch (error) {
+      console.error('Error starting booth visit:', error)
+      return { success: false }
+    }
+  },
+  
+  async endBoothVisitTracking(boothId: string, eventId: string): Promise<any> {
+    try {
+      const deviceId = await this.getDeviceId()
+      
+      // Get visit start time
+      const visitDataJson = await AsyncStorage.getItem(`booth_visit_${boothId}`)
+      if (!visitDataJson) {
+        return { success: false, error: 'No visit start time found' }
+      }
+      
+      const visitData = JSON.parse(visitDataJson)
+      const startTime = new Date(visitData.startTime)
+      const endTime = new Date()
+      const dwellMinutes = (endTime.getTime() - startTime.getTime()) / 60000
+      
+      // Log CDV report
+      await this.sendCDVReport({
+        event_id: eventId,
+        zone_name: `Booth ${boothId}`,
+        dwell_time_minutes: dwellMinutes,
+        active_engagement_status: false, // Passive visit
+      })
+      
+      // Clear visit data
+      await AsyncStorage.removeItem(`booth_visit_${boothId}`)
+      
+      return { success: true, dwellMinutes }
+    } catch (error) {
+      console.error('Error ending booth visit:', error)
+      return { success: false }
+    }
+  },
+  
+  // MVP: Log anonymous scan (for Phase 1 analytics)
+  async logAnonymousScan(data: {
+    eventId: string;
+    anchorId: string;
+    boothId?: string;
+  }): Promise<any> {
+    try {
+      const deviceId = await this.getDeviceId()
+      
+      const payload = {
+        device_id: deviceId,
+        anchor_id: data.anchorId,
+        event_id: data.eventId,
+        booth_id: data.boothId || null,
+        timestamp: new Date().toISOString()
+      }
+      
+      console.log('Logging anonymous scan:', payload)
+      
+      const res = await fetch(`${API_BASE}/scans/log`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      })
+      
+      if (!res.ok) {
+        const errorText = await res.text()
+        throw new Error(`Failed to log scan: ${errorText}`)
+      }
+      
+      const result = await res.json()
+      console.log('Scan logged successfully:', result)
+      return result
+    } catch (error: any) {
+      console.error('Error logging anonymous scan:', error)
+      return { success: false, error: error.message }
+    }
   }
 }
+
+export default ApiClient
 

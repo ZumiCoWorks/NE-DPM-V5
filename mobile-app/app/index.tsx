@@ -1,221 +1,332 @@
-import React, { useState, useEffect } from 'react'
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native'
-import { useRouter } from 'expo-router'
-import { ApiClient } from '../services/ApiClient'
+// mobile-app/app/index.tsx
+// Event Selection Screen - First screen users see
+
+import { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Calendar, MapPin, Users, ChevronRight } from 'lucide-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import ApiClient from '../services/ApiClient';
 
 interface Event {
-  id: string
-  name: string
-  venue_id: string
-  start_date: string
-  end_date: string
+  id: string;
+  name: string;
+  description: string;
+  start_date: string;
+  end_date: string;
+  venue: {
+    name: string;
+    address: string;
+  };
+  max_attendees: number;
+  status: string;
 }
 
-export default function EventListScreen() {
-  const router = useRouter()
-  const [events, setEvents] = useState<Event[]>([])
-  const [loading, setLoading] = useState(true)
-  const [user, setUser] = useState<any>(null)
-  
+export default function EventSelectionScreen() {
+  const router = useRouter();
+  const [events, setEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
-    loadUserAndEvents()
-  }, [])
-  
-  const loadUserAndEvents = async () => {
-    const currentUser = await ApiClient.getCurrentUser()
-    if (!currentUser) {
-      router.replace('/login')
-      return
+    loadEvents(); // Skip auth - go straight to events for MVP
+  }, []);
+
+  async function loadEvents() {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await ApiClient.getEvents();
+      setEvents(data.events || []);
+    } catch (err) {
+      setError('Failed to load events. Please check your connection.');
+      console.error('Error loading events:', err);
+    } finally {
+      setLoading(false);
     }
-    
-    setUser(currentUser)
-    
-    const data = await ApiClient.getEvents()
-    setEvents(data.events || [])
-    setLoading(false)
   }
-  
-  const handleEventPress = (event: Event) => {
-    router.push(`/venue/${event.venue_id}?eventId=${event.id}&eventName=${encodeURIComponent(event.name)}`)
+
+  function formatDate(dateString: string) {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-ZA', { 
+      day: 'numeric', 
+      month: 'short', 
+      year: 'numeric' 
+    });
   }
-  
-  const handleLogout = async () => {
-    Alert.alert(
-      'Log Out',
-      'Are you sure you want to log out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Log Out',
-          style: 'destructive',
-          onPress: async () => {
-            await ApiClient.clearCurrentUser()
-            router.replace('/login')
-          }
-        }
-      ]
-    )
+
+  function selectEvent(event: Event) {
+    // Navigate to booth list for this event
+    router.push({
+      pathname: '/event/[id]',
+      params: { 
+        id: event.id,
+        eventName: event.name 
+      }
+    });
   }
-  
+
   if (loading) {
     return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#6366f1" />
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color="#0071e3" />
+        <Text style={styles.loadingText}>Loading events...</Text>
       </View>
-    )
+    );
   }
-  
-  return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>Welcome back! 👋</Text>
-          <Text style={styles.headerSubtitle}>{user?.name || user?.email}</Text>
-        </View>
-        <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-          <Text style={styles.logoutText}>Log Out</Text>
+
+  if (error) {
+    return (
+      <View style={styles.centerContainer}>
+        <Text style={styles.errorText}>⚠️ {error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={loadEvents}>
+          <Text style={styles.retryButtonText}>Retry</Text>
         </TouchableOpacity>
       </View>
-      
-      <Text style={styles.sectionTitle}>Available Events</Text>
-      
-      {events.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>No events available</Text>
-          <Text style={styles.emptyHint}>Check back soon for upcoming events</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={events}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.eventCard}
-              onPress={() => handleEventPress(item)}
-            >
-              <View style={styles.eventIcon}>
-                <Text style={styles.eventIconText}>🎪</Text>
-              </View>
-              <View style={styles.eventContent}>
-                <Text style={styles.eventName}>{item.name}</Text>
-                <Text style={styles.eventDate}>
-                  {new Date(item.start_date).toLocaleDateString('en-ZA')}
+    );
+  }
+
+  if (events.length === 0) {
+    return (
+      <View style={styles.centerContainer}>
+        <Text style={styles.emptyText}>No events available</Text>
+        <Text style={styles.emptySubtext}>Check back soon!</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>NavEaze</Text>
+        <Text style={styles.headerSubtitle}>Select an event to begin</Text>
+      </View>
+
+      {/* Event List */}
+      <FlatList
+        data={events}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.listContainer}
+        renderItem={({ item }) => (
+          <TouchableOpacity 
+            style={styles.eventCard}
+            onPress={() => selectEvent(item)}
+            activeOpacity={0.7}
+          >
+            {/* Event Badge */}
+            <View style={[
+              styles.statusBadge,
+              item.status === 'active' && styles.statusActive,
+              item.status === 'upcoming' && styles.statusUpcoming
+            ]}>
+              <Text style={styles.statusText}>
+                {item.status === 'active' ? '🔴 LIVE' : '📅 Upcoming'}
+              </Text>
+            </View>
+
+            {/* Event Name */}
+            <Text style={styles.eventName}>{item.name}</Text>
+            
+            {/* Event Description */}
+            {item.description && (
+              <Text style={styles.eventDescription} numberOfLines={2}>
+                {item.description}
+              </Text>
+            )}
+
+            {/* Event Details */}
+            <View style={styles.detailsContainer}>
+              {/* Date */}
+              <View style={styles.detailRow}>
+                <Calendar size={16} color="#86868b" />
+                <Text style={styles.detailText}>
+                  {formatDate(item.start_date)}
+                  {item.end_date && item.end_date !== item.start_date && 
+                    ` - ${formatDate(item.end_date)}`
+                  }
                 </Text>
               </View>
-              <Text style={styles.eventArrow}>→</Text>
-            </TouchableOpacity>
-          )}
-          contentContainerStyle={styles.list}
-        />
-      )}
+
+              {/* Venue */}
+              <View style={styles.detailRow}>
+                <MapPin size={16} color="#86868b" />
+                <Text style={styles.detailText} numberOfLines={1}>
+                  {item.venue?.name || 'Venue TBA'}
+                </Text>
+              </View>
+
+              {/* Capacity */}
+              {item.max_attendees && (
+                <View style={styles.detailRow}>
+                  <Users size={16} color="#86868b" />
+                  <Text style={styles.detailText}>
+                    Up to {item.max_attendees} attendees
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            {/* Arrow */}
+            <View style={styles.arrowContainer}>
+              <ChevronRight size={24} color="#0071e3" />
+            </View>
+          </TouchableOpacity>
+        )}
+      />
+
+      {/* Footer */}
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>
+          Powered by NavEaze • AR Navigation + Analytics
+        </Text>
+      </View>
     </View>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#f5f5f7',
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f7',
+    padding: 20,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#ffffff',
+    paddingTop: 60,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    backgroundColor: 'white',
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: '#e5e5e7',
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#111827',
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginTop: 4,
-  },
-  logoutButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    backgroundColor: '#fee2e2',
-  },
-  logoutText: {
-    color: '#dc2626',
-    fontWeight: '600',
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#374151',
-    padding: 20,
-    paddingBottom: 12,
-  },
-  list: {
-    padding: 20,
-    paddingTop: 0,
-  },
-  eventCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  eventIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 12,
-    backgroundColor: '#ede9fe',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 16,
-  },
-  eventIconText: {
-    fontSize: 28,
-  },
-  eventContent: {
-    flex: 1,
-  },
-  eventName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#1d1d1f',
     marginBottom: 4,
   },
-  eventDate: {
-    fontSize: 14,
-    color: '#6b7280',
+  headerSubtitle: {
+    fontSize: 16,
+    color: '#86868b',
   },
-  eventArrow: {
-    fontSize: 24,
-    color: '#6366f1',
+  listContainer: {
+    padding: 20,
+    paddingBottom: 100,
   },
-  emptyState: {
-    flex: 1,
+  eventCard: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+    position: 'relative',
+  },
+  statusBadge: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: '#f5f5f7',
+  },
+  statusActive: {
+    backgroundColor: '#ffebee',
+  },
+  statusUpcoming: {
+    backgroundColor: '#e3f2fd',
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#1d1d1f',
+  },
+  eventName: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#1d1d1f',
+    marginBottom: 8,
+    paddingRight: 80, // Space for badge
+  },
+  eventDescription: {
+    fontSize: 15,
+    color: '#86868b',
+    lineHeight: 22,
+    marginBottom: 16,
+  },
+  detailsContainer: {
+    gap: 10,
+  },
+  detailRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: 40,
+    gap: 8,
+  },
+  detailText: {
+    fontSize: 14,
+    color: '#86868b',
+    flex: 1,
+  },
+  arrowContainer: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#86868b',
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#ff3b30',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  retryButton: {
+    backgroundColor: '#0071e3',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
   },
   emptyText: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '600',
-    color: '#374151',
+    color: '#1d1d1f',
     marginBottom: 8,
   },
-  emptyHint: {
-    fontSize: 14,
-    color: '#9ca3af',
+  emptySubtext: {
+    fontSize: 16,
+    color: '#86868b',
+  },
+  footer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 20,
+    backgroundColor: 'white',
+    borderTopWidth: 1,
+    borderTopColor: '#e5e5e7',
+  },
+  footerText: {
+    fontSize: 12,
+    color: '#86868b',
     textAlign: 'center',
   },
-})
-
-
+});

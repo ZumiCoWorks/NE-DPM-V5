@@ -47,6 +47,28 @@ export default function RootLayout() {
           presentation: 'modal'
         }} 
       />
+      <Stack.Screen 
+        name="mvp-index" 
+        options={{ 
+          title: 'NavEaze',
+          headerShown: false
+        }} 
+      />
+      <Stack.Screen 
+        name="mvp-scanner" 
+        options={{ 
+          title: 'Scan QR Code',
+          headerShown: false,
+          presentation: 'modal'
+        }} 
+      />
+      <Stack.Screen 
+        name="event/[id]" 
+        options={{ 
+          title: 'Event Booths',
+          headerShown: false
+        }} 
+      />
     </Stack>
   )
 }

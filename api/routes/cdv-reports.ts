@@ -18,7 +18,7 @@ router.post('/cdv-report', async (req: Request, res: Response) => {
     }
     
     global.cdvReports.push(report)
-    
+
     res.status(201).json({
       success: true,
       data: report
@@ -38,7 +38,7 @@ router.get('/cdv-reports/:eventId', async (req: Request, res: Response) => {
       .sort((a: any, b: any) => 
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       )
-    
+
     res.json({
       success: true,
       data: reports,
@@ -87,7 +87,7 @@ router.get('/cdv-reports/:eventId/revenue', async (req: Request, res: Response) 
       if (r.active_engagement_status) value *= 1.5
       zone.revenue += value
     })
-    
+
     res.json({
       success: true,
       data: zoneRevenue,

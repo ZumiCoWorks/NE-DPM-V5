@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react'
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { Camera, CameraView } from 'expo-camera'
 import * as Location from 'expo-location'
 import { NavigationHelper } from '../services/NavigationService'
 import { EngagementHelper } from '../services/EngagementTracker'
 
 export default function ARNavigationScreen() {
-  const { boothId, boothName, boothX, boothY, eventId, venueId } = useLocalSearchParams()
+  const { boothId, boothName, boothLat, boothLng, eventId, venueId } = useLocalSearchParams()
   const router = useRouter()
   const [hasPermission, setHasPermission] = useState(false)
   const [direction, setDirection] = useState<string>('Calculating...')
@@ -19,7 +18,7 @@ export default function ARNavigationScreen() {
   }, [])
 
   useEffect(() => {
-    if (hasPermission && boothX && boothY) {
+    if (hasPermission && boothLat && boothLng) {
       startNavigation()
       startEngagementTracking()
     }
@@ -27,23 +26,17 @@ export default function ARNavigationScreen() {
     return () => {
       EngagementHelper.stopTracking()
     }
-  }, [hasPermission, boothX, boothY])
+  }, [hasPermission, boothLat, boothLng])
 
   const requestPermissions = async () => {
-    const cameraStatus = await Camera.requestCameraPermissionsAsync()
     const locationStatus = await Location.requestForegroundPermissionsAsync()
-    
-    setHasPermission(
-      cameraStatus.status === 'granted' && locationStatus.status === 'granted'
-    )
+    setHasPermission(locationStatus.status === 'granted')
   }
 
   const startNavigation = async () => {
     try {
-      // In a real app, you'd use actual GPS coordinates
-      // For demo, we'll simulate navigation
-      const targetLat = parseFloat(boothX as string) / 1000 + 37.7749 // Mock coordinates
-      const targetLng = parseFloat(boothY as string) / 1000 + -122.4194
+      const targetLat = parseFloat(boothLat as string)
+      const targetLng = parseFloat(boothLng as string)
       
       const locationSubscription = await NavigationHelper.startNavigation(
         targetLat,
@@ -51,6 +44,18 @@ export default function ARNavigationScreen() {
         (dir, dist) => {
           setDirection(dir)
           setDistance(dist)
+          
+          // Auto-prompt to scan QR when within 5 meters
+          if (dist < 5 && dist > 0 && !isTracking) {
+            Alert.alert(
+              'You\'ve Arrived! 🎉',
+              'Scan the QR code at this booth to log your visit.',
+              [
+                { text: 'Scan Now', onPress: () => navigateToScanner() },
+                { text: 'Later', style: 'cancel' }
+              ]
+            )
+          }
         }
       )
 
@@ -76,8 +81,8 @@ export default function ARNavigationScreen() {
     )
   }
 
-  const stopAndScanQR = () => {
-    EngagementTracker.stopTracking()
+  const navigateToScanner = () => {
+    EngagementHelper.stopTracking()
     router.push({
       pathname: '/booth-scan',
       params: {
@@ -94,10 +99,10 @@ export default function ARNavigationScreen() {
     return (
       <View style={styles.container}>
         <Text style={styles.permissionText}>
-          Camera and location permissions are required for AR navigation
+          Location permission is required for navigation
         </Text>
         <TouchableOpacity style={styles.button} onPress={requestPermissions}>
-          <Text style={styles.buttonText}>Grant Permissions</Text>
+          <Text style={styles.buttonText}>Grant Permission</Text>
         </TouchableOpacity>
       </View>
     )
@@ -105,53 +110,43 @@ export default function ARNavigationScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Camera view */}
-      <CameraView style={styles.camera} facing="back">
-        {/* AR Overlay */}
-        <View style={styles.arOverlay}>
-          {/* Direction arrow (simplified) */}
-          <View style={styles.arContent}>
-            <Text style={styles.arArrow}>↑</Text>
-            <Text style={styles.arDirection}>{direction}</Text>
-            <Text style={styles.arDistance}>
-              {distance > 0 ? `${distance.toFixed(0)}m away` : 'Arriving soon'}
-            </Text>
-          </View>
-
-          {/* Destination info */}
-          <View style={styles.destinationInfo}>
-            <Text style={styles.destinationLabel}>Navigating to:</Text>
-            <Text style={styles.destinationName}>{boothName}</Text>
-            {isTracking && (
-              <Text style={styles.trackingIndicator}>
-                ⏱ Tracking dwell time...
-              </Text>
-            )}
-          </View>
-
-          {/* Action buttons */}
-          <View style={styles.actionButtons}>
-            <TouchableOpacity
-              style={[styles.actionButton, styles.scanButton]}
-              onPress={stopAndScanQR}
-            >
-              <Text style={styles.actionButtonText}>Scan QR Code</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionButton, styles.backButton]}
-              onPress={() => router.back()}
-            >
-              <Text style={styles.actionButtonText}>Back to Map</Text>
-            </TouchableOpacity>
-          </View>
+      {/* Simplified compass view (no camera) */}
+      <View style={styles.compassContainer}>
+        <View style={styles.compassCircle}>
+          <Text style={styles.compassArrow}>↑</Text>
+          <Text style={styles.compassN}>N</Text>
         </View>
-      </CameraView>
+      </View>
 
-      {/* Demo note */}
-      <View style={styles.demoNote}>
-        <Text style={styles.demoNoteText}>
-          📍 Demo Mode: Simulated GPS navigation
+      {/* Direction info */}
+      <View style={styles.infoCard}>
+        <Text style={styles.destinationLabel}>Navigating to:</Text>
+        <Text style={styles.destinationName}>{boothName}</Text>
+        <Text style={styles.directionText}>{direction}</Text>
+        <Text style={styles.distanceText}>
+          {distance > 0 ? `${distance.toFixed(0)}m away` : 'You\'ve arrived!'}
         </Text>
+        {isTracking && (
+          <Text style={styles.trackingIndicator}>
+            ⏱ Tracking your visit time...
+          </Text>
+        )}
+      </View>
+
+      {/* Action buttons */}
+      <View style={styles.actionButtons}>
+        <TouchableOpacity
+          style={[styles.actionButton, styles.scanButton]}
+          onPress={navigateToScanner}
+        >
+          <Text style={styles.actionButtonText}>📱 Scan QR Code</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.actionButton, styles.backButton]}
+          onPress={() => router.back()}
+        >
+          <Text style={styles.actionButtonText}>← Back to Map</Text>
+        </TouchableOpacity>
       </View>
     </View>
   )
@@ -160,52 +155,42 @@ export default function ARNavigationScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
-  },
-  camera: {
-    flex: 1,
-  },
-  arOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.2)',
-    justifyContent: 'space-between',
+    backgroundColor: '#0f172a',
     paddingTop: 60,
-    paddingBottom: 40,
     paddingHorizontal: 20,
   },
-  arContent: {
+  compassContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 40,
   },
-  arArrow: {
+  compassCircle: {
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: 'rgba(99,102,241,0.2)',
+    borderWidth: 3,
+    borderColor: '#6366f1',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  compassArrow: {
     fontSize: 80,
     color: '#fff',
-    textShadowColor: 'rgba(0,0,0,0.8)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
   },
-  arDirection: {
-    fontSize: 32,
+  compassN: {
+    position: 'absolute',
+    top: 10,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#fff',
-    marginTop: 10,
-    textShadowColor: 'rgba(0,0,0,0.8)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
   },
-  arDistance: {
-    fontSize: 20,
-    color: '#fff',
-    marginTop: 10,
-    textShadowColor: 'rgba(0,0,0,0.8)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
-  },
-  destinationInfo: {
+  infoCard: {
     backgroundColor: 'rgba(99,102,241,0.9)',
-    padding: 20,
-    borderRadius: 12,
+    padding: 24,
+    borderRadius: 16,
     alignItems: 'center',
+    marginBottom: 20,
   },
   destinationLabel: {
     fontSize: 14,
@@ -213,17 +198,29 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   destinationName: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
     color: '#fff',
+    marginBottom: 16,
+  },
+  directionText: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#fff',
+    marginBottom: 8,
+  },
+  distanceText: {
+    fontSize: 20,
+    color: '#fbbf24',
   },
   trackingIndicator: {
-    marginTop: 10,
+    marginTop: 12,
     fontSize: 14,
-    color: '#fbbf24',
+    color: '#34d399',
   },
   actionButtons: {
     gap: 12,
+    marginBottom: 40,
   },
   actionButton: {
     padding: 18,
@@ -234,7 +231,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#10b981',
   },
   backButton: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'transparent',
     borderWidth: 2,
     borderColor: '#fff',
   },
@@ -242,20 +239,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
-  },
-  demoNote: {
-    position: 'absolute',
-    top: 50,
-    left: 20,
-    right: 20,
-    backgroundColor: 'rgba(251,191,36,0.9)',
-    padding: 10,
-    borderRadius: 8,
-  },
-  demoNoteText: {
-    color: '#fff',
-    fontSize: 12,
-    textAlign: 'center',
   },
   permissionText: {
     fontSize: 16,
@@ -277,4 +260,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 })
+
+
 

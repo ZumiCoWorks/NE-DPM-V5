@@ -51,7 +51,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   extra: {
     apiBaseUrl: process.env.API_BASE_URL || 'http://192.168.8.153:3001/api',
     quicketMode: process.env.QUICKET_MODE || 'mock',
-    quicketApiKey: process.env.QUICKET_API_KEY || ''
+    quicketApiKey: process.env.QUICKET_API_KEY || '',
+    eas: {
+      projectId: 'naveaze-mobile'
+    }
   }
 })
 

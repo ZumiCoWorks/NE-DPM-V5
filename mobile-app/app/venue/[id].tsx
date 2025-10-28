@@ -32,8 +32,8 @@ export default function VenueMapScreen() {
       params: {
         boothId: booth.id,
         boothName: booth.name,
-        boothX: booth.x_coordinate,
-        boothY: booth.y_coordinate,
+        boothLat: booth.gps_latitude || '0',
+        boothLng: booth.gps_longitude || '0',
         eventId: eventId as string,
         venueId: id as string
       }
