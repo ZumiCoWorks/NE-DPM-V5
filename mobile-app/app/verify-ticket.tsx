@@ -7,14 +7,19 @@ import { useRouter } from 'expo-router';
 import { Camera } from 'expo-camera';
 import { ChevronLeft, QrCode, Hash, CheckCircle } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { quicketService } from '../services/QuicketService';
+import ApiClient from '../services/ApiClient'
 
-type VerificationMethod = 'qr' | 'manual' | null;
+// Add 'email' method for MVP attendee email lookup
+type VerificationMethod = 'qr' | 'manual' | 'email' | null;
 
 export default function VerifyTicketScreen() {
   const router = useRouter();
   
   const [method, setMethod] = useState<VerificationMethod>(null);
   const [ticketId, setTicketId] = useState('');
+  const [emailInput, setEmailInput] = useState('');
+  const [eventIdInput, setEventIdInput] = useState('');
   const [verifying, setVerifying] = useState(false);
   const [scannedData, setScannedData] = useState<string | null>(null);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
@@ -60,6 +65,12 @@ export default function VerifyTicketScreen() {
       if (result.valid) {
         // Ticket is valid - store attendee data
         await AsyncStorage.setItem('auth_mode', 'ticket');
+        // store minimal attendee fields required by MVP
+        await AsyncStorage.setItem('attendee_id', result.attendee.id);
+        await AsyncStorage.setItem('attendee_name', result.attendee.name || '');
+        await AsyncStorage.setItem('attendee_email', result.attendee.email || '');
+        await AsyncStorage.setItem('ticket_tier', result.attendee.ticket_type || '');
+
         await AsyncStorage.setItem('ticket_data', JSON.stringify({
           ticketId: ticketIdToVerify,
           attendeeId: result.attendee.id,
@@ -82,15 +93,77 @@ export default function VerifyTicketScreen() {
           ]
         );
       }
-    } catch (error) {
-      console.error('Error verifying ticket:', error);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error)
+      console.error('Error verifying ticket:', msg)
       Alert.alert(
         'Connection Error',
         'Could not verify your ticket. Please check your internet connection and try again.',
         [{ text: 'OK' }]
-      );
+      )
     } finally {
       setVerifying(false);
+    }
+  }
+
+  // Email lookup flow (MVP): uses mobile-side quicketService (mock or live depending on config)
+  async function verifyByEmail(email: string, eventId: string) {
+    if (!email || !eventId) {
+      Alert.alert('Error', 'Please provide both email and event ID')
+      return
+    }
+
+    setVerifying(true)
+    try {
+      // First try backend attendee lookup; fall back to QuicketService mock when appropriate
+      const resp = await ApiClient.attendeeLookup({ email, eventId })
+      if (resp && resp.success && resp.attendee) {
+        const user = resp.attendee
+        await AsyncStorage.setItem('auth_mode', 'ticket')
+        await AsyncStorage.setItem('attendee_id', user.id)
+        await AsyncStorage.setItem('attendee_name', user.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : (user.name || ''))
+        await AsyncStorage.setItem('attendee_email', user.email || '')
+        await AsyncStorage.setItem('ticket_tier', user.ticket_type || user.ticket_type || '')
+
+        await AsyncStorage.setItem('ticket_data', JSON.stringify({
+          attendeeId: user.id,
+          name: user.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : (user.name || ''),
+          email: user.email,
+          ticketType: user.ticket_type || user.ticket_type || '',
+          eventId: user.event_id || eventId
+        }))
+
+        router.push('/ticket-consent')
+        return
+      }
+
+      // Fallback: use local quicketService (mock/live) if backend doesn't have attendee
+      const user = await quicketService.authenticateUser(eventId, email)
+      if (!user) {
+        Alert.alert('Not Found', 'No attendee found for that email/event')
+        return
+      }
+
+      await AsyncStorage.setItem('auth_mode', 'ticket')
+      await AsyncStorage.setItem('attendee_id', user.id)
+      await AsyncStorage.setItem('attendee_name', user.name || '')
+      await AsyncStorage.setItem('attendee_email', user.email || '')
+      await AsyncStorage.setItem('ticket_tier', user.ticket_type || '')
+      await AsyncStorage.setItem('ticket_data', JSON.stringify({
+        attendeeId: user.id,
+        name: user.name,
+        email: user.email,
+        ticketType: user.ticket_type,
+        eventId: user.event_id
+      }))
+
+      router.push('/ticket-consent')
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error)
+      console.error('Email lookup error:', msg)
+      Alert.alert('Error', 'Failed to lookup attendee. Please try again or use Anonymous Mode.')
+    } finally {
+      setVerifying(false)
     }
   }
 
@@ -216,6 +289,19 @@ export default function VerifyTicketScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity 
+              style={styles.methodCard}
+              onPress={() => setMethod('email')}
+            >
+              <View style={styles.methodIcon}>
+                <CheckCircle size={32} color="#0071e3" />
+              </View>
+              <View style={styles.methodText}>
+                <Text style={styles.methodTitle}>Lookup by Email</Text>
+                <Text style={styles.methodSubtitle}>Enter your email and event ID to link your ticket (optional)</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
               style={styles.skipButton}
               onPress={() => {
                 router.back();
@@ -225,61 +311,114 @@ export default function VerifyTicketScreen() {
             </TouchableOpacity>
           </>
         ) : (
-          // Manual entry
-          <>
-            <TouchableOpacity 
-              style={styles.backToMethodsButton}
-              onPress={() => setMethod(null)}
-            >
-              <ChevronLeft size={20} color="#0071e3" />
-              <Text style={styles.backToMethodsText}>Change method</Text>
-            </TouchableOpacity>
+              // Manual entry or email lookup
+              <>
+                <TouchableOpacity 
+                  style={styles.backToMethodsButton}
+                  onPress={() => setMethod(null)}
+                >
+                  <ChevronLeft size={20} color="#0071e3" />
+                  <Text style={styles.backToMethodsText}>Change method</Text>
+                </TouchableOpacity>
 
-            <View style={styles.manualEntry}>
-              <Text style={styles.manualTitle}>Enter Your Ticket ID</Text>
-              <Text style={styles.manualSubtitle}>
-                You can find this in your Quicket confirmation email
-              </Text>
+                {method === 'manual' && (
+                  <View style={styles.manualEntry}>
+                    <Text style={styles.manualTitle}>Enter Your Ticket ID</Text>
+                    <Text style={styles.manualSubtitle}>
+                      You can find this in your Quicket confirmation email
+                    </Text>
 
-              <TextInput
-                style={styles.input}
-                placeholder="e.g., AFDA-2025-001234"
-                value={ticketId}
-                onChangeText={setTicketId}
-                autoCapitalize="characters"
-                autoCorrect={false}
-                editable={!verifying}
-              />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="e.g., AFDA-2025-001234"
+                      value={ticketId}
+                      onChangeText={setTicketId}
+                      autoCapitalize="characters"
+                      autoCorrect={false}
+                      editable={!verifying}
+                    />
 
-              <TouchableOpacity 
-                style={[styles.verifyButton, verifying && styles.verifyButtonDisabled]}
-                onPress={() => verifyTicket(ticketId)}
-                disabled={verifying}
-              >
-                {verifying ? (
-                  <>
-                    <ActivityIndicator color="white" />
-                    <Text style={styles.verifyButtonText}>Verifying...</Text>
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle size={20} color="white" />
-                    <Text style={styles.verifyButtonText}>Verify Ticket</Text>
-                  </>
+                    <TouchableOpacity 
+                      style={[styles.verifyButton, verifying && styles.verifyButtonDisabled]}
+                      onPress={() => verifyTicket(ticketId)}
+                      disabled={verifying}
+                    >
+                      {verifying ? (
+                        <>
+                          <ActivityIndicator color="white" />
+                          <Text style={styles.verifyButtonText}>Verifying...</Text>
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle size={20} color="white" />
+                          <Text style={styles.verifyButtonText}>Verify Ticket</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+
+                      <View style={styles.helpCard}>
+                        <Text style={styles.helpTitle}>Where is my ticket ID?</Text>
+                        <Text style={styles.helpText}>
+                          {'• Check your Quicket confirmation email\n• It\'s usually in the format: EVENT-YEAR-NUMBER\n• Example: AFDA-2025-001234'}
+                        </Text>
+                      </View>
+                  </View>
                 )}
-              </TouchableOpacity>
 
-              <View style={styles.helpCard}>
-                <Text style={styles.helpTitle}>Where is my ticket ID?</Text>
-                <Text style={styles.helpText}>
-                  • Check your Quicket confirmation email{'\n'}
-                  • It's usually in the format: EVENT-YEAR-NUMBER{'\n'}
-                  • Example: AFDA-2025-001234
-                </Text>
-              </View>
-            </View>
-          </>
-        )}
+                {method === 'email' && (
+                  <View style={styles.manualEntry}>
+                    <Text style={styles.manualTitle}>Lookup by Email</Text>
+                    <Text style={styles.manualSubtitle}>
+                      Enter the email used for Quicket and the Event ID (ask organizer if unsure)
+                    </Text>
+
+                    <TextInput
+                      style={styles.input}
+                      placeholder="you@example.com"
+                      value={emailInput}
+                      onChangeText={setEmailInput}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      editable={!verifying}
+                    />
+
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Event ID (e.g., 101)"
+                      value={eventIdInput}
+                      onChangeText={setEventIdInput}
+                      autoCapitalize="none"
+                      editable={!verifying}
+                    />
+
+                    <TouchableOpacity 
+                      style={[styles.verifyButton, verifying && styles.verifyButtonDisabled]}
+                      onPress={() => verifyByEmail(emailInput.trim(), eventIdInput.trim())}
+                      disabled={verifying}
+                    >
+                      {verifying ? (
+                        <>
+                          <ActivityIndicator color="white" />
+                          <Text style={styles.verifyButtonText}>Looking up...</Text>
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle size={20} color="white" />
+                          <Text style={styles.verifyButtonText}>Lookup & Link</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+
+                    <View style={styles.helpCard}>
+                      <Text style={styles.helpTitle}>Privacy</Text>
+                      <Text style={styles.helpText}>
+                        We only store a minimal attendee identifier locally to improve the demo experience. You can remove this at any time in Settings.
+                      </Text>
+                    </View>
+                  </View>
+                )}
+              </>
+            )}
       </View>
     </View>
   );

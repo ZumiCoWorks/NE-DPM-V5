@@ -11,7 +11,8 @@
     "check": "tsc --noEmit",
     "server:dev": "nodemon",
     "dev": "concurrently \"npm run client:dev\" \"npm run server:dev\"",
-    "demo": "node generate-demo-cdv-simple.cjs"
+    "demo": "node generate-demo-cdv-simple.cjs",
+    "smoke-test": "node scripts/smoke-test.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.58.0",

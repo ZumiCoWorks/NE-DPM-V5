@@ -1,19 +1,26 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
-import { User, Session, AuthError, PostgrestError } from '@supabase/supabase-js'
+// Use looser local types here to avoid tight coupling to supabase-js types in the app bundle
+// and to keep the client-side context resilient during incremental typing cleanup.
+// Phase A: provide minimal shapes for Supabase types to avoid widespread `any` while
+// keeping runtime behavior stable. Phase B will replace these with concrete Supabase types.
+type SupabaseUser = { id?: string; [k: string]: unknown } | null
+type SupabaseSession = { user?: { id?: string; [k: string]: unknown } | null } | null
+type SupabaseAuthError = unknown
+type SupabasePostgrestError = unknown
 import { supabase } from '../lib/supabase'
 import type { Database } from '../types/database'
 
 type UserProfile = Database['public']['Tables']['users']['Row']
 
 interface AuthContextType {
-  user: User | null
+  user: SupabaseUser | null
   profile: UserProfile | null
-  session: Session | null
+  session: SupabaseSession | null
   loading: boolean
-  signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>
-  signUp: (email: string, password: string, userData: Partial<UserProfile>) => Promise<{ error: AuthError | PostgrestError | Error | null }>
+  signIn: (email: string, password: string) => Promise<{ error: SupabaseAuthError | null }>
+  signUp: (email: string, password: string, userData: Partial<UserProfile>) => Promise<{ error: SupabaseAuthError | SupabasePostgrestError | Error | null }>
   signOut: () => Promise<void>
-  updateProfile: (updates: Partial<UserProfile>) => Promise<{ error: PostgrestError | Error | null }>
+  updateProfile: (updates: Partial<UserProfile>) => Promise<{ error: SupabasePostgrestError | Error | null }>
   hasRole: (role: UserProfile['role']) => boolean
   hasAnyRole: (roles: UserProfile['role'][]) => boolean
 }
@@ -29,9 +36,9 @@ export const useAuth = () => {
 }
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null)
+  const [user, setUser] = useState<SupabaseUser | null>(null)
   const [profile, setProfile] = useState<UserProfile | null>(null)
-  const [session, setSession] = useState<Session | null>(null)
+  const [session, setSession] = useState<SupabaseSession | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -78,7 +85,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.log('User profile not found, creating new profile...')
           await createUserProfile(userId)
         } else {
-          console.error('Error fetching user profile:', error)
+          console.error('Error fetching user profile:', String(error))
           setProfile(null)
         }
       } else if (data) {
@@ -88,7 +95,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setProfile(null)
       }
     } catch (error) {
-      console.error('Error fetching user profile:', error)
+      console.error('Error fetching user profile:', String(error))
     } finally {
       setLoading(false)
     }
@@ -113,7 +120,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .single()
 
         if (error) {
-          console.error('Error creating user profile:', error)
+          console.error('Error creating user profile:', String(error))
           setProfile(null)
         } else if (data) {
           console.log('User profile created successfully')
@@ -121,7 +128,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
     } catch (error) {
-      console.error('Error creating user profile:', error)
+      console.error('Error creating user profile:', String(error))
       setProfile(null)
     } finally {
       setLoading(false)

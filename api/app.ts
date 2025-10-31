@@ -19,6 +19,9 @@ import quicketRoutes from './routes/quicket.js'
 import analyticsRoutes from './routes/analytics.js'
 import scansRoutes from './routes/scans.js'
 import ticketsRoutes from './routes/tickets.js'
+import attendeesRoutes from './routes/attendees.js'
+import leadsRoutes from './routes/leads.js'
+import sponsorsRoutes from './routes/sponsors.js'
 
 // for esm mode
 // const __filename = fileURLToPath(import.meta.url)
@@ -45,6 +48,9 @@ app.use('/api/quicket', quicketRoutes)
 app.use('/api/analytics', analyticsRoutes)
 app.use('/api/scans', scansRoutes)
 app.use('/api/tickets', ticketsRoutes)
+app.use('/api/attendees', attendeesRoutes)
+app.use('/api/leads', leadsRoutes)
+app.use('/api/sponsors', sponsorsRoutes)
 
 /**
  * health

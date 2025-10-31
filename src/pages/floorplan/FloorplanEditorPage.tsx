@@ -85,16 +85,19 @@ export const FloorplanEditorPage: React.FC = () => {
       }
 
       // Map database fields to NavigationPoint interface
-      const mappedPoints: NavigationPoint[] = (pointsData as any[] || []).map((point: any) => ({
-        id: point.id,
-        x: point.x_coordinate,
-        y: point.y_coordinate,
-        type: point.point_type === 'landmark' ? 'stage' : 
-              point.point_type === 'amenity' ? 'restroom' : 
-              point.point_type as 'entrance' | 'exit' | 'booth',
-        label: point.name,
-        description: point.description || undefined
-      }))
+      const mappedPoints: NavigationPoint[] = ((pointsData as unknown[]) || []).map((pointRaw: unknown) => {
+        const point = pointRaw as Record<string, unknown>
+        return {
+          id: String(point['id'] ?? ''),
+          x: Number(point['x_coordinate'] ?? 0),
+          y: Number(point['y_coordinate'] ?? 0),
+          type: (point['point_type'] === 'landmark' ? 'stage' :
+                 point['point_type'] === 'amenity' ? 'restroom' :
+                 (point['point_type'] as NavigationPoint['type'] || 'booth')) as NavigationPoint['type'],
+          label: String(point['name'] ?? ''),
+          description: point['description'] ? String(point['description']) : undefined
+        }
+      })
       
       setNavigationPoints(mappedPoints)
     } catch (error) {
@@ -295,7 +298,7 @@ export const FloorplanEditorPage: React.FC = () => {
       if (pointsToSave.length > 0) {
         const { error } = await supabase
           .from('navigation_points')
-          .insert(pointsToSave as any)
+          .insert(pointsToSave as unknown as Record<string, unknown>[])
 
         if (error) {
           console.error('Error saving navigation points:', error)

@@ -34,17 +34,21 @@ export const login = async (req: Request, res: Response) => {
     }
 
     // Get user profile
-    const { data: profile, error: profileError } = await supabase
+    const profileResult = await supabase
       .from('users')
       .select('*')
       .eq('id', authData.user.id)
       .single()
 
+    // Cast to any but allow this single line to avoid noisy Supabase typings for the server flow
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: profile, error: profileError } = profileResult as any
+
     if (profileError) {
       console.error('Error fetching user profile:', profileError)
       return res.status(500).json({
         error: 'Failed to fetch user profile',
-        message: profileError.message,
+        message: 'Failed to fetch user profile',
       })
     }
 

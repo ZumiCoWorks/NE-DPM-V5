@@ -198,8 +198,8 @@ export const EditARCampaignPage: React.FC = () => {
     try {
       setSaving(true)
       
-      const updateData = {
-        ...formData,
+      const updateData: Record<string, unknown> = {
+        ...(formData as Record<string, unknown>),
         event_id: formData.event_id || null,
         updated_at: new Date().toISOString()
       }
@@ -243,7 +243,7 @@ export const EditARCampaignPage: React.FC = () => {
               <input
                 type="number"
                 step="any"
-                value={formData.trigger_data?.latitude || ''}
+                value={String(formData.trigger_data?.latitude ?? '')}
                 onChange={(e) => handleTriggerDataChange('latitude', parseFloat(e.target.value))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Enter latitude"
@@ -256,7 +256,7 @@ export const EditARCampaignPage: React.FC = () => {
               <input
                 type="number"
                 step="any"
-                value={formData.trigger_data?.longitude || ''}
+                value={String(formData.trigger_data?.longitude ?? '')}
                 onChange={(e) => handleTriggerDataChange('longitude', parseFloat(e.target.value))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Enter longitude"
@@ -268,7 +268,7 @@ export const EditARCampaignPage: React.FC = () => {
               </label>
               <input
                 type="number"
-                value={formData.trigger_data?.radius || ''}
+                value={String(formData.trigger_data?.radius ?? '')}
                 onChange={(e) => handleTriggerDataChange('radius', parseInt(e.target.value))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Enter radius in meters"
@@ -284,7 +284,7 @@ export const EditARCampaignPage: React.FC = () => {
             </label>
             <input
               type="url"
-              value={formData.trigger_data?.image_url || ''}
+              value={String(formData.trigger_data?.image_url ?? '')}
               onChange={(e) => handleTriggerDataChange('image_url', e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Enter target image URL"
@@ -299,7 +299,7 @@ export const EditARCampaignPage: React.FC = () => {
             </label>
             <input
               type="text"
-              value={formData.trigger_data?.qr_data || ''}
+              value={String(formData.trigger_data?.qr_data ?? '')}
               onChange={(e) => handleTriggerDataChange('qr_data', e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Enter QR code data"

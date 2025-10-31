@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useDropzone } from 'react-dropzone'
-import { Download, MapPin, QrCode, Upload, X, Image as ImageIcon } from 'lucide-react'
+import { Download, MapPin, QrCode, Upload, X } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { 
   generateQRCodeDataURL, 
@@ -42,7 +42,7 @@ export default function MVPSetupPage() {
   // Fetch booths when event is selected
   useEffect(() => {
     if (selectedEvent) {
-      fetchBooths(selectedEvent)
+      fetchBooths()
     }
   }, [selectedEvent])
 
@@ -69,7 +69,7 @@ export default function MVPSetupPage() {
     }
   }
 
-  const fetchBooths = async (eventId: string) => {
+  const fetchBooths = async () => {
     try {
       // Mock booths for now - replace with actual API call
       const mockBooths: Booth[] = [

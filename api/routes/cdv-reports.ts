@@ -1,6 +1,11 @@
 import { Router } from 'express'
 import type { Request, Response } from 'express'
 
+declare global {
+  // lightweight global used for in-memory CDV reports in dev/demo
+  var cdvReports: Array<Record<string, unknown>> | undefined
+}
+
 const router = Router()
 
 // Simple in-memory storage
@@ -11,19 +16,19 @@ if (!global.cdvReports) {
 // POST /api/cdv-report - Save CDV report (from mobile app)
 router.post('/cdv-report', async (req: Request, res: Response) => {
   try {
-    const report = {
+    const newReport: Record<string, unknown> = {
       ...req.body,
       id: `cdv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       created_at: req.body.created_at || new Date().toISOString()
-    }
-    
-    global.cdvReports.push(report)
+    };
+
+    (global.cdvReports as Array<Record<string, unknown>>).push(newReport)
 
     res.status(201).json({
       success: true,
-      data: report
+      data: newReport
     })
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Failed to save report' })
   }
 })
@@ -34,9 +39,9 @@ router.get('/cdv-reports/:eventId', async (req: Request, res: Response) => {
     const { eventId } = req.params
     
     const reports = (global.cdvReports || [])
-      .filter((r: any) => r.event_id === eventId)
-      .sort((a: any, b: any) => 
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      .filter((r: Record<string, unknown>) => String(r.event_id) === eventId)
+      .sort((a: Record<string, unknown>, b: Record<string, unknown>) =>
+        new Date(String(b.created_at)).getTime() - new Date(String(a.created_at)).getTime()
       )
 
     res.json({
@@ -44,7 +49,7 @@ router.get('/cdv-reports/:eventId', async (req: Request, res: Response) => {
       data: reports,
       count: reports.length
     })
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Failed to fetch reports' })
   }
 })
@@ -53,10 +58,10 @@ router.get('/cdv-reports/:eventId', async (req: Request, res: Response) => {
 router.get('/cdv-reports/:eventId/revenue', async (req: Request, res: Response) => {
   try {
     const { eventId } = req.params
-    const reports = (global.cdvReports || []).filter((r: any) => r.event_id === eventId)
+  const reports = (global.cdvReports || []).filter((r: Record<string, unknown>) => String(r.event_id) === eventId)
     
     // Group by zone
-    const zoneRevenue: Record<string, any> = {}
+  const zoneRevenue: Record<string, { visits: number; totalDwell: number; activeEngagements: number; revenue: number }> = {}
     const zoneRates: Record<string, number> = {
       'Nedbank Main Stage': 12000,
       'Discovery VIP Lounge': 8000,
@@ -65,24 +70,26 @@ router.get('/cdv-reports/:eventId/revenue', async (req: Request, res: Response) 
       'Standard Bank Innovation Hub': 7000
     }
     
-    reports.forEach((r: any) => {
-      if (!zoneRevenue[r.zone_name]) {
-        zoneRevenue[r.zone_name] = { 
-          visits: 0, 
-          totalDwell: 0, 
+    reports.forEach((r: Record<string, unknown>) => {
+      const zoneName = String(r.zone_name || 'unknown')
+      if (!zoneRevenue[zoneName]) {
+        zoneRevenue[zoneName] = {
+          visits: 0,
+          totalDwell: 0,
           activeEngagements: 0,
-          revenue: 0 
+          revenue: 0,
         }
       }
-      
-      const zone = zoneRevenue[r.zone_name]
+
+      const zone = zoneRevenue[zoneName]
       zone.visits++
-      zone.totalDwell += r.dwell_time_minutes || 0
+      const dwell = Number((r.dwell_time_minutes as unknown) || 0)
+      zone.totalDwell += dwell
       if (r.active_engagement_status) zone.activeEngagements++
-      
+
       // Revenue = (dwell hours × hourly rate) × (1.5x if active)
-      const hourlyRate = zoneRates[r.zone_name] || 0
-      const dwellHours = (r.dwell_time_minutes || 0) / 60
+      const hourlyRate = zoneRates[zoneName] || 0
+      const dwellHours = dwell / 60
       let value = dwellHours * hourlyRate
       if (r.active_engagement_status) value *= 1.5
       zone.revenue += value
@@ -91,9 +98,9 @@ router.get('/cdv-reports/:eventId/revenue', async (req: Request, res: Response) 
     res.json({
       success: true,
       data: zoneRevenue,
-      totalRevenue: Object.values(zoneRevenue).reduce((sum: number, z: any) => sum + z.revenue, 0)
+  totalRevenue: Object.values(zoneRevenue).reduce((sum: number, z: { revenue: number }) => sum + z.revenue, 0)
     })
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Failed to calculate revenue' })
   }
 })

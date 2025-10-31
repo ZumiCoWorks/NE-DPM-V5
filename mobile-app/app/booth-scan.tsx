@@ -5,7 +5,7 @@ import { CameraView, Camera } from 'expo-camera'
 import { EngagementHelper } from '../services/EngagementTracker'
 
 export default function BoothScanScreen() {
-  const { boothId, boothName, eventId, venueId, zoneName, qrCode } = useLocalSearchParams()
+  const { boothName, eventId, venueId, qrCode } = useLocalSearchParams()
   const router = useRouter()
   const [hasPermission, setHasPermission] = useState(false)
   const [scanned, setScanned] = useState(false)
@@ -20,14 +20,17 @@ export default function BoothScanScreen() {
     setHasPermission(status === 'granted')
   }
 
-  const handleBarCodeScanned = async ({ type, data }: any) => {
+  const handleBarCodeScanned = async (payload: { type?: string; data?: string }) => {
+  const { type, data } = payload || {}
+  void type
     if (scanned) return
     
     setScanned(true)
     setScanning(false)
 
     // For demo: Accept any QR code or the specific booth QR code
-    const isValidScan = !qrCode || data === qrCode || data.includes('BOOTH-')
+  const scannedData = data || ''
+  const isValidScan = !qrCode || scannedData === qrCode || scannedData.includes('BOOTH-')
     
     if (isValidScan) {
       // Stop tracking and send final CDV report with active engagement
@@ -62,7 +65,7 @@ export default function BoothScanScreen() {
     setScanned(true)
     setScanning(false)
     
-    await EngagementTracker.stopTracking(true)
+  await EngagementHelper.stopTracking(true)
     
     Alert.alert(
       'Success! ✅',

@@ -16,6 +16,16 @@ interface BoothAnalytics {
   unique_devices: number
 }
 
+// Internal shape while building analytics (unique_devices is a Set)
+interface BoothAnalyticsInternal {
+  booth_id: string
+  booth_name: string
+  sponsor_name: string
+  sponsor_tier: string
+  total_scans: number
+  unique_devices: Set<string>
+}
+
 interface SummaryStats {
   totalScans: number
   uniqueDevices: number
@@ -87,14 +97,16 @@ export default function MVPAnalyticsPage() {
       if (scansError) throw scansError
 
       // Process the data to get analytics per booth
-      const boothMap = new Map<string, BoothAnalytics>()
+      const boothMap = new Map<string, BoothAnalyticsInternal>()
       const allDevices = new Set<string>()
 
-      scansData?.forEach((scan: any) => {
-        if (!scan.booth_id || !scan.booths) return
+      type ScanRow = { booth_id?: string | null; booths?: { name?: string; sponsor_name?: string; sponsor_tier?: string } | null; device_id?: string | null }
 
+      scansData?.forEach((scanRaw: unknown) => {
+        const scan = scanRaw as ScanRow
         const boothId = scan.booth_id
         const deviceId = scan.device_id
+        if (!boothId || !scan.booths || !deviceId) return
 
         // Track all unique devices across all booths
         allDevices.add(deviceId)
@@ -106,19 +118,23 @@ export default function MVPAnalyticsPage() {
             sponsor_name: scan.booths.sponsor_name || 'Unknown Sponsor',
             sponsor_tier: scan.booths.sponsor_tier || 'Standard',
             total_scans: 0,
-            unique_devices: new Set<string>() as any
+            unique_devices: new Set<string>()
           })
         }
 
         const boothData = boothMap.get(boothId)!
         boothData.total_scans++
-        ;(boothData.unique_devices as any).add(deviceId)
+        boothData.unique_devices.add(deviceId)
       })
 
-      // Convert Sets to numbers
-      const analyticsArray = Array.from(boothMap.values()).map(booth => ({
-        ...booth,
-        unique_devices: (booth.unique_devices as any).size
+      // Convert Sets to final analytics array with counts
+      const analyticsArray = Array.from(boothMap.values()).map(b => ({
+        booth_id: b.booth_id,
+        booth_name: b.booth_name,
+        sponsor_name: b.sponsor_name,
+        sponsor_tier: b.sponsor_tier,
+        total_scans: b.total_scans,
+        unique_devices: b.unique_devices.size
       }))
 
       // Sort by total scans descending

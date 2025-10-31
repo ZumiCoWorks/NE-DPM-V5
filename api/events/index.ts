@@ -1,5 +1,5 @@
-import { Response, Request } from 'express'
-import { supabaseAdmin } from '../lib/supabase'
+import { Response } from 'express'
+import { supabaseAdmin, supabase } from '../lib/supabase'
 import { AuthenticatedRequest } from '../middleware/auth'
 import { z } from 'zod'
 

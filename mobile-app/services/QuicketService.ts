@@ -13,9 +13,10 @@ class QuicketService {
   private apiKey: string
   
   constructor() {
-    const extra = Constants.expoConfig?.extra as any
-    this.mode = extra?.quicketMode || 'mock'
-    this.apiKey = extra?.quicketApiKey || ''
+    const extra = (Constants.expoConfig?.extra as unknown) as Record<string, unknown> | undefined
+  const mode = (extra?.quicketMode as string) || 'mock'
+  this.mode = mode === 'live' ? 'live' : 'mock'
+  this.apiKey = (extra?.quicketApiKey as string) || ''
   }
   
   async authenticateUser(eventId: string, email: string): Promise<QuicketUser | null> {
@@ -55,22 +56,28 @@ class QuicketService {
       }
       
       const data = await response.json()
-      const guest = data.guests.find((g: any) => g.email === email)
-      
-      if (!guest) {
+      const guests = (data && Array.isArray(data.guests)) ? data.guests : []
+      const guestRaw = guests.find((g: unknown) => {
+        const rec = g as Record<string, unknown>
+        return (rec['email'] as string) === email
+      })
+
+      if (!guestRaw) {
         console.warn('Guest not found in Quicket, using mock')
         return this.mockAuthentication(eventId, email)
       }
-      
+
+      const guest = guestRaw as Record<string, unknown>
       return {
-        id: guest.id,
-        name: guest.name,
-        email: guest.email,
-        ticket_type: guest.ticket_type,
+        id: (guest['id'] as string) || `${email}_guest`,
+        name: (guest['name'] as string) || email.split('@')[0],
+        email: (guest['email'] as string) || email,
+        ticket_type: (guest['ticket_type'] as string) || 'General',
         event_id: eventId
       }
     } catch (error) {
-      console.error('Quicket API error, falling back to mock:', error)
+      const msg = error instanceof Error ? error.message : String(error)
+      console.error('Quicket API error, falling back to mock:', msg)
       return this.mockAuthentication(eventId, email)
     }
   }

@@ -10,7 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 export default function TicketConsentScreen() {
   const router = useRouter();
   
-  const [ticketData, setTicketData] = useState<any>(null);
+  const [ticketData, setTicketData] = useState<Record<string, unknown> | null>(null);
   const [consents, setConsents] = useState({
     share_with_organizer: true, // Default to true since they already bought a ticket
     share_with_sponsors: false,
@@ -26,7 +26,7 @@ export default function TicketConsentScreen() {
   async function loadTicketData() {
     const data = await AsyncStorage.getItem('ticket_data');
     if (data) {
-      setTicketData(JSON.parse(data));
+      setTicketData(JSON.parse(data) as Record<string, unknown>);
     }
   }
 
@@ -79,7 +79,7 @@ export default function TicketConsentScreen() {
         {/* Success Message */}
         <View style={styles.successCard}>
           <CheckCircle size={48} color="#34c759" />
-          <Text style={styles.successTitle}>Welcome, {ticketData.name}!</Text>
+          <Text style={styles.successTitle}>Welcome, {String(ticketData?.['name'] ?? '')}!</Text>
           <Text style={styles.successText}>
             Your ticket has been verified. Choose your data sharing preferences below.
           </Text>
@@ -91,22 +91,22 @@ export default function TicketConsentScreen() {
           
           <View style={styles.ticketRow}>
             <Text style={styles.ticketLabel}>Ticket ID:</Text>
-            <Text style={styles.ticketValue}>{ticketData.ticketId}</Text>
+            <Text style={styles.ticketValue}>{String(ticketData?.['ticketId'] ?? ticketData?.['ticket_id'] ?? '')}</Text>
           </View>
 
           <View style={styles.ticketRow}>
             <Text style={styles.ticketLabel}>Name:</Text>
-            <Text style={styles.ticketValue}>{ticketData.name}</Text>
+            <Text style={styles.ticketValue}>{String(ticketData?.['name'] ?? '')}</Text>
           </View>
 
           <View style={styles.ticketRow}>
             <Text style={styles.ticketLabel}>Email:</Text>
-            <Text style={styles.ticketValue}>{ticketData.email}</Text>
+            <Text style={styles.ticketValue}>{String(ticketData?.['email'] ?? '')}</Text>
           </View>
 
           <View style={styles.ticketRow}>
             <Text style={styles.ticketLabel}>Type:</Text>
-            <Text style={styles.ticketValue}>{ticketData.ticketType}</Text>
+            <Text style={styles.ticketValue}>{String(ticketData?.['ticketType'] ?? ticketData?.['ticket_type'] ?? '')}</Text>
           </View>
         </View>
 

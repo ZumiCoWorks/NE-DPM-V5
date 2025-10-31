@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Plus, Edit2, Trash2, MapPin, QrCode, RefreshCw } from 'lucide-react'
+import { Plus, Edit2, Trash2, QrCode, RefreshCw } from 'lucide-react'
 
 interface Venue {
   id: string
@@ -437,7 +437,7 @@ export default function BoothSetupPage() {
                             }`}>
                               {booth.sponsor_tier}
                             </span>
-                            <QrCode className="h-3 w-3 text-gray-400" title={booth.qr_code} />
+                            <QrCode className="h-3 w-3 text-gray-400" />
                           </div>
                         </div>
                         <div className="flex space-x-1">

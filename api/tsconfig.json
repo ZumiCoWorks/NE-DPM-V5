@@ -2,7 +2,7 @@
   "extends": "../tsconfig.json",
   "compilerOptions": {
     "target": "ES2020",
-    "module": "CommonJS",
+  "module": "node18",
     "moduleResolution": "node",
     "outDir": "../dist/api",
     "rootDir": ".",
@@ -14,7 +14,7 @@
     "allowSyntheticDefaultImports": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    "types": ["node", "jest"]
+  "types": ["node"]
   },
   "include": [
     "**/*.ts"

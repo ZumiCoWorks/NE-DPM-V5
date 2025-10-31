@@ -79,15 +79,16 @@ export const engagementTracker = new EngagementTracker()
 
 // Export helper for screens
 export const EngagementHelper = {
-  currentTracking: null as { boothName: string; eventId: string; startTime: number } | null,
+  currentTracking: null as { boothName: string; eventId: string; startTime: number; startLocation?: Location.LocationObject } | null,
 
-  async startTracking(eventId: string, boothName: string, activeEngagement: boolean) {
+  async startTracking(eventId: string, boothName: string) {
     const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High })
     
     this.currentTracking = {
       boothName,
       eventId,
-      startTime: Date.now()
+      startTime: Date.now(),
+      startLocation: location
     }
 
     console.log(`Started tracking: ${boothName}`)

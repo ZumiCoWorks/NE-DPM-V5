@@ -2,10 +2,10 @@
 // Event Selection Screen - First screen users see
 
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Calendar, MapPin, Users, ChevronRight } from 'lucide-react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+// AsyncStorage intentionally not used in this screen
 import ApiClient from '../services/ApiClient';
 
 interface Event {

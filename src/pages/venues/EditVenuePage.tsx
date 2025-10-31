@@ -56,7 +56,7 @@ export function EditVenuePage() {
         .from('venues')
         .select('*')
         .eq('id', id!)
-        .single() as { data: any; error: any }
+        .single()
 
       if (error || !data) {
         console.error('Error fetching venue:', error)
@@ -154,13 +154,13 @@ export function EditVenuePage() {
         postal_code: formData.postal_code,
         capacity: formData.capacity,
         venue_type: formData.venue_type,
-        amenities: formData.amenities as any,
-        contact_info: formData.contact_info as any,
+  amenities: formData.amenities as unknown as Database['public']['Tables']['venues']['Update']['amenities'],
+  contact_info: formData.contact_info as unknown as Database['public']['Tables']['venues']['Update']['contact_info'],
         is_active: formData.is_active,
         organization_id: profile?.organization_id || formData.organization_id,
       }
 
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from('venues')
         .update(updateData)
         .eq('id', id)

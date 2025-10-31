@@ -1,5 +1,4 @@
 import { Router, Response } from 'express'
-import { supabaseAdmin } from '../lib/supabase.js'
 import { AuthenticatedRequest, authenticateToken } from '../middleware/auth.js'
 
 const router = Router()
@@ -23,12 +22,20 @@ router.get('/:eventId', authenticateToken, async (req: AuthenticatedRequest, res
       },
       message: 'Analytics endpoint ready (placeholder data)'
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
+    // Safely extract message from unknown error
+    let message = 'Failed to fetch analytics'
+    if (error && typeof error === 'object') {
+      const e = error as Record<string, unknown>
+      if ('message' in e && typeof e.message === 'string') {
+        message = e.message
+      }
+    }
     console.error('Get analytics error:', error)
     res.status(500).json({
       success: false,
       message: 'Failed to fetch analytics',
-      error: error.message
+      error: message
     })
   }
 })

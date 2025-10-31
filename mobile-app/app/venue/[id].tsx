@@ -6,9 +6,9 @@ import { ApiClient } from '../../services/ApiClient'
 export default function VenueMapScreen() {
   const { id, eventId } = useLocalSearchParams()
   const router = useRouter()
-  const [venue, setVenue] = useState<any>(null)
+  const [venue, setVenue] = useState<Record<string, unknown> | null>(null)
   const [loading, setLoading] = useState(true)
-  const [selectedBooth, setSelectedBooth] = useState<any>(null)
+  const [selectedBooth, setSelectedBooth] = useState<Record<string, unknown> | null>(null)
 
   useEffect(() => {
     loadVenue()
@@ -17,8 +17,8 @@ export default function VenueMapScreen() {
   const loadVenue = async () => {
     try {
       setLoading(true)
-      const data = await ApiClient.getVenue(id as string)
-      setVenue(data.venue)
+  const data = await ApiClient.getVenue(id as string)
+  setVenue((data.venue ?? null) as Record<string, unknown> | null)
     } catch (error) {
       console.error('Error loading venue:', error)
     } finally {
@@ -26,14 +26,19 @@ export default function VenueMapScreen() {
     }
   }
 
-  const navigateToBooth = (booth: any) => {
+  const navigateToBooth = (booth: Record<string, unknown>) => {
+    const boothId = String(booth['id'] ?? '')
+    const boothName = String(booth['name'] ?? '')
+    const boothLat = String(booth['gps_latitude'] ?? booth['x_coordinate'] ?? '0')
+    const boothLng = String(booth['gps_longitude'] ?? booth['y_coordinate'] ?? '0')
+
     router.push({
       pathname: '/ar-navigate',
       params: {
-        boothId: booth.id,
-        boothName: booth.name,
-        boothLat: booth.gps_latitude || '0',
-        boothLng: booth.gps_longitude || '0',
+        boothId,
+        boothName,
+        boothLat,
+        boothLng,
         eventId: eventId as string,
         venueId: id as string
       }
@@ -57,52 +62,61 @@ export default function VenueMapScreen() {
     )
   }
 
+  const booths = (((venue as Record<string, unknown>)?.['booths'] as unknown[]) || [])
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>{venue.name}</Text>
-        <Text style={styles.subtitle}>{venue.address}</Text>
-        <Text style={styles.description}>{venue.description}</Text>
+        <Text style={styles.title}>{String((venue as Record<string, unknown>)['name'] ?? '')}</Text>
+        <Text style={styles.subtitle}>{String((venue as Record<string, unknown>)['address'] ?? '')}</Text>
+        <Text style={styles.description}>{String((venue as Record<string, unknown>)['description'] ?? '')}</Text>
       </View>
 
       {/* Simple map visualization */}
       <View style={styles.mapContainer}>
         <View style={styles.map}>
-          {venue.booths?.map((booth: any) => (
-            <TouchableOpacity
-              key={booth.id}
-              style={[
-                styles.boothMarker,
-                {
-                  left: `${(booth.x_coordinate / 120) * 100}%`,
-                  top: `${(booth.y_coordinate / 120) * 100}%`,
-                },
-                selectedBooth?.id === booth.id && styles.boothMarkerSelected
-              ]}
-              onPress={() => setSelectedBooth(booth)}
-            >
-              <View style={styles.markerDot} />
-            </TouchableOpacity>
-          ))}
+          {booths.map((boothRaw: unknown) => {
+            const booth = boothRaw as Record<string, unknown>
+            const x = Number(booth['x_coordinate'] ?? 0)
+            const y = Number(booth['y_coordinate'] ?? 0)
+            return (
+              <TouchableOpacity
+                key={String(booth.id ?? booth['id'] ?? Math.random())}
+                style={[
+                  styles.boothMarker,
+                  {
+                    left: `${(x / 120) * 100}%`,
+                    top: `${(y / 120) * 100}%`,
+                  },
+                  selectedBooth?.id === booth['id'] && styles.boothMarkerSelected
+                ]}
+                onPress={() => setSelectedBooth(booth)}
+              >
+                <View style={styles.markerDot} />
+              </TouchableOpacity>
+            )
+          })}
         </View>
       </View>
 
       {/* Booth list */}
       <View style={styles.boothList}>
         <Text style={styles.sectionTitle}>
-          {venue.booths?.length || 0} Booths Available
+          {booths.length || 0} Booths Available
         </Text>
-        {venue.booths?.map((booth: any) => (
+        {(((venue as Record<string, unknown>)?.['booths'] as unknown[]) || []).map((boothRaw: unknown) => {
+          const booth = boothRaw as Record<string, unknown>
+          return (
           <View
-            key={booth.id}
+            key={String(booth.id ?? booth['id'] ?? Math.random())}
             style={[
               styles.boothCard,
-              selectedBooth?.id === booth.id && styles.boothCardSelected
+              selectedBooth?.id === booth['id'] && styles.boothCardSelected
             ]}
           >
             <View style={styles.boothInfo}>
-              <Text style={styles.boothName}>{booth.name}</Text>
-              <Text style={styles.boothDetails}>Zone: {booth.zone_name}</Text>
+              <Text style={styles.boothName}>{String(booth['name'] ?? '')}</Text>
+              <Text style={styles.boothDetails}>Zone: {String(booth['zone_name'] ?? '')}</Text>
             </View>
             <View style={styles.boothActions}>
               <TouchableOpacity
@@ -117,12 +131,12 @@ export default function VenueMapScreen() {
                   router.push({
                     pathname: '/booth-scan',
                     params: {
-                      boothId: booth.id,
-                      boothName: booth.name,
+                      boothId: String(booth['id'] ?? ''),
+                      boothName: String(booth['name'] ?? ''),
                       eventId: eventId as string,
                       venueId: id as string,
-                      zoneName: booth.zone_name,
-                      qrCode: booth.qr_code
+                      zoneName: String(booth['zone_name'] ?? ''),
+                      qrCode: String(booth['qr_code'] ?? '')
                     }
                   })
                 }
@@ -131,7 +145,7 @@ export default function VenueMapScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        ))}
+        )})}
       </View>
     </ScrollView>
   )

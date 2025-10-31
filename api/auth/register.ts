@@ -7,9 +7,7 @@ const registerSchema = z.object({
   email: z.string().email('Invalid email format'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
   full_name: z.string().min(1, 'Full name is required'),
-  role: z.enum(['event_organizer', 'venue_manager', 'advertiser'], {
-    errorMap: () => ({ message: 'Invalid role selected' }),
-  }),
+  role: z.enum(['event_organizer', 'venue_manager', 'advertiser']),
   phone: z.string().optional(),
   organization_id: z.string().optional(),
 })
@@ -21,11 +19,14 @@ export const register = async (req: Request, res: Response) => {
     const { email, password, full_name, role, phone, organization_id } = validatedData
 
     // Check if user already exists
-    const { data: existingUser } = await supabase
+    const existingUserResult = await supabase
       .from('users')
       .select('id')
       .eq('email', email)
       .single()
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: existingUser } = existingUserResult as any
 
     if (existingUser) {
       return res.status(409).json({
@@ -62,7 +63,7 @@ export const register = async (req: Request, res: Response) => {
     }
 
     // Create user profile in users table
-    const { data: profile, error: profileError } = await supabase
+    const profileResult = await supabase
       .from('users')
       .insert({
         id: authData.user.id,
@@ -75,6 +76,9 @@ export const register = async (req: Request, res: Response) => {
       .select()
       .single()
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: profile, error: profileError } = profileResult as any
+
     if (profileError) {
       console.error('Error creating user profile:', profileError)
       
@@ -83,7 +87,7 @@ export const register = async (req: Request, res: Response) => {
       
       return res.status(500).json({
         error: 'Failed to create user profile',
-        message: profileError.message,
+        message: 'Failed to create user profile',
       })
     }
 

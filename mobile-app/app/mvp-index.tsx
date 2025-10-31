@@ -9,10 +9,9 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
-  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Calendar, MapPin, Users, ChevronRight } from 'lucide-react-native';
+import { Calendar, MapPin, ChevronRight } from 'lucide-react-native';
 import ApiClient from '../services/ApiClient';
 
 interface Event {

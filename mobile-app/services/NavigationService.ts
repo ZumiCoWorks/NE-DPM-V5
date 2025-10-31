@@ -12,7 +12,7 @@ class NavigationService {
   private userLocation: Location.LocationObject | null = null
   private heading: number = 0
   private locationSubscription: Location.LocationSubscription | null = null
-  private magnetometerSubscription: any = null
+  private magnetometerSubscription: { remove?: () => void } | null = null
   
   async initialize(): Promise<boolean> {
     try {
@@ -39,8 +39,9 @@ class NavigationService {
       })
       
       return true
-    } catch (error) {
-      console.error('Navigation service initialization error:', error)
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error)
+      console.error('Navigation service initialization error:', msg)
       return false
     }
   }
@@ -49,7 +50,7 @@ class NavigationService {
     if (this.locationSubscription) {
       this.locationSubscription.remove()
     }
-    if (this.magnetometerSubscription) {
+    if (this.magnetometerSubscription?.remove) {
       this.magnetometerSubscription.remove()
     }
   }

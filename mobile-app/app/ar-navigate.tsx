@@ -76,8 +76,7 @@ export default function ARNavigationScreen() {
     setIsTracking(true)
     await EngagementHelper.startTracking(
       eventId as string,
-      boothName as string,
-      false // active_engagement will be set to true when QR is scanned
+      boothName as string
     )
   }
 

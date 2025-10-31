@@ -5,7 +5,7 @@ import { eventsApi, venuesApi } from '../services/api'
 import type { Event, Venue } from '../services/api'
 
 interface DashboardProps {
-  onTabChange?: (tab: any) => void
+  onTabChange?: (tab: string) => void
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ onTabChange }) => {

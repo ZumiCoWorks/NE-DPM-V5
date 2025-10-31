@@ -2,7 +2,17 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import Constants from 'expo-constants'
 import { QuicketUser } from './QuicketService'
 
-const API_BASE = (Constants.expoConfig?.extra as any)?.apiBaseUrl || 'http://localhost:3001/api'
+const API_BASE = (typeof process !== 'undefined' && (process.env as any).MOBILE_API_BASE) || (((Constants.expoConfig?.extra as unknown) as { apiBaseUrl?: string })?.apiBaseUrl) || 'http://localhost:3001/api'
+
+function extractErrorMessage(e: unknown): string {
+  if (!e) return ''
+  if (typeof e === 'object' && e !== null) {
+    const obj = e as Record<string, unknown>
+    if ('message' in obj && typeof obj.message === 'string') return obj.message
+    if ('error' in obj && typeof obj.error === 'string') return obj.error
+  }
+  return String(e)
+}
 
 export interface CDVReport {
   attendee_id?: string
@@ -20,8 +30,8 @@ export const ApiClient = {
     try {
       const userJson = await AsyncStorage.getItem('quicket_user')
       return userJson ? JSON.parse(userJson) : null
-    } catch (error) {
-      console.error('Error getting current user:', error)
+    } catch (error: unknown) {
+      console.error('Error getting current user:', extractErrorMessage(error))
       return null
     }
   },
@@ -29,16 +39,16 @@ export const ApiClient = {
   async setCurrentUser(user: QuicketUser): Promise<void> {
     try {
       await AsyncStorage.setItem('quicket_user', JSON.stringify(user))
-    } catch (error) {
-      console.error('Error setting current user:', error)
+    } catch (error: unknown) {
+      console.error('Error setting current user:', extractErrorMessage(error))
     }
   },
   
   async clearCurrentUser(): Promise<void> {
     try {
       await AsyncStorage.removeItem('quicket_user')
-    } catch (error) {
-      console.error('Error clearing current user:', error)
+    } catch (error: unknown) {
+      console.error('Error clearing current user:', extractErrorMessage(error))
     }
   },
   
@@ -51,8 +61,8 @@ export const ApiClient = {
         return { events: json.data }
       }
       return json
-    } catch (error) {
-      console.error('Error fetching events:', error)
+    } catch (error: unknown) {
+      console.error('Error fetching events:', extractErrorMessage(error))
       return { events: [] }
     }
   },
@@ -61,13 +71,13 @@ export const ApiClient = {
     try {
       const res = await fetch(`${API_BASE}/venues/public/${venueId}`)
       return await res.json()
-    } catch (error) {
-      console.error('Error fetching venue:', error)
+    } catch (error: unknown) {
+      console.error('Error fetching venue:', extractErrorMessage(error))
       return { venue: null }
     }
   },
   
-  async sendCDVReport(data: Partial<CDVReport>): Promise<any> {
+  async sendCDVReport(data: Partial<CDVReport>): Promise<unknown> {
     try {
       const user = await this.getCurrentUser()
       
@@ -92,9 +102,45 @@ export const ApiClient = {
       })
       
       return await res.json()
-    } catch (error) {
-      console.error('Error sending CDV report:', error)
-      return { success: false, error: error.message }
+    } catch (error: unknown) {
+      console.error('Error sending CDV report:', extractErrorMessage(error))
+      return { success: false, error: extractErrorMessage(error) }
+    }
+  },
+
+  async attendeeLookup(payload: { email?: string; eventId?: string; qr_code_id?: string }) {
+    try {
+      const res = await fetch(`${API_BASE}/attendees/lookup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      if (!res.ok) {
+        const txt = await res.text()
+        throw new Error(txt)
+      }
+      return await res.json()
+    } catch (error: unknown) {
+      console.error('Attendee lookup error:', extractErrorMessage(error))
+      return { success: false, error: extractErrorMessage(error) }
+    }
+  },
+
+  async saveLead(payload: { sponsor_id: string; staff_id: string; attendee_id: string; event_id?: string; rating?: number; note?: string }) {
+    try {
+      const res = await fetch(`${API_BASE}/leads`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(text)
+      }
+      return await res.json()
+    } catch (error: unknown) {
+      console.error('Save lead error:', extractErrorMessage(error))
+      return { success: false, error: extractErrorMessage(error) }
     }
   },
   
@@ -108,8 +154,8 @@ export const ApiClient = {
       }
       
       return deviceId
-    } catch (error) {
-      console.error('Error getting device ID:', error)
+    } catch (error: unknown) {
+      console.error('Error getting device ID:', extractErrorMessage(error))
       return `device_${Date.now()}`
     }
   },
@@ -120,7 +166,7 @@ export const ApiClient = {
     qrCode: string;
     activeEngagement: boolean;
     timestamp: string;
-  }): Promise<any> {
+  }): Promise<unknown> {
     try {
       const deviceId = await this.getDeviceId()
       
@@ -142,15 +188,15 @@ export const ApiClient = {
       
       if (!res.ok) throw new Error('Failed to log engagement')
       return await res.json()
-    } catch (error) {
-      console.error('Error logging booth engagement:', error)
+    } catch (error: unknown) {
+      console.error('Error logging booth engagement:', extractErrorMessage(error))
       return { success: false }
     }
   },
   
-  async startBoothVisitTracking(boothId: string, eventId: string): Promise<any> {
+  async startBoothVisitTracking(boothId: string, eventId: string): Promise<unknown> {
     try {
-      const deviceId = await this.getDeviceId()
+      void await this.getDeviceId()
       
       // Store visit start time locally
       await AsyncStorage.setItem(
@@ -162,15 +208,15 @@ export const ApiClient = {
       )
       
       return { success: true, boothId, startTime: new Date().toISOString() }
-    } catch (error) {
-      console.error('Error starting booth visit:', error)
+    } catch (error: unknown) {
+      console.error('Error starting booth visit:', extractErrorMessage(error))
       return { success: false }
     }
   },
   
-  async endBoothVisitTracking(boothId: string, eventId: string): Promise<any> {
+  async endBoothVisitTracking(boothId: string, eventId: string): Promise<unknown> {
     try {
-      const deviceId = await this.getDeviceId()
+      void await this.getDeviceId()
       
       // Get visit start time
       const visitDataJson = await AsyncStorage.getItem(`booth_visit_${boothId}`)
@@ -195,8 +241,8 @@ export const ApiClient = {
       await AsyncStorage.removeItem(`booth_visit_${boothId}`)
       
       return { success: true, dwellMinutes }
-    } catch (error) {
-      console.error('Error ending booth visit:', error)
+    } catch (error: unknown) {
+      console.error('Error ending booth visit:', extractErrorMessage(error))
       return { success: false }
     }
   },
@@ -206,7 +252,7 @@ export const ApiClient = {
     eventId: string;
     anchorId: string;
     boothId?: string;
-  }): Promise<any> {
+  }): Promise<unknown> {
     try {
       const deviceId = await this.getDeviceId()
       const attendeeId = await AsyncStorage.getItem('attendee_id')
@@ -242,9 +288,9 @@ export const ApiClient = {
       const result = await res.json()
       console.log('Scan logged successfully:', result)
       return result
-    } catch (error: any) {
-      console.error('Error logging anonymous scan:', error)
-      return { success: false, error: error.message }
+    } catch (error: unknown) {
+      console.error('Error logging anonymous scan:', extractErrorMessage(error))
+      return { success: false, error: extractErrorMessage(error) }
     }
   }
 }

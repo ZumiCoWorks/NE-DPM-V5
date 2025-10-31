@@ -11,8 +11,8 @@ export default function PrivacySettingsScreen() {
   const router = useRouter();
   
   const [authMode, setAuthMode] = useState<'anonymous' | 'quicket'>('anonymous');
-  const [userData, setUserData] = useState<any>(null);
-  const [consents, setConsents] = useState<any>({});
+  const [userData, setUserData] = useState<Record<string, unknown> | null>(null);
+  const [consents, setConsents] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -21,13 +21,15 @@ export default function PrivacySettingsScreen() {
 
   async function loadPrivacyData() {
     try {
-      const mode = await AsyncStorage.getItem('auth_mode') || 'anonymous';
-      const consentsJson = await AsyncStorage.getItem('user_consents');
-      const userJson = await AsyncStorage.getItem('quicket_user');
+  const mode = (await AsyncStorage.getItem('auth_mode')) || 'anonymous';
+  const consentsJson = await AsyncStorage.getItem('user_consents');
+  const userJson = await AsyncStorage.getItem('quicket_user');
 
-      setAuthMode(mode as any);
-      setConsents(consentsJson ? JSON.parse(consentsJson) : {});
-      setUserData(userJson ? JSON.parse(userJson) : null);
+  setAuthMode(mode === 'quicket' ? 'quicket' : 'anonymous');
+  const parsedConsents = consentsJson ? JSON.parse(consentsJson) as Record<string, boolean> : {};
+  setConsents(parsedConsents);
+  const parsedUser = userJson ? JSON.parse(userJson) as Record<string, unknown> : null;
+  setUserData(parsedUser);
     } catch (error) {
       console.error('Error loading privacy data:', error);
     } finally {
@@ -157,17 +159,17 @@ export default function PrivacySettingsScreen() {
               <>
                 <View style={styles.statusRow}>
                   <Text style={styles.statusLabel}>Name:</Text>
-                  <Text style={styles.statusValue}>{userData.name}</Text>
+                  <Text style={styles.statusValue}>{String((userData?.['name']) ?? '')}</Text>
                 </View>
 
                 <View style={styles.statusRow}>
                   <Text style={styles.statusLabel}>Email:</Text>
-                  <Text style={styles.statusValue}>{userData.email}</Text>
+                  <Text style={styles.statusValue}>{String((userData?.['email']) ?? '')}</Text>
                 </View>
 
                 <View style={styles.statusRow}>
                   <Text style={styles.statusLabel}>Ticket Type:</Text>
-                  <Text style={styles.statusValue}>{userData.ticket_type}</Text>
+                  <Text style={styles.statusValue}>{String((userData?.['ticket_type']) ?? '')}</Text>
                 </View>
               </>
             )}

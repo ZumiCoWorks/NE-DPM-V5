@@ -4,7 +4,7 @@ import type { Request, Response } from 'express'
 const router = Router()
 
 // In-memory HVZ zones for demo (production would use Supabase)
-let hvzZones: any[] = [
+const hvzZones: any[] = [
   {
     id: 'hvz-1',
     floorplan_id: 'fp-1',

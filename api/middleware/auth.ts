@@ -7,6 +7,8 @@ interface AuthenticatedRequest extends Request {
     id: string
     email: string
     role: string
+    organization_id?: string
+    full_name?: string
   }
 }
 

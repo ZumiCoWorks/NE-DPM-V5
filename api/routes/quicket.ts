@@ -31,8 +31,9 @@ router.post('/test-connection', authenticateToken, async (req: AuthenticatedRequ
         message: result.message
       })
     }
-  } catch (error: any) {
-    console.error('Test connection error:', error)
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error)
+    console.error('Test connection error:', msg)
     res.status(500).json({ error: 'Failed to test connection' })
   }
 })
@@ -55,8 +56,9 @@ router.get('/events', authenticateToken, async (req: AuthenticatedRequest, res: 
       events,
       count: events.length
     })
-  } catch (error: any) {
-    console.error('Get Quicket events error:', error)
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error)
+    console.error('Get Quicket events error:', msg)
     res.status(500).json({ error: 'Failed to fetch events from Quicket' })
   }
 })
@@ -81,8 +83,9 @@ router.get('/events/:eventId/guests', authenticateToken, async (req: Authenticat
       guests,
       totalGuests: guests.length
     })
-  } catch (error: any) {
-    console.error('Get guest list error:', error)
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error)
+    console.error('Get guest list error:', msg)
     res.status(500).json({ error: 'Failed to fetch guest list from Quicket' })
   }
 })
@@ -107,8 +110,9 @@ router.post('/match-attendee', authenticateToken, async (req: AuthenticatedReque
     const match = await quicketService.matchAttendee(email, eventId, userToken)
     
     res.json(match)
-  } catch (error: any) {
-    console.error('Match attendee error:', error)
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error)
+    console.error('Match attendee error:', msg)
     res.status(500).json({ error: 'Failed to match attendee' })
   }
 })
@@ -129,8 +133,9 @@ router.get('/config', authenticateToken, async (req: AuthenticatedRequest, res: 
       apiKeyPresent: hasApiKey,
       subscriberKeyPresent: hasSubscriberKey
     })
-  } catch (error: any) {
-    console.error('Get config error:', error)
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error)
+    console.error('Get config error:', msg)
     res.status(500).json({ error: 'Failed to fetch configuration' })
   }
 })
@@ -152,8 +157,9 @@ router.put('/config', authenticateToken, async (req: AuthenticatedRequest, res: 
       message: 'Configuration updated. Please restart server for changes to take effect.',
       mockMode
     })
-  } catch (error: any) {
-    console.error('Update config error:', error)
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error)
+    console.error('Update config error:', msg)
     res.status(500).json({ error: 'Failed to update configuration' })
   }
 })
@@ -198,8 +204,8 @@ router.post('/sync-event', authenticateToken, async (req: AuthenticatedRequest, 
     const { data: venue, error: venueError } = await supabaseAdmin
       .from('venues')
       .upsert({
-        name: eventDetails.venue || 'Imported Venue',
-        address: eventDetails.location || '',
+        name: eventDetails.venue?.name || eventDetails.name || 'Imported Venue',
+        address: eventDetails.venue?.addressLine1 || '',
         description: `Imported from Quicket event: ${eventDetails.name}`
       })
       .select()
@@ -219,8 +225,8 @@ router.post('/sync-event', authenticateToken, async (req: AuthenticatedRequest, 
       .upsert({
         name: eventDetails.name,
         description: eventDetails.description || '',
-        start_date: eventDetails.start_date,
-        end_date: eventDetails.end_date,
+        start_date: eventDetails.startDate,
+        end_date: eventDetails.endDate,
         venue_id: venue.id,
         organizer_id: req.user?.id,
         status: 'active'
@@ -237,21 +243,22 @@ router.post('/sync-event', authenticateToken, async (req: AuthenticatedRequest, 
     }
 
     // Import attendees
-    const attendeePromises = guests.map((guest: any) =>
-      supabaseAdmin
+    const attendeePromises = guests.map((guestRaw) => {
+      const guest = guestRaw as unknown as Record<string, unknown>
+      return supabaseAdmin
         .from('event_attendees')
         .upsert({
           event_id: event.id,
-          ticket_id: guest.ticket_id || guest.id,
-          email: guest.email,
-          full_name: guest.name || `${guest.first_name} ${guest.last_name}`,
-          ticket_type: guest.ticket_type || 'General',
-          quicket_order_id: guest.order_id,
-          checked_in: guest.checked_in || false,
+          ticket_id: (guest['ticket_id'] ?? guest['id']) as unknown,
+          email: (guest['email'] as string) || null,
+          full_name: (guest['name'] as string) || `${guest['first_name'] as string || ''} ${guest['last_name'] as string || ''}`,
+          ticket_type: (guest['ticket_type'] as string) || 'General',
+          quicket_order_id: guest['order_id'] as unknown,
+          checked_in: (guest['checked_in'] as boolean) || false,
           metadata: guest
         })
         .select()
-    )
+    })
 
     await Promise.all(attendeePromises)
 
@@ -265,12 +272,13 @@ router.post('/sync-event', authenticateToken, async (req: AuthenticatedRequest, 
       }
     })
 
-  } catch (error: any) {
-    console.error('Sync event error:', error)
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error)
+    console.error('Sync event error:', msg)
     res.status(500).json({
       success: false,
       message: 'Failed to sync event',
-      error: error.message
+      error: msg
     })
   }
 })

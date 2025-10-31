@@ -1,5 +1,4 @@
 import { createClient } from '@supabase/supabase-js'
-import { Database } from '../../src/types/database'
 import { config } from 'dotenv'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -22,7 +21,7 @@ if (!supabaseServiceKey) {
 }
 
 // Create Supabase client with service role key for server-side operations
-export const supabaseAdmin = createClient<Database>(
+export const supabaseAdmin = createClient(
   supabaseUrl,
   supabaseServiceKey,
   {
@@ -83,4 +82,17 @@ export const userOwnsResource = async (
   }
 
   return (data as Record<string, unknown>)[ownerField] === userId
+}
+
+// Helper to get a Supabase user from an access token (used by some middleware)
+export const getUserFromToken = async (token: string) => {
+  if (!token) return null
+  try {
+    const { data, error } = await supabaseAdmin.auth.getUser(token)
+    if (error) return null
+    return data.user || null
+  } catch (err) {
+    console.error('getUserFromToken error:', err)
+    return null
+  }
 }

@@ -188,6 +188,39 @@ curl -X POST http://localhost:3001/api/auth/register \
   -d '{"email":"test@example.com","password":"password123","full_name":"Test User","organization":"Test Org"}'
 ```
 
+### Dev: Quick smoke test (local)
+
+Use this to verify POST /api/scans/log and the dev analytics endpoint work end-to-end.
+
+1) Start the server in development:
+
+```bash
+npm run server:dev
+```
+
+2) (Optional) POST a test scan:
+
+```bash
+curl -s -X POST http://localhost:3001/api/scans/log \
+  -H "Content-Type: application/json" \
+  -d '{"device_id":"device_test_1","anchor_id":"anchor_abc","event_id":"22222222-2222-2222-2222-222222222222","booth_id":null,"timestamp":"2025-10-28T12:00:00.000Z","attendee_id":"QKT-demo-123","attendee_name":"Demo User","ticket_tier":"General"}' -w "\nSTATUS:%{http_code}\n"
+```
+
+3) Run the automated smoke-test script (uses default DEV_ANALYTICS_TOKEN='dev-token'):
+
+```bash
+npm run smoke-test
+```
+
+If you set a different dev token, export it before running the script:
+
+```bash
+export DEV_ANALYTICS_TOKEN="your-secret"
+export SMOKE_EVENT_ID="your-event-uuid"
+npm run smoke-test
+```
+
+
 ## 📝 Development Scripts
 
 - `npm run dev` - Start both frontend and backend in development mode
@@ -222,6 +255,72 @@ For support and questions:
   - Database schema and migrations
   - Basic frontend and backend structure
   - Supabase integration
+
+## 🧭 Demo quick guide (presenter checklist)
+
+If you need to demo both B2B (dashboard) and B2C (mobile) simultaneously, follow these quick steps to run everything and prove the flows live.
+
+1) Start backend (keep terminal A open):
+
+```zsh
+cd "/Users/zumiww/Documents/NE DPM V5"
+npm run server:dev
+```
+
+Verify health in a second terminal:
+
+```zsh
+curl -sS http://localhost:3001/api/health -w '\nSTATUS:%{http_code}\n'
+# Expect: {"success":true,"message":"ok"} and STATUS:200
+```
+
+2) Start the Dashboard (terminal B):
+
+```zsh
+cd "/Users/zumiww/Documents/NE DPM V5"
+npm run client:dev
+```
+
+Open the Vite URL (usually http://localhost:5173) and navigate to `MVP Analytics`.
+
+3) Start Expo for the Mobile app (terminal C):
+
+```zsh
+cd "/Users/zumiww/Documents/NE DPM V5/mobile-app"
+npm start
+```
+
+- If you run Expo on a real phone, ensure the phone is on the same Wi‑Fi network.
+- If Expo cannot reach `localhost` from the phone, either use `expo start --tunnel` or set the API base to your machine LAN IP in `mobile-app/services/ApiClient.ts` (see Troubleshooting below).
+
+4) Seed demo data (optional, speeds up the demo):
+
+```zsh
+# From repo root. Pass your server base if not localhost
+node scripts/seed-demo.js http://localhost:3001
+```
+
+5) Show the flows:
+
+- On the mobile: Verify Ticket → Lookup by Email (or scan QR) to store `attendee_id` in AsyncStorage.
+- Trigger a booth scan (the app calls `logAnonymousScan`) — watch Terminal C logs and Terminal A backend logs. You should see a line like:
+
+```
+Scan logged: event=101 anchor=anchor_entrance device=device_demo_1 attendee=QKT-DEMO-1
+```
+
+- On the dashboard: refresh/select event 101 in `MVP Analytics` — the totals and unique devices should reflect the posted scans. Use Export → CSV to show raw data.
+
+Troubleshooting / quick fixes
+- If `curl` prints a zsh error about `number expected`, wrap `-w` in single quotes as shown above.
+- If Expo prints networking errors:
+  - Determine your LAN IP: `ipconfig getifaddr en0` (or `en1`).
+  - Edit `mobile-app/services/ApiClient.ts` and set `API_BASE` to `http://<LAN_IP>:3001/api`.
+  - Or run `expo start --tunnel` to avoid LAN config.
+
+Want me to patch the mobile code for you?
+- I can add `MOBILE_API_BASE` env var support (recommended) so you only set an env value when starting Expo.
+- Or I can hardcode your machine LAN IP into `ApiClient.ts` for the demo — tell me which and provide the IP if you prefer the hardcode option.
 
 ---
 

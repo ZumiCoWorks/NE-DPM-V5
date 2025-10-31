@@ -1,5 +1,19 @@
 import axios from 'axios'
 
+// Helper to safely extract useful message/data from unknown errors without using `any`
+function extractErrorMessage(e: unknown): string {
+  if (!e) return ''
+  if (typeof e === 'object' && e !== null) {
+    const obj = e as Record<string, unknown>
+    if ('response' in obj && typeof obj.response === 'object' && obj.response !== null) {
+      const resp = obj.response as Record<string, unknown>
+      if ('data' in resp) return JSON.stringify(resp.data)
+    }
+    if ('message' in obj && typeof obj.message === 'string') return obj.message
+  }
+  return String(e)
+}
+
 interface QuicketConfig {
   apiKey: string
   apiSubscriberKey: string
@@ -46,6 +60,9 @@ interface QuicketEvent {
 
 class QuicketService {
   private config: QuicketConfig
+  // Simple in-memory cache for matchAttendee results to reduce calls to Quicket
+  // Key = `${email.toLowerCase()}::${eventId}` -> cached result + expiry
+  private matchCache: Map<string, { expiresAt: number; result: { matched: boolean; attendeeId?: string; ticketInfo?: unknown } }> = new Map()
 
   constructor() {
     this.config = {
@@ -79,12 +96,43 @@ class QuicketService {
         message: 'Connection successful',
         userId: response.data.UserId
       }
-    } catch (error: any) {
-      console.error('Quicket connection test failed:', error.response?.data || error.message)
+    } catch (error: unknown) {
+      console.error('Quicket connection test failed:', extractErrorMessage(error))
       return {
         success: false,
-        message: error.response?.data?.message || 'Failed to connect to Quicket API'
+        message: extractErrorMessage(error) || 'Failed to connect to Quicket API'
       }
+    }
+  }
+
+  /**
+   * Get details for a specific event
+   */
+  async getEventDetails(eventId: string, userToken?: string): Promise<Partial<QuicketEvent> | null> {
+    if (this.config.mockMode) {
+      return this.getMockEvents().find(e => e.id.toString() === eventId.toString()) || null
+    }
+
+    try {
+      const url = `${this.config.baseUrl}/events/${eventId}`
+      const response = await axios.get(url, {
+        params: { api_key: this.config.apiKey },
+        headers: userToken ? { usertoken: userToken } : undefined,
+      })
+
+      // Map Quicket response to our QuicketEvent shape if necessary
+      const data = response.data
+      return {
+        id: data.id,
+        name: data.name,
+        description: data.description,
+        startDate: data.startDate || data.start_date,
+        endDate: data.endDate || data.end_date,
+        venue: data.venue || null,
+      }
+    } catch (error: unknown) {
+      console.error('Error fetching event details from Quicket:', extractErrorMessage(error))
+      return null
     }
   }
 
@@ -108,12 +156,13 @@ class QuicketService {
       })
 
       return response.data.results || []
-    } catch (error: any) {
-      console.error('Error fetching Quicket events:', error.response?.data || error.message)
-      // Log more details
-      if (error.response) {
-        console.error('Response status:', error.response.status)
-        console.error('Response data:', error.response.data)
+    } catch (error: unknown) {
+      console.error('Error fetching Quicket events:', extractErrorMessage(error))
+      // Log more details if present
+      if (typeof error === 'object' && error !== null && 'response' in (error as Record<string, unknown>)) {
+        const resp = (error as Record<string, unknown>).response as Record<string, unknown> | undefined
+  if (resp && 'status' in resp) console.error('Response status:', (resp as Record<string, unknown>).status)
+  if (resp && 'data' in resp) console.error('Response data:', (resp as Record<string, unknown>).data)
       }
       throw error
     }
@@ -134,8 +183,8 @@ class QuicketService {
       })
 
       return response.data.results || []
-    } catch (error: any) {
-      console.error('Error fetching Quicket orders:', error.response?.data || error.message)
+    } catch (error: unknown) {
+      console.error('Error fetching Quicket orders:', extractErrorMessage(error))
       return []
     }
   }
@@ -147,11 +196,22 @@ class QuicketService {
   async matchAttendee(email: string, eventId: string, userToken: string): Promise<{
     matched: boolean
     attendeeId?: string
-    ticketInfo?: any
+    ticketInfo?: unknown
   }> {
+    // Check cache first
+    try {
+      const cacheKey = `${email.toLowerCase()}::${eventId}`
+      const cached = this.matchCache.get(cacheKey)
+      if (cached && cached.expiresAt > Date.now()) {
+        return cached.result
+      }
+    } catch {
+      // Non-fatal: if cache lookup fails, continue to live lookup
+      console.warn('Quicket match cache lookup failed')
+    }
     if (this.config.mockMode) {
       // Mock matching logic
-      return {
+      const mockResult = {
         matched: true,
         attendeeId: `QT-${Math.random().toString(36).substr(2, 9)}`,
         ticketInfo: {
@@ -160,6 +220,16 @@ class QuicketService {
           orderId: 12345
         }
       }
+
+      // cache mock result for 15 minutes
+      try {
+        const cacheKey = `${email.toLowerCase()}::${eventId}`
+        this.matchCache.set(cacheKey, { expiresAt: Date.now() + 15 * 60 * 1000, result: mockResult })
+      } catch {
+        // ignore cache set errors
+      }
+
+      return mockResult
     }
 
     try {
@@ -172,7 +242,7 @@ class QuicketService {
       )
 
       if (matchingOrder) {
-        return {
+        const result = {
           matched: true,
           attendeeId: `QT-${matchingOrder.orderId}`,
           ticketInfo: {
@@ -182,11 +252,30 @@ class QuicketService {
             barcode: matchingOrder.guests[0]?.Barcode
           }
         }
+
+        // Cache positive match for 15 minutes
+        try {
+          const cacheKey = `${email.toLowerCase()}::${eventId}`
+          this.matchCache.set(cacheKey, { expiresAt: Date.now() + 15 * 60 * 1000, result })
+        } catch {
+          // ignore cache set errors
+        }
+
+        return result
       }
 
-      return { matched: false }
-    } catch (error) {
-      console.error('Error matching attendee:', error)
+      const noMatch = { matched: false }
+      // Cache miss result for 15 minutes as well
+      try {
+        const cacheKey = `${email.toLowerCase()}::${eventId}`
+        this.matchCache.set(cacheKey, { expiresAt: Date.now() + 15 * 60 * 1000, result: noMatch })
+      } catch {
+        // ignore
+      }
+
+      return noMatch
+    } catch (error: unknown) {
+      console.error('Error matching attendee:', extractErrorMessage(error))
       return { matched: false }
     }
   }
@@ -208,8 +297,8 @@ class QuicketService {
       const allGuests = eventOrders.flatMap(order => order.guests)
       
       return allGuests
-    } catch (error) {
-      console.error('Error fetching event guest list:', error)
+    } catch (error: unknown) {
+      console.error('Error fetching event guest list:', extractErrorMessage(error))
       return []
     }
   }

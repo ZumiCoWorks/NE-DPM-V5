@@ -43,8 +43,9 @@ export default function MVPScannerScreen() {
         anchorId: data, // The QR code itself is the anchor ID
         boothId: boothId || undefined,
       });
+      const res = result as Record<string, unknown>
 
-      if (result.success) {
+      if (res['success']) {
         // Show success
         Alert.alert(
           '✅ Scan Logged!',
@@ -67,14 +68,15 @@ export default function MVPScannerScreen() {
           ]
         );
       } else {
-        throw new Error(result.error || 'Failed to log scan');
+        throw new Error((res['error'] as string) || 'Failed to log scan')
       }
 
-    } catch (error: any) {
-      console.error('Error logging QR scan:', error);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error)
+      console.error('Error logging QR scan:', msg)
       Alert.alert(
         'Error',
-        `Failed to log your scan: ${error.message || 'Unknown error'}`,
+        `Failed to log your scan: ${msg || 'Unknown error'}`,
         [{ 
           text: 'Retry', 
           onPress: () => {
@@ -82,8 +84,8 @@ export default function MVPScannerScreen() {
             setScanning(false);
           } 
         }]
-      );
-      setScanning(false);
+      )
+      setScanning(false)
     }
   }
 

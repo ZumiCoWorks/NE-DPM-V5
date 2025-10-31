@@ -34,9 +34,10 @@ export default function QuicketSyncPage() {
       } else {
         setError(data.message || 'Failed to fetch events from Quicket')
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const emsg = err instanceof Error ? err.message : String(err)
       setError('Failed to connect to Quicket API. Please check your API key.')
-      console.error('Quicket fetch error:', err)
+      console.error('Quicket fetch error:', emsg)
     } finally {
       setLoading(false)
     }
