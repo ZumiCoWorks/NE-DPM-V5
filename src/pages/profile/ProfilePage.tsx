@@ -30,12 +30,12 @@ export const ProfilePage: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false)
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState<ProfileFormData>({
-    full_name: profile?.full_name || '',
-    email: user?.email || '',
-    phone: profile?.phone || '',
-    company: profile?.company || '',
-    address: profile?.address || '',
-    bio: profile?.bio || '',
+    full_name: (profile?.full_name as string) || '',
+    email: (user?.email as string) || '',
+    phone: (profile?.phone as string) || '',
+    company: (profile?.company as string) || '',
+    address: (profile?.address as string) || '',
+    bio: (profile?.bio as string) || '',
   })
   const [errors, setErrors] = useState<Partial<ProfileFormData>>({})
 
@@ -178,7 +178,7 @@ export const ProfilePage: React.FC = () => {
             </div>
             <div className="flex-1">
               <h2 className="text-xl font-bold text-gray-900">{profile.full_name}</h2>
-              <p className="text-sm text-gray-500">{user.email}</p>
+              <p className="text-sm text-gray-500">{String(user.email)}</p>
               <div className="mt-2 flex items-center space-x-4">
                 <span className={cn(
                   'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',

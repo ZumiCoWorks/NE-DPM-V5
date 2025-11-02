@@ -110,7 +110,15 @@ This will start:
 - Frontend: http://localhost:5173
 - Backend API: http://localhost:3001
 
-## 📁 Project Structure
+## � Recent editor & scaffold updates
+
+- Added a simplified Map Editor flow in `scaffold/web/src/pages/admin/MapEditor.jsx` that lets you upload floorplans, add POIs, and draw paths.
+- `ImageUploader` is now storage-agnostic and accepts an `uploadFn(file) => Promise<string>`; a small Supabase helper `scaffold/web/src/lib/supabaseClient.js` has been added with `uploadFloorplan(file)` to upload to a `floorplans` bucket. If Supabase env vars are not set the uploader will prompt for a hosted URL.
+- POI creation no longer uses `prompt()` — there's a modal form (`scaffold/web/src/components/POIForm.jsx`) that collects POI name/type and saves normalized coordinates (x_pct/y_pct) to the backend.
+- A lightweight `FloorplanCanvas` component (`scaffold/web/src/components/FloorplanCanvas.jsx`) renders the floorplan and overlays POIs/paths without requiring `react-konva`. The full Konva-powered editor from the NavEaze reference can be copied into `scaffold/web/src/components/` if you want the richer editing experience (pan/zoom, node/segment editing); that step is planned but not yet copied to avoid pulling in extra deps automatically.
+
+
+## �📁 Project Structure
 
 ```
 NE-DPM-V5/

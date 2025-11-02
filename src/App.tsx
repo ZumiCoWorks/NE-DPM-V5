@@ -8,6 +8,7 @@ import { RegisterPage } from './pages/auth/RegisterPage'
 import { DashboardPage } from './pages/DashboardPage'
 // Thin integration layer pages
 import QuicketSyncPage from './pages/QuicketSyncPage'
+import MapEditorPage from './pages/admin/MapEditor'
 import BoothSetupPage from './pages/BoothSetupPage'
 import ROIDashboardPage from './pages/ROIDashboardPage'
 // MVP Pages
@@ -84,6 +85,15 @@ function App() {
                     <ProtectedRoute roles={['admin', 'event_organizer']}>
                       <Layout>
                         <MVPAnalyticsPage />
+                      </Layout>
+                    </ProtectedRoute>
+                  } />
+
+                  {/* Map Editor (interactive floorplan admin) */}
+                  <Route path="/admin/map-editor" element={
+                    <ProtectedRoute roles={["admin", "event_organizer"]}>
+                      <Layout>
+                        <MapEditorPage />
                       </Layout>
                     </ProtectedRoute>
                   } />

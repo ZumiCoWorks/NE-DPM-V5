@@ -26,7 +26,8 @@ export const LoginPage: React.FC = () => {
       const { error } = await signIn(email, password)
       
       if (error) {
-        setError(error.message)
+        // `error` may be unknown; coerce safely
+        setError((error as any)?.message || String(error))
       } else {
         navigate(from, { replace: true })
       }

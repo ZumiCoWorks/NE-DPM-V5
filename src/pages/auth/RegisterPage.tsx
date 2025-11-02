@@ -54,7 +54,8 @@ export const RegisterPage: React.FC = () => {
       })
       
       if (error) {
-        setError(error.message)
+        // `error` may be unknown; coerce safely
+        setError((error as any)?.message || String(error))
       } else {
         navigate('/dashboard')
       }
