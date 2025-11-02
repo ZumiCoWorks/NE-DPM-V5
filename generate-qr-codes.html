@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NavEaze QR Code Generator - AFDA Grad Fest</title>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f5f5f7;
+            padding: 40px 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            color: #1d1d1f;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #86868b;
+            margin-bottom: 40px;
+        }
+        
+        .controls {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        button {
+            background: #0071e3;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        
+        button:hover {
+            background: #0077ED;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 30px;
+        }
+        
+        .qr-card {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            text-align: center;
+            page-break-inside: avoid;
+        }
+        
+        .qr-card h3 {
+            color: #1d1d1f;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+        
+        .booth-tier {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+        
+        .tier-gold {
+            background: #FFD700;
+            color: #1d1d1f;
+        }
+        
+        .tier-silver {
+            background: #C0C0C0;
+            color: #1d1d1f;
+        }
+        
+        .tier-bronze {
+            background: #CD7F32;
+            color: white;
+        }
+        
+        .tier-standard {
+            background: #e0e0e0;
+            color: #1d1d1f;
+        }
+        
+        .qr-canvas {
+            margin: 20px auto;
+            border: 4px solid #f5f5f7;
+            border-radius: 8px;
+        }
+        
+        .instructions {
+            background: #0071e3;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .download-btn {
+            background: #34c759;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        
+        .download-btn:hover {
+            background: #30b350;
+        }
+        
+        @media print {
+            body {
+                background: white;
+            }
+            
+            .controls {
+                display: none;
+            }
+            
+            .qr-card {
+                box-shadow: none;
+                border: 2px solid #e0e0e0;
+            }
+        }
+        
+        @page {
+            size: A4;
+            margin: 15mm;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎬 AFDA Grad Fest 2025 - QR Codes</h1>
+        <p class="subtitle">NavEaze Booth Navigation System</p>
+        
+        <div class="controls">
+            <button onclick="generateAll()">📱 Generate All QR Codes</button>
+            <button onclick="window.print()">🖨️ Print All</button>
+            <button onclick="downloadAll()">💾 Download All as Images</button>
+        </div>
+        
+        <div class="grid" id="qr-grid"></div>
+    </div>
+    
+    <script>
+        const booths = [
+            { name: 'Film School Showcase', tier: 'Gold', code: 'AFDA_BOOTH_FILM_10000000-0000-0000-0000-000000000001' },
+            { name: 'Animation Studio', tier: 'Gold', code: 'AFDA_BOOTH_ANIMATION_10000000-0000-0000-0000-000000000002' },
+            { name: 'Post-Production Lab', tier: 'Silver', code: 'AFDA_BOOTH_POSTPROD_10000000-0000-0000-0000-000000000003' },
+            { name: 'Screenwriting Corner', tier: 'Silver', code: 'AFDA_BOOTH_SCREENWRITING_10000000-0000-0000-0000-000000000004' },
+            { name: 'Acting Studio', tier: 'Silver', code: 'AFDA_BOOTH_ACTING_10000000-0000-0000-0000-000000000005' },
+            { name: 'Industry Partners', tier: 'Gold', code: 'AFDA_BOOTH_INDUSTRY_10000000-0000-0000-0000-000000000006' },
+            { name: 'Camera & Equipment', tier: 'Bronze', code: 'AFDA_BOOTH_EQUIPMENT_10000000-0000-0000-0000-000000000007' },
+            { name: 'Graduate Film Showcase', tier: 'Standard', code: 'AFDA_BOOTH_SHOWCASE_10000000-0000-0000-0000-000000000008' },
+            { name: 'AFDA Alumni Network', tier: 'Silver', code: 'AFDA_BOOTH_ALUMNI_10000000-0000-0000-0000-000000000009' },
+            { name: 'Careers & Internships', tier: 'Standard', code: 'AFDA_BOOTH_CAREERS_10000000-0000-0000-0000-000000000010' },
+            { name: 'NavEaze Demo Booth', tier: 'Gold', code: 'AFDA_BOOTH_NAVEAZE_10000000-0000-0000-0000-000000000011' },
+            { name: 'Food Court', tier: 'Standard', code: 'AFDA_BOOTH_FOOD_10000000-0000-0000-0000-000000000012' },
+            { name: 'Virtual Production Studio', tier: 'Gold', code: 'AFDA_BOOTH_VP_10000000-0000-0000-0000-000000000013' },
+            { name: 'Sound Design Lab', tier: 'Silver', code: 'AFDA_BOOTH_SOUND_10000000-0000-0000-0000-000000000014' },
+            { name: 'Still Photography', tier: 'Bronze', code: 'AFDA_BOOTH_PHOTO_10000000-0000-0000-0000-000000000015' }
+        ];
+        
+        function generateAll() {
+            const grid = document.getElementById('qr-grid');
+            grid.innerHTML = '';
+            
+            booths.forEach((booth, index) => {
+                const card = document.createElement('div');
+                card.className = 'qr-card';
+                card.id = `booth-${index}`;
+                
+                const tierClass = `tier-${booth.tier.toLowerCase()}`;
+                
+                card.innerHTML = `
+                    <h3>${booth.name}</h3>
+                    <span class="booth-tier ${tierClass}">${booth.tier} Tier</span>
+                    <canvas id="qr-${index}" class="qr-canvas"></canvas>
+                    <div class="instructions">
+                        👆 Scan here to check in!<br>
+                        Track your visit with NavEaze
+                    </div>
+                    <button class="download-btn" onclick="downloadQR(${index}, '${booth.name}')">
+                        💾 Download PNG
+                    </button>
+                `;
+                
+                grid.appendChild(card);
+                
+                // Generate QR code
+                setTimeout(() => {
+                    QRCode.toCanvas(
+                        document.getElementById(`qr-${index}`),
+                        booth.code,
+                        {
+                            width: 280,
+                            margin: 2,
+                            color: {
+                                dark: '#1d1d1f',
+                                light: '#ffffff'
+                            }
+                        },
+                        function (error) {
+                            if (error) console.error(error);
+                        }
+                    );
+                }, 100 * index);
+            });
+        }
+        
+        function downloadQR(index, name) {
+            const canvas = document.getElementById(`qr-${index}`);
+            const link = document.createElement('a');
+            link.download = `AFDA_${name.replace(/\s+/g, '_')}_QR.png`;
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+        
+        function downloadAll() {
+            booths.forEach((booth, index) => {
+                setTimeout(() => {
+                    downloadQR(index, booth.name);
+                }, 500 * index);
+            });
+        }
+        
+        // Auto-generate on page load
+        window.addEventListener('load', generateAll);
+    </script>
+</body>
+</html>
+

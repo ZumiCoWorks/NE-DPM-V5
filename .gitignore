@@ -197,3 +197,8 @@ coverage/
 # Lock files (keep package-lock.json but ignore others)
 yarn.lock
 pnpm-lock.yaml
+
+# Project-specific node_modules
+/dpm-web/node_modules
+/attendee-mobile/node_modules
+/staff-mobile/node_modules
