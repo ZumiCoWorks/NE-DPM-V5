@@ -202,3 +202,5 @@ pnpm-lock.yaml
 /dpm-web/node_modules
 /attendee-mobile/node_modules
 /staff-mobile/node_modules
+# ignore dpm-web node_modules
+/dpm-web/node_modules/
