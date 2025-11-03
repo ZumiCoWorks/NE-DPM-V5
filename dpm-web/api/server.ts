@@ -1,34 +1,28 @@
-/**
- * local server entry file, for local development
- */
-import app from './app.js';
+import 'dotenv/config'
+import express from 'express'
+import supabase from './lib/supabase'
 
-/**
- * start server with port
- */
-const PORT = process.env.PORT || 3001;
+const app = express()
+const port = process.env.PORT || 5174
 
-const server = app.listen(PORT, () => {
-  console.log(`Server ready on port ${PORT}`);
-});
+app.get('/health', (_req, res) => res.json({ ok: true }))
 
-/**
- * close server
- */
-process.on('SIGTERM', () => {
-  console.log('SIGTERM signal received');
-  server.close(() => {
-    console.log('Server closed');
-    process.exit(0);
-  });
-});
+app.get('/version', (_req, res) => {
+  res.json({ name: 'dpm-api', env: process.env.NODE_ENV || 'development' })
+})
 
-process.on('SIGINT', () => {
-  console.log('SIGINT signal received');
-  server.close(() => {
-    console.log('Server closed');
-    process.exit(0);
-  });
-});
+// Example admin endpoint: list first 5 profiles
+app.get('/profiles', async (_req, res) => {
+  try {
+    const { data, error } = await supabase.from('profiles').select('*').limit(5)
+    if (error) return res.status(500).json({ error })
+    res.json({ data })
+  } catch (err) {
+    res.status(500).json({ error: String(err) })
+  }
+})
 
-export default app;
+app.listen(port, () => {
+  // eslint-disable-next-line no-console
+  console.log(`API server listening on http://localhost:${port}`)
+})
