@@ -1,9 +1,0 @@
-node_modules/
-dist/
-build/
-.next/
-.expo/
-_OLD/
-coverage/
-**/*.d.ts
-mobile-app/node_modules/

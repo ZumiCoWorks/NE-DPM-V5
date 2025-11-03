@@ -21,6 +21,9 @@ import { ProfilePage } from "./pages/profile/ProfilePage";
 import { NotFoundPage } from './pages/NotFoundPage'
 
 function App() {
+  // Diagnostic log to confirm the App component is mounted and rendering
+  // eslint-disable-next-line no-console
+  console.log('LOG: App.tsx component is rendering.')
   return (
     <AuthProvider>
       <ErrorBoundary>

@@ -12,11 +12,33 @@ export const LoginPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [selectedRole, setSelectedRole] = useState<string | null>(null)
   
-  const { signIn } = useAuth()
+  const { user, loading, signIn } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  
   const from = location.state?.from?.pathname || '/dashboard'
+
+  useEffect(() => {
+    if (!loading && user) {
+      navigate('/dashboard')
+    }
+  }, [user, loading, navigate])
+
+  useEffect(() => {
+    try {
+      const s = sessionStorage.getItem('selectedRole')
+      if (s) setSelectedRole(s)
+    } catch (e) {
+      // ignore
+    }
+  }, [])
+
+  if (loading || user) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <LoadingSpinner />
+      </div>
+    )
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -46,14 +68,7 @@ export const LoginPage: React.FC = () => {
     }
   }
 
-  useEffect(() => {
-    try {
-      const s = sessionStorage.getItem('selectedRole')
-      if (s) setSelectedRole(s)
-    } catch (e) {
-      // ignore
-    }
-  }, [])
+  
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
