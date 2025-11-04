@@ -1,6 +1,6 @@
 // src/components/VendorSignupPage.jsx
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient.js'; // FIX: Added .js extension
+import { supabase } from '../lib/supabase';
 
 const VendorSignupPage = () => {
   const [token, setToken] = useState('');

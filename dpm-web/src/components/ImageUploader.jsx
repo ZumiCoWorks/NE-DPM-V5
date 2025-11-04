@@ -148,3 +148,4 @@ const ImageUploader = ({ onUploadSuccess, onMessage }) => {
 };
 
 export default ImageUploader;
+export { ImageUploader };

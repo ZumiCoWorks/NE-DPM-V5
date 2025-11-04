@@ -12,6 +12,8 @@ import { EventsPage } from './pages/EventsPage';
 import { EventDetailPage } from './pages/EventDetailPage';
 import { SponsorManagementPage } from './pages/SponsorManagementPage';
 import { ProfilePage } from './pages/ProfilePage';
+import VendorSignupPage from './components/VendorSignupPage';
+import SettingsPage from './pages/SettingsPage';
 
 export default function App() {
   return (
@@ -21,6 +23,7 @@ export default function App() {
           <Route path="/" element={<RoleSelectorPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/signup" element={<VendorSignupPage />} />
           
           <Route
             path="/dashboard"
@@ -105,6 +108,17 @@ export default function App() {
               <ProtectedRoute>
                 <AdminLayout>
                   <ProfilePage />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <AdminLayout>
+                  <SettingsPage />
                 </AdminLayout>
               </ProtectedRoute>
             }

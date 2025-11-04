@@ -36,7 +36,6 @@ import OnboardingFlow from "@/components/OnboardingFlow";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 
-
 type DrawingMode = "select" | "pan" | "nodes" | "segments" | "pois" | "zones" | 'poi' | 'path' | null;
 
 const tools = [
@@ -191,7 +190,7 @@ const MapEditorPage = () => {
     try {
       const { data: newFloorplan, error } = await supabase.rpc('create_event_from_template', {
         template_id: template.id,
-  user_id: (currentUser as any).id,
+        user_id: (currentUser as any).id,
         event_name: `${template.name} Event`
       });
 
@@ -242,18 +241,18 @@ const MapEditorPage = () => {
     }
   };
 
-  const handleNewZoneOnCanvas = async (newZone: any) => {
+  const handleNewNodeOnCanvas = async (newNode: any) => {
     if (!currentFloorplan || !currentUser) return;
     try {
-      const { data, error } = await supabase.from('zones').insert({
-        ...newZone,
+      const { data, error } = await supabase.from('nodes').insert({
+        ...newNode,
         floorplan_id: currentFloorplan.id,
   user_id: (currentUser as any).id,
       }).select().single();
       if (error) throw error;
-      setCurrentZones(prev => [...prev, data]);
+      setCurrentNodes(prev => [...prev, data]);
     } catch (err: any) {
-      showEditorMessage('Failed to save zone: ' + err.message, 'error');
+      showEditorMessage('Failed to save node: ' + err.message, 'error');
     }
   };
 
@@ -278,7 +277,7 @@ const MapEditorPage = () => {
       const { data, error } = await supabase.from('pois').insert({
         ...newPoi,
         floorplan_id: currentFloorplan.id,
-        user_id: (currentUser as any).id,
+  user_id: (currentUser as any).id,
       }).select().single();
       if (error) throw error;
       setCurrentPois(prev => [...prev, data]);
@@ -287,19 +286,18 @@ const MapEditorPage = () => {
     }
   };
 
-  // Node handler (missing previously) — inserts a node into `nodes` and updates state
-  const handleNewNodeOnCanvas = async (newNode: any) => {
+  const handleNewZoneOnCanvas = async (newZone: any) => {
     if (!currentFloorplan || !currentUser) return;
     try {
-      const { data, error } = await supabase.from('nodes').insert({
-        ...newNode,
+      const { data, error } = await supabase.from('zones').insert({
+        ...newZone,
         floorplan_id: currentFloorplan.id,
-        user_id: (currentUser as any).id,
+  user_id: (currentUser as any).id,
       }).select().single();
       if (error) throw error;
-      setCurrentNodes(prev => [...prev, data]);
+      setCurrentZones(prev => [...prev, data]);
     } catch (err: any) {
-      showEditorMessage('Failed to save node: ' + err.message, 'error');
+      showEditorMessage('Failed to save zone: ' + err.message, 'error');
     }
   };
 

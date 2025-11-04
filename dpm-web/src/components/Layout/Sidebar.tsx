@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Calendar, Map, DollarSign, User, LogOut } from 'lucide-react';
+import { Home, Calendar, Map, DollarSign, User, LogOut, Settings } from 'lucide-react';
 import { Button } from '../ui/button';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -18,7 +18,8 @@ export const Sidebar = () => {
     { path: '/events', label: 'Events', icon: Calendar },
     { path: '/map-editor', label: 'Map Editor', icon: Map },
     { path: '/sponsors', label: 'Sponsors', icon: DollarSign },
-    { path: '/profile', label: 'Profile', icon: User },
+      { path: '/profile', label: 'Profile', icon: User },
+      { path: '/settings', label: 'Settings', icon: Settings },
   ];
 
   return (
