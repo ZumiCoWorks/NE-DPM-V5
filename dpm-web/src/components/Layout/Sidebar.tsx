@@ -6,10 +6,10 @@ import { useAuth } from '../../contexts/AuthContext';
 export const Sidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { signOut, profile } = useAuth();
+  const { logout, user } = useAuth();
 
   const handleLogout = () => {
-    signOut();
+    logout();
     navigate('/login');
   };
 
@@ -25,7 +25,7 @@ export const Sidebar = () => {
     <div className="w-64 bg-slate-900 text-white min-h-screen flex flex-col">
       <div className="p-6">
         <h1 className="text-2xl">NavEaze DPM</h1>
-        <p className="text-sm text-slate-400 mt-1">{profile?.full_name}</p>
+        <p className="text-sm text-slate-400 mt-1">{user?.name}</p>
       </div>
 
       <nav className="flex-1 px-3">

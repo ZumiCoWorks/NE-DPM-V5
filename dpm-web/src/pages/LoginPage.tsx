@@ -10,7 +10,7 @@ export const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signIn } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -18,7 +18,7 @@ export const LoginPage = () => {
     setLoading(true);
     
     try {
-      await signIn(email, password);
+      await login(email, password);
       navigate('/dashboard');
     } catch (error) {
       console.error('Login failed:', error);
