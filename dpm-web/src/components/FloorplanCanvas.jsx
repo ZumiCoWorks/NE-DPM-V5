@@ -1742,6 +1742,9 @@ const FloorplanCanvas = ({
 
 export default FloorplanCanvas;
 
+// Also provide a named export to match imports that use `{ FloorplanCanvas }`.
+export { FloorplanCanvas };
+
 
 
 

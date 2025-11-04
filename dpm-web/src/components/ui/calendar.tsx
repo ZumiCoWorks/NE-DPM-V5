@@ -60,13 +60,15 @@ function Calendar({
         ...classNames,
       }}
       components={{
-        IconLeft: ({ className, ...props }) => (
-          <ChevronLeft className={cn("size-4", className)} {...props} />
-        ),
-        IconRight: ({ className, ...props }) => (
-          <ChevronRight className={cn("size-4", className)} {...props} />
-        ),
-      }}
+        // react-day-picker's components typing can be strict; cast to `any` here
+        // and type the renderer params as `any` to satisfy TS for now.
+        IconLeft: (({ className, ...props }: any) => (
+          <ChevronLeft className={cn("size-4", className)} {...(props as any)} />
+        )) as any,
+        IconRight: (({ className, ...props }: any) => (
+          <ChevronRight className={cn("size-4", className)} {...(props as any)} />
+        )) as any,
+      } as any}
       {...props}
     />
   );

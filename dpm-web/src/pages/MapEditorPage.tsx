@@ -86,7 +86,7 @@ const MapEditorPage = () => {
 
 
   // Logic from FloorplanEditor.jsx
-  const showEditorMessage = useCallback((text, type = 'info') => {
+  const showEditorMessage = useCallback((text: string, type: 'info' | 'success' | 'error' | 'warning' = 'info') => {
     console.log(`[${type.toUpperCase()}]: ${text}`);
     setEditorMessage({ text, type });
     setTimeout(() => setEditorMessage({ text: '', type: '' }), 5000);
@@ -99,7 +99,7 @@ const MapEditorPage = () => {
       const { data, error } = await supabase
         .from('venue_templates')
         .select('*')
-        .eq('user_id', currentUser.id);
+  .eq('user_id', (currentUser as any).id);
       if (error) throw error;
       setVenueTemplates(data);
     } catch (err: any) {
@@ -130,7 +130,7 @@ const MapEditorPage = () => {
       const { data, error } = await supabase
         .from('floorplans')
         .select('*')
-        .eq('user_id', currentUser.id);
+  .eq('user_id', (currentUser as any).id);
       if (error) throw error;
       setFloorplansList(data);
     } catch (err: any) {
@@ -191,7 +191,7 @@ const MapEditorPage = () => {
     try {
       const { data: newFloorplan, error } = await supabase.rpc('create_event_from_template', {
         template_id: template.id,
-        user_id: currentUser.id,
+  user_id: (currentUser as any).id,
         event_name: `${template.name} Event`
       });
 
@@ -248,7 +248,7 @@ const MapEditorPage = () => {
       const { data, error } = await supabase.from('zones').insert({
         ...newZone,
         floorplan_id: currentFloorplan.id,
-        user_id: currentUser!.id,
+  user_id: (currentUser as any).id,
       }).select().single();
       if (error) throw error;
       setCurrentZones(prev => [...prev, data]);
@@ -263,7 +263,7 @@ const MapEditorPage = () => {
       const { data, error } = await supabase.from('segments').insert({
         ...newSegment,
         floorplan_id: currentFloorplan.id,
-        user_id: currentUser.id,
+  user_id: (currentUser as any).id,
       }).select().single();
       if (error) throw error;
       setCurrentSegments(prev => [...prev, data]);
@@ -278,7 +278,7 @@ const MapEditorPage = () => {
       const { data, error } = await supabase.from('pois').insert({
         ...newPoi,
         floorplan_id: currentFloorplan.id,
-        user_id: currentUser.id,
+        user_id: (currentUser as any).id,
       }).select().single();
       if (error) throw error;
       setCurrentPois(prev => [...prev, data]);
@@ -287,18 +287,19 @@ const MapEditorPage = () => {
     }
   };
 
-  const handleNewZoneOnCanvas = async (newZone: any) => {
+  // Node handler (missing previously) — inserts a node into `nodes` and updates state
+  const handleNewNodeOnCanvas = async (newNode: any) => {
     if (!currentFloorplan || !currentUser) return;
     try {
-      const { data, error } = await supabase.from('zones').insert({
-        ...newZone,
+      const { data, error } = await supabase.from('nodes').insert({
+        ...newNode,
         floorplan_id: currentFloorplan.id,
-        user_id: currentUser.id,
+        user_id: (currentUser as any).id,
       }).select().single();
       if (error) throw error;
-      setCurrentZones(prev => [...prev, data]);
+      setCurrentNodes(prev => [...prev, data]);
     } catch (err: any) {
-      showEditorMessage('Failed to save zone: ' + err.message, 'error');
+      showEditorMessage('Failed to save node: ' + err.message, 'error');
     }
   };
 
@@ -459,7 +460,7 @@ const MapEditorPage = () => {
     const channel = supabase
       .channel(`pois-for-floorplan-${currentFloorplan.id}`)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'pois', filter: `floorplan_id=eq.${currentFloorplan.id}` },
-        (payload) => {
+        (payload: any) => {
           console.log('Real-time POI update received!', payload.new);
           setCurrentPois((prevPois) => prevPois.map((poi) => poi.id === payload.new.id ? { ...poi, is_active: payload.new.is_active, last_pinged_at: payload.new.last_pinged_at } : poi));
           showEditorMessage(`Location '${payload.new.name}' is now active!`, 'success');
@@ -571,7 +572,7 @@ const MapEditorPage = () => {
               />
             ) : (
               <div className="text-center text-slate-400">
-                <ImageUploader onUploadSuccess={handleFloorplanUploadSuccess} onMessage={showEditorMessage} userId={currentUser?.id} />
+                <ImageUploader onUploadSuccess={handleFloorplanUploadSuccess} onMessage={showEditorMessage} userId={(currentUser as any)?.id} />
               </div>
             )}
           </div>

@@ -41,17 +41,33 @@ export const RoleSelectorPage = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {roles.map((role) => {
             const Icon = role.icon;
-            const CardWrapper = role.external ? 'a' : Link;
-            const linkProps = role.external 
-              ? { href: role.link, target: '_blank', rel: 'noopener noreferrer' }
-              : { to: role.link };
+            if (role.external) {
+              return (
+                <a
+                  key={role.title}
+                  href={role.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block transition-transform hover:scale-105"
+                >
+                  <Card className="h-full cursor-pointer hover:shadow-xl transition-shadow">
+                    <CardHeader>
+                      <div className={`w-16 h-16 ${role.color} rounded-lg flex items-center justify-center mb-4`}>
+                        <Icon className="w-8 h-8 text-white" />
+                      </div>
+                      <CardTitle>{role.title}</CardTitle>
+                      <CardDescription>{role.description}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <span className="text-sm text-blue-600">Open App Store →</span>
+                    </CardContent>
+                  </Card>
+                </a>
+              );
+            }
 
             return (
-              <CardWrapper
-                key={role.title}
-                {...linkProps}
-                className="block transition-transform hover:scale-105"
-              >
+              <Link key={role.title} to={role.link} className="block transition-transform hover:scale-105">
                 <Card className="h-full cursor-pointer hover:shadow-xl transition-shadow">
                   <CardHeader>
                     <div className={`w-16 h-16 ${role.color} rounded-lg flex items-center justify-center mb-4`}>
@@ -61,12 +77,10 @@ export const RoleSelectorPage = () => {
                     <CardDescription>{role.description}</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <span className="text-sm text-blue-600">
-                      {role.external ? 'Open App Store →' : 'Sign In →'}
-                    </span>
+                    <span className="text-sm text-blue-600">Sign In →</span>
                   </CardContent>
                 </Card>
-              </CardWrapper>
+              </Link>
             );
           })}
         </div>

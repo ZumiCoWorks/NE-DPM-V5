@@ -7,7 +7,7 @@ import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { SponsorDashboardPage } from './pages/SponsorDashboardPage';
-import { MapEditorPage } from './pages/MapEditorPage';
+import MapEditorPage from './pages/MapEditorPage';
 import { EventsPage } from './pages/EventsPage';
 import { EventDetailPage } from './pages/EventDetailPage';
 import { SponsorManagementPage } from './pages/SponsorManagementPage';
