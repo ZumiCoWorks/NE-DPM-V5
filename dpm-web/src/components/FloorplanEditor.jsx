@@ -1626,10 +1626,7 @@ const showEditorMessage = useCallback((msg, type = 'info', duration = 3000) => {
           currentUser={currentUser}
           onComplete={handleOnboardingHelpComplete}
           onSkip={handleOnboardingHelpComplete}
-        />
-      )}
-
-      {/* Screen Size Restriction Modal */}
+      {/* Screen Size Restriction Modal */ }
       {showScreenSizeRestriction && (
         <ScreenSizeRestriction
           onClose={() =>  setShowScreenSizeRestriction(false)}

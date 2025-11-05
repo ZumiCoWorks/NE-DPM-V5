@@ -41,3 +41,6 @@ const useScreenSize = () => {
 };
 
 export default useScreenSize;
+
+// Also provide a named export so modules can import with `import { useScreenSize } from '@/hooks/useScreenSize'`
+export { useScreenSize };

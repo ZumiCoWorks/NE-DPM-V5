@@ -1,0 +1,133 @@
+{
+  "info": {
+    "name": "NE-DPM-V5 - Local & Supabase Tests",
+    "description": "Collection with example requests for local dev server, Supabase REST (tables & RPC), Storage upload and Functions (vendor-signup). Replace variables in environment before running.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "local_api_base", "value": "http://localhost:5176", "type":"string" },
+    { "key": "supabase_url", "value": "https://your-project.supabase.co", "type":"string" },
+    { "key": "supabase_anon_key", "value": "<ANON_KEY>", "type":"string" },
+    { "key": "supabase_service_role_key", "value": "<SERVICE_ROLE_KEY>", "type":"string" },
+    { "key": "user_jwt", "value": "<USER_JWT>", "type":"string" },
+    { "key": "user_id", "value": "<USER_ID>", "type":"string" },
+    { "key": "floorplan_id", "value": "<FLOORPLAN_ID>", "type":"string" },
+    { "key": "vendor_id", "value": "<VENDOR_ID>", "type":"string" },
+    { "key": "template_id", "value": "<TEMPLATE_ID>", "type":"string" },
+    { "key": "file_name", "value": "example.png", "type":"string" }
+  ],
+  "item": [
+    {
+      "name": "Local: Health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{local_api_base}}/"
+      },
+      "response": []
+    },
+    {
+      "name": "Local: Profiles (admin)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{local_api_base}}/profiles"
+      }
+    },
+    {
+      "name": "Supabase: GET floorplans for user",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key":"apikey", "value":"{{supabase_anon_key}}" },
+          { "key":"Authorization", "value":"Bearer {{supabase_anon_key}}" }
+        ],
+        "url": "{{supabase_url}}/rest/v1/floorplans?user_id=eq.{{user_id}}"
+      }
+    },
+    {
+      "name": "Supabase: Create floorplan (PostgREST)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key":"apikey", "value":"{{supabase_service_role_key}}" },
+          { "key":"Authorization", "value":"Bearer {{supabase_service_role_key}}" },
+          { "key":"Content-Type", "value":"application/json" },
+          { "key":"Prefer", "value":"return=representation" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"My floorplan\",\n  \"image_url\": \"https://example.com/{{file_name}}\",\n  \"user_id\": \"{{user_id}}\"\n}"
+        },
+        "url": "{{supabase_url}}/rest/v1/floorplans"
+      }
+    },
+    {
+      "name": "Supabase RPC: create_event_from_template",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key":"apikey", "value":"{{supabase_service_role_key}}" },
+          { "key":"Authorization", "value":"Bearer {{supabase_service_role_key}}" },
+          { "key":"Content-Type", "value":"application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"template_id\": \"{{template_id}}\",\n  \"user_id\": \"{{user_id}}\",\n  \"event_name\": \"My Event from Postman\"\n}"
+        },
+        "url": "{{supabase_url}}/rest/v1/rpc/create_event_from_template"
+      }
+    },
+    {
+      "name": "Supabase Functions: vendor-signup (generate link)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key":"apikey", "value":"{{supabase_anon_key}}" },
+          { "key":"Authorization", "value":"Bearer {{supabase_anon_key}}" },
+          { "key":"Content-Type", "value":"application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"vendorId\": \"{{vendor_id}}\"\n}"
+        },
+        "url": "{{supabase_url}}/functions/v1/vendor-signup"
+      }
+    },
+    {
+      "name": "Supabase Storage: upload floorplan image (form-data)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key":"Authorization", "value":"Bearer {{supabase_service_role_key}}" }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "<choose file>"
+            }
+          ]
+        },
+        "url": "{{supabase_url}}/storage/v1/object/floorplans/{{file_name}}"
+      }
+    },
+    {
+      "name": "Supabase Auth: Sign up (email/password)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key":"apikey", "value":"{{supabase_anon_key}}" },
+          { "key":"Content-Type", "value":"application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"test+postman@example.com\",\n  \"password\": \"Test1234!\"\n}"
+        },
+        "url": "{{supabase_url}}/auth/v1/signup"
+      }
+    }
+  ]
+}
