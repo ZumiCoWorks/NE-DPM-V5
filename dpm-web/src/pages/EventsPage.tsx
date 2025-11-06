@@ -3,9 +3,35 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 export const EventsPage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+
+  const handleCreateEvent = async () => {
+    if (!user) {
+      toast.error('You must be logged in to create an event.');
+      return;
+    }
+    try {
+      const { data, error } = await supabase
+        .from('events')
+        .insert({ name: 'New Event', user_id: user.id })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        navigate(`/events/${data.id}/editor`);
+      }
+    } catch (error: any) {
+      toast.error('Failed to create event.', { description: error.message });
+    }
+  };
 
   const events = [
     {
@@ -53,7 +79,7 @@ export const EventsPage = () => {
           <h1 className="text-3xl mb-2">Events</h1>
           <p className="text-slate-600">Manage and organize your events.</p>
         </div>
-        <Button onClick={() => navigate('/events/new')}>
+        <Button onClick={handleCreateEvent}>
           <Plus className="w-4 h-4 mr-2" />
           Create Event
         </Button>

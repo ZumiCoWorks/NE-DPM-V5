@@ -27,6 +27,15 @@ import {
   EyeOff,
   MapPin,
   Move,
+  Plus,
+  FileText,
+  LogOut,
+  HelpCircle,
+  Layout,
+  Star,
+  ShieldCheck,
+  Link,
+  Crown,
 } from "lucide-react";
 import { FloorplanCanvas } from "@/components/FloorplanCanvas";
 import { ImageUploader } from "@/components/ImageUploader";
@@ -35,6 +44,26 @@ import ScreenSizeRestriction from "@/components/ScreenSizeRestriction";
 import OnboardingFlow from "@/components/OnboardingFlow";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
+import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
+import QRCode from "react-qr-code";
+
 
 type DrawingMode = "select" | "pan" | "nodes" | "segments" | "pois" | "zones" | 'poi' | 'path' | null;
 
@@ -70,13 +99,13 @@ const MapEditorPage = () => {
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [qrCodeValue, setQrCodeValue] = useState('');
   const [activeTab, setActiveTab] = useState('Layout');
-  const [dashboardRole, setDashboardRole] = useState(null);
+  const [dashboardRole, setDashboardRole] = useState<'Venue Owner' | 'Event Organizer'>('Event Organizer');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('Venue Owner');
   const [isSigningUp, setIsSigningUp] = useState(false);
-  const [hoveredId, setHoveredId] = useState(null);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [signupLink, setSignupLink] = useState('');
   const [showOnboardingHelp, setShowOnboardingHelp] = useState(false);
   const [showScreenSizeRestriction, setShowScreenSizeRestriction] = useState(false);
@@ -98,7 +127,7 @@ const MapEditorPage = () => {
       const { data, error } = await supabase
         .from('venue_templates')
         .select('*')
-  .eq('user_id', (currentUser as any).id);
+        .eq('user_id', (currentUser as any).id);
       if (error) throw error;
       setVenueTemplates(data);
     } catch (err: any) {
@@ -127,9 +156,9 @@ const MapEditorPage = () => {
     if (!currentUser) return;
     try {
       const { data, error } = await supabase
-        .from('floorplans')
+        .from('events')
         .select('*')
-  .eq('user_id', (currentUser as any).id);
+        .eq('user_id', (currentUser as any).id);
       if (error) throw error;
       setFloorplansList(data);
     } catch (err: any) {
@@ -141,7 +170,7 @@ const MapEditorPage = () => {
     try {
       setLoading(true);
       const { data: floorplanData, error: floorplanError } = await supabase
-        .from('floorplans')
+        .from('events')
         .select('*')
         .eq('id', floorplanId)
         .single();
@@ -209,7 +238,7 @@ const MapEditorPage = () => {
     if (newName && newName.trim() !== '') {
       try {
         const { data, error } = await supabase
-          .from('floorplans')
+          .from('events')
           .update({ name: newName.trim() })
           .eq('id', floorplanId)
           .select()
@@ -228,7 +257,7 @@ const MapEditorPage = () => {
 
   const handleDeleteFloorplan = async (floorplan: any) => {
     try {
-      const { error } = await supabase.from('floorplans').delete().eq('id', floorplan.id);
+      const { error } = await supabase.from('events').delete().eq('id', floorplan.id);
       if (error) throw error;
       setFloorplansList(prev => prev.filter(fp => fp.id !== floorplan.id));
       if (currentFloorplan && currentFloorplan.id === floorplan.id) {
@@ -247,7 +276,7 @@ const MapEditorPage = () => {
       const { data, error } = await supabase.from('nodes').insert({
         ...newNode,
         floorplan_id: currentFloorplan.id,
-  user_id: (currentUser as any).id,
+        user_id: (currentUser as any).id,
       }).select().single();
       if (error) throw error;
       setCurrentNodes(prev => [...prev, data]);
@@ -262,7 +291,7 @@ const MapEditorPage = () => {
       const { data, error } = await supabase.from('segments').insert({
         ...newSegment,
         floorplan_id: currentFloorplan.id,
-  user_id: (currentUser as any).id,
+        user_id: (currentUser as any).id,
       }).select().single();
       if (error) throw error;
       setCurrentSegments(prev => [...prev, data]);
@@ -277,7 +306,7 @@ const MapEditorPage = () => {
       const { data, error } = await supabase.from('pois').insert({
         ...newPoi,
         floorplan_id: currentFloorplan.id,
-  user_id: (currentUser as any).id,
+        user_id: (currentUser as any).id,
       }).select().single();
       if (error) throw error;
       setCurrentPois(prev => [...prev, data]);
@@ -292,7 +321,7 @@ const MapEditorPage = () => {
       const { data, error } = await supabase.from('zones').insert({
         ...newZone,
         floorplan_id: currentFloorplan.id,
-  user_id: (currentUser as any).id,
+        user_id: (currentUser as any).id,
       }).select().single();
       if (error) throw error;
       setCurrentZones(prev => [...prev, data]);
@@ -305,7 +334,7 @@ const MapEditorPage = () => {
     if (!currentFloorplan) return;
     try {
       const { data, error } = await supabase
-        .from('floorplans')
+        .from('events')
         .update({ scale_meters_per_pixel: scale })
         .eq('id', currentFloorplan.id)
         .select()
@@ -323,7 +352,7 @@ const MapEditorPage = () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from('floorplans')
+        .from('events')
         .update({ georeference_data: geoData })
         .eq('id', currentFloorplan.id)
         .select()
@@ -435,17 +464,84 @@ const MapEditorPage = () => {
     }
   };
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate('/login');
+    showEditorMessage("Signed out successfully!", 'success');
+  };
+
+  const handleExportData = () => {
+    if (!currentFloorplan) {
+      showEditorMessage("No floorplan selected to export.", "warning");
+      return;
+    }
+    const exportData = {
+      floorplan: currentFloorplan,
+      nodes: currentNodes,
+      segments: currentSegments,
+      pois: currentPois,
+      zones: currentZones,
+      vendors: currentVendors,
+      export_metadata: {
+        timestamp: new Date().toISOString(),
+        version: "1.0.0"
+      }
+    };
+    const jsonString = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([jsonString], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'event-data.json';
+    document.body.appendChild(a);
+a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showEditorMessage("Event data exported successfully!", "success");
+  };
+
+  const handleShowOnboardingHelp = () => {
+    setShowOnboardingHelp(true);
+  };
+
+  const handleOnboardingHelpComplete = () => {
+    setShowOnboardingHelp(false);
+  };
+
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      if (currentUser) {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', (currentUser as any).id)
+          .single();
+        if (data) {
+          setUserRole(data.role);
+          setDashboardRole(data.role);
+        }
+      }
+    };
+    fetchUserRole();
+  }, [currentUser]);
+
   useEffect(() => {
     if (currentUser) {
-      fetchFloorplans();
-      // Based on user's role from Supabase, you might want to set the dashboardRole
-      // For now, we'll leave it as a manual toggle for demonstration
+      if (dashboardRole === 'Event Organizer') {
+        fetchFloorplans();
+        fetchAllVenueTemplates();
+      }
+      if (dashboardRole === 'Venue Owner') {
+        fetchVenueTemplates();
+      }
     }
-  }, [currentUser, fetchFloorplans]);
+  }, [currentUser, dashboardRole, fetchFloorplans, fetchAllVenueTemplates, fetchVenueTemplates]);
 
   useEffect(() => {
     if (eventId) {
       selectFloorplan(eventId);
+    } else {
+        setCurrentFloorplan(null);
     }
   }, [eventId]);
 
@@ -476,108 +572,262 @@ const MapEditorPage = () => {
     return <OnboardingFlow onComplete={() => setShowOnboardingHelp(false)} />;
   }
 
-  return (
-    <div className="flex h-screen bg-background">
-      <aside className="w-64 flex flex-col border-r">
-        <div className="p-4 border-b">
-          <Button
-            variant="outline"
-            className="w-full justify-start"
-            onClick={() => navigate("/events")}
-          >
-            <ChevronLeft className="mr-2 h-4 w-4" />
-            Back to Events
-          </Button>
+  const renderDashboard = () => (
+    <div className="flex flex-col h-screen bg-gray-50">
+      <header className="flex items-center justify-between p-4 bg-white border-b">
+        <div className="flex items-center space-x-4">
+          <img src="/logo.png" alt="Logo" className="h-8" />
+          <h1 className="text-xl font-bold text-gray-800">Dashboard</h1>
         </div>
-        <div className="p-4">
-          <h2 className="text-lg font-semibold">Tools</h2>
-          <div className="grid grid-cols-2 gap-2 mt-4">
-            {tools.map((tool) => (
-              <Button
-                key={tool.id}
-                variant={drawingMode === tool.id ? "secondary" : "ghost"}
-                onClick={() => setDrawingMode(drawingMode === tool.id ? null : tool.id as DrawingMode)}
-                className="flex flex-col h-20"
-              >
-                <tool.icon className="h-6 w-6 mb-1" />
-                <span className="text-xs">{tool.label}</span>
-              </Button>
-            ))}
-          </div>
+        <div className="flex items-center space-x-4">
+          <span className="text-sm text-gray-600">Welcome, {currentUser?.email}</span>
+          <Button variant="ghost" size="icon" onClick={handleShowOnboardingHelp}><HelpCircle className="h-5 w-5" /></Button>
+          <Button variant="ghost" size="icon" onClick={handleLogout}><LogOut className="h-5 w-5" /></Button>
         </div>
-        <div className="p-4 mt-auto">
+      </header>
+
+      <main className="flex-1 p-8 overflow-y-auto">
+        <div className="flex items-center justify-center space-x-4 mb-8">
+          <Label htmlFor="role-switch" className={dashboardRole === 'Venue Owner' ? 'font-bold' : ''}>Venue Owner</Label>
+          <Switch
+            id="role-switch"
+            checked={dashboardRole === 'Event Organizer'}
+            onCheckedChange={(checked) => setDashboardRole(checked ? 'Event Organizer' : 'Venue Owner')}
+          />
+          <Label htmlFor="role-switch" className={dashboardRole === 'Event Organizer' ? 'font-bold' : ''}>Event Organizer</Label>
+        </div>
+
+        {dashboardRole === 'Venue Owner' ? (
           <Card>
             <CardHeader>
-              <CardTitle>Event Name</CardTitle>
-              <CardDescription>
-                Last saved: {new Date().toLocaleTimeString()}
-              </CardDescription>
+              <CardTitle>My Venue Templates</CardTitle>
+              <CardDescription>Manage your reusable venue layouts.</CardDescription>
             </CardHeader>
-            <CardFooter className="flex gap-2">
-              <Button className="w-full">
-                <Share2 className="mr-2 h-4 w-4" />
-                Share
-              </Button>
-              <Button variant="outline" className="w-full">
-                <Save className="mr-2 h-4 w-4" />
-                Save
-              </Button>
-            </CardFooter>
-          </Card>
-        </div>
-      </aside>
-      <main className="flex-1 flex flex-col">
-        <header className="flex items-center justify-between p-4 border-b">
-          <h1 className="text-xl font-semibold">Map Editor</h1>
-          <div className="flex items-center gap-4">
-            <Button variant="outline">
-              <Settings className="mr-2 h-4 w-4" />
-              Settings
-            </Button>
-            <div className="flex items-center gap-2">
-              <Eye className="h-5 w-5" />
-              <span>Visible Layers</span>
-            </div>
-          </div>
-        </header>
-        <div className="flex-1 bg-muted/40 p-4 overflow-auto">
-          <div className="w-full h-full rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center">
-            {currentFloorplan ? (
-              <FloorplanCanvas
-                ref={canvasRef}
-                floorplanImageUrl={currentFloorplan.image_url}
-                currentFloorplan={currentFloorplan}
-                pois={currentPois}
-                nodes={currentNodes}
-                segments={currentSegments}
-                zones={currentZones}
-                drawingMode={drawingMode}
-                onNewPoi={handleNewPoiOnCanvas}
-                onNewNode={handleNewNodeOnCanvas}
-                onNewSegment={handleNewSegmentOnCanvas}
-                onNewZone={handleNewZoneOnCanvas}
-                onDeletePoi={handleDeletePoiOnCanvas}
-                onDeleteNode={handleDeleteNodeOnCanvas}
-                onDeleteSegment={handleDeleteSegmentOnCanvas}
-                onDeleteZone={handleDeleteZoneOnCanvas}
-                onUpdateNodePosition={() => {}}
-                onUpdatePoi={() => {}}
-                onUpdateZone={() => {}}
-                onSaveGeoreference={handleSaveGeoreference}
-                onScaleCalibrated={handleScaleCalibrated}
-                hoveredId={hoveredId}
-                setHoveredId={setHoveredId}
-              />
-            ) : (
-              <div className="text-center text-slate-400">
-                <ImageUploader onUploadSuccess={handleFloorplanUploadSuccess} onMessage={showEditorMessage} userId={(currentUser as any)?.id} />
+            <CardContent>
+              <Button onClick={() => setIsAddingTemplate(true)}><Plus className="mr-2 h-4 w-4" /> Upload New Template</Button>
+              {isAddingTemplate && (
+                <div className="mt-4">
+                  <ImageUploader
+                    onUploadSuccess={handleTemplateUploadSuccess}
+                    uploadParams={{ type: 'venue_template', user_id: (currentUser as any).id }}
+                  />
+                </div>
+              )}
+              <div className="mt-4 space-y-2">
+                {venueTemplates.map(template => (
+                  <div key={template.id} className="flex items-center justify-between p-2 border rounded-md">
+                    <span>{template.name}</span>
+                  </div>
+                ))}
               </div>
-            )}
-          </div>
-        </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle>My Events</CardTitle>
+              <CardDescription>Create and manage your events.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button onClick={() => setIsCreatingEvent(true)}><Plus className="mr-2 h-4 w-4" /> Create New Event</Button>
+              {isCreatingEvent && (
+                <div className="mt-4 p-4 border rounded-md">
+                  <h3 className="font-semibold mb-2">Choose a method:</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>From a Venue Template</Label>
+                      <Select onValueChange={handleSelectTemplate}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a template" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableTemplates.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Upload a Floorplan Image</Label>
+                      <ImageUploader
+                        onUploadSuccess={handleFloorplanUploadSuccess}
+                        uploadParams={{ type: 'event_floorplan', user_id: (currentUser as any).id }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div className="mt-6 space-y-3">
+                {floorplansList.map(fp => (
+                  <div
+                    key={fp.id}
+                    className="flex items-center justify-between p-3 bg-white border rounded-lg shadow-sm hover:shadow-md transition-shadow"
+                    onMouseEnter={() => setHoveredId(fp.id)}
+                    onMouseLeave={() => setHoveredId(null)}
+                  >
+                    <span className="font-medium text-gray-700">{fp.name}</span>
+                    <div className="flex items-center space-x-2">
+                      {hoveredId === fp.id && (
+                        <>
+                          <Button variant="outline" size="sm" onClick={() => handleRenameFloorplan(fp.id)}>Rename</Button>
+                          <Button variant="default" size="sm" onClick={() => navigate(`/events/${fp.id}`)}>Edit</Button>
+                          <Button variant="destructive" size="sm" onClick={() => setShowDeleteConfirm(fp.id)}>Delete</Button>
+                        </>
+                      )}
+                    </div>
+                    {showDeleteConfirm === fp.id && (
+                      <Dialog open onOpenChange={() => setShowDeleteConfirm(null)}>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Are you sure?</DialogTitle>
+                          </DialogHeader>
+                          <p>This will permanently delete the floorplan "{fp.name}". This action cannot be undone.</p>
+                          <DialogFooter>
+                            <Button variant="outline" onClick={() => setShowDeleteConfirm(null)}>Cancel</Button>
+                            <Button variant="destructive" onClick={() => handleDeleteFloorplan(fp)}>Delete</Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </main>
     </div>
   );
+
+  const renderEditor = () => (
+    <div className="flex h-screen bg-background text-foreground">
+      <div className="flex-1 flex flex-col">
+        <header className="flex items-center justify-between p-2 border-b bg-card">
+          <Button variant="ghost" onClick={() => navigate('/events')}>
+            <ChevronLeft className="mr-2 h-4 w-4" />
+            Back to Dashboard
+          </Button>
+          <h1 className="text-lg font-semibold">{currentFloorplan?.name}</h1>
+          <div>
+            <Button variant="outline" onClick={handleExportData} className="mr-2">
+              <FileText className="mr-2 h-4 w-4" />
+              Export Data
+            </Button>
+          </div>
+        </header>
+
+        <main className="flex-1 flex">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex">
+            <TabsList className="flex flex-col h-full p-2 border-r bg-card">
+              <TabsTrigger value="Layout"><Layout className="h-5 w-5" /></TabsTrigger>
+              <TabsTrigger value="Vendors"><Star className="h-5 w-5" /></TabsTrigger>
+              <TabsTrigger value="Beacons"><ShieldCheck className="h-5 w-5" /></TabsTrigger>
+              <TabsTrigger value="Settings"><Settings className="h-5 w-5" /></TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="Layout" className="flex-1 p-4">
+              <FloorplanCanvas
+                ref={canvasRef}
+                floorplan={currentFloorplan}
+                nodes={currentNodes}
+                segments={currentSegments}
+                pois={currentPois}
+                zones={currentZones}
+                drawingMode={drawingMode}
+                onNewNode={handleNewNodeOnCanvas}
+                onNewSegment={handleNewSegmentOnCanvas}
+                onNewPoi={handleNewPoiOnCanvas}
+                onNewZone={handleNewZoneOnCanvas}
+                onDeleteNode={handleDeleteNodeOnCanvas}
+                onDeleteSegment={handleDeleteSegmentOnCanvas}
+                onDeletePoi={handleDeletePoiOnCanvas}
+                onDeleteZone={handleDeleteZoneOnCanvas}
+                onScaleCalibrated={handleScaleCalibrated}
+                onSaveGeoreference={handleSaveGeoreference}
+              />
+            </TabsContent>
+
+            <TabsContent value="Vendors" className="flex-1 p-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Vendor Management</CardTitle>
+                  <CardDescription>Add and manage vendors for this event.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex space-x-2">
+                    <Input
+                      value={newVendorName}
+                      onChange={(e) => setNewVendorName(e.target.value)}
+                      placeholder="New vendor name"
+                    />
+                    <Button onClick={handleAddVendor}>Add Vendor</Button>
+                  </div>
+                  <div className="mt-4 space-y-2">
+                    {currentVendors.map(vendor => (
+                      <div key={vendor.id} className="flex items-center justify-between p-2 border rounded-md">
+                        <span>{vendor.name}</span>
+                        <Button size="sm" onClick={() => handleGenerateSignupLink(vendor.id)}>
+                          <Link className="mr-2 h-4 w-4" />
+                          Get Link
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="Beacons" className="flex-1 p-4">
+               <Card>
+                <CardHeader>
+                  <CardTitle>Beacon Management</CardTitle>
+                  <CardDescription>Register and manage iBeacons for indoor positioning.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-4">
+                    <Input name="name" value={newBeacon.name} onChange={handleBeaconInputChange} placeholder="Beacon Name (e.g., Entrance)" />
+                    <Input name="uuid" value={newBeacon.uuid} onChange={handleBeaconInputChange} placeholder="UUID" />
+                    <Input name="major" value={newBeacon.major} onChange={handleBeaconInputChange} placeholder="Major" />
+                    <Input name="minor" value={newBeacon.minor} onChange={handleBeaconInputChange} placeholder="Minor" />
+                  </div>
+                  <Button onClick={handleRegisterBeacon} className="mt-4">Register Beacon</Button>
+                  <div className="mt-4 space-y-2">
+                    {currentBeacons.map(beacon => (
+                      <div key={beacon.id} className="flex items-center justify-between p-2 border rounded-md">
+                        <span>{beacon.name}</span>
+                        <span className="text-sm text-gray-500">{beacon.uuid}</span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="Settings" className="flex-1 p-4">
+              <p>Settings content goes here...</p>
+            </TabsContent>
+          </Tabs>
+        </main>
+      </div>
+       <Dialog open={isQrModalOpen} onOpenChange={setIsQrModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Vendor Signup Link</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col items-center justify-center p-4">
+            <QRCode value={qrCodeValue} size={256} />
+            <p className="mt-4 text-sm text-center break-all">{qrCodeValue}</p>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => navigator.clipboard.writeText(qrCodeValue)}>Copy Link</Button>
+            <DialogClose asChild>
+              <Button variant="outline">Close</Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+
+  return currentFloorplan ? renderEditor() : renderDashboard();
 };
 
 export default MapEditorPage;
