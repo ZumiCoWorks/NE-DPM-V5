@@ -64,7 +64,8 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
-import QRCode from "react-qr-code";
+import { default as QRCode } from "react-qr-code";
+import { saveAs } from 'file-saver';
 
 
 type DrawingMode = "select" | "pan" | "nodes" | "segments" | "pois" | "zones" | 'poi' | 'path' | null;
@@ -118,6 +119,7 @@ const MapEditorPage = () => {
   const height = 768;
   const isSuitableForEditor = true;
   const [editorMessage, setEditorMessage] = useState({ text: '', type: '' });
+  const [quicketEventId, setQuicketEventId] = useState('');
 
 
   // Logic from FloorplanEditor.jsx
@@ -126,6 +128,70 @@ const MapEditorPage = () => {
     setEditorMessage({ text, type });
     setTimeout(() => setEditorMessage({ text: '', type: '' }), 5000);
   }, []);
+
+  useEffect(() => {
+    if (currentFloorplan) {
+      setQuicketEventId(currentFloorplan.quicket_event_id || '');
+    }
+  }, [currentFloorplan]);
+
+  const handleSaveQuicketId = async () => {
+    if (!currentFloorplan) return;
+    try {
+      const { data, error } = await supabase
+        .from('events')
+        .update({ quicket_event_id: quicketEventId })
+        .eq('id', currentFloorplan.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setCurrentFloorplan(data);
+      showEditorMessage('Quicket Event ID saved successfully!', 'success');
+    } catch (err: any) {
+      showEditorMessage('Failed to save Quicket Event ID: ' + err.message, 'error');
+    }
+  };
+
+  const handleSyncQuicketAttendees = async () => {
+    if (!currentFloorplan?.quicket_event_id) {
+      showEditorMessage('Please save a Quicket Event ID before syncing.', 'warning');
+      return;
+    }
+    try {
+      showEditorMessage('Syncing with Quicket... This may take a moment.', 'info');
+      const { error } = await supabase.functions.invoke('import-quicket-attendees', {
+        body: { eventId: currentFloorplan.id }
+      });
+      if (error) throw error;
+      showEditorMessage('Successfully synced attendees from Quicket!', 'success');
+    } catch (err: any) {
+      showEditorMessage('Failed to sync with Quicket: ' + err.message, 'error');
+    }
+  };
+
+  const handleDownloadQrCode = () => {
+    const svg = document.getElementById("event-qr-code");
+    if (svg) {
+      const svgData = new XMLSerializer().serializeToString(svg);
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      const img = new Image();
+      img.onload = () => {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+        canvas.toBlob((blob) => {
+          if (blob) {
+            saveAs(blob, `event-qr-${currentFloorplan.id}.png`);
+          }
+        });
+      };
+      img.src = "data:image/svg+xml;base64," + btoa(svgData);
+    }
+  };
 
   const fetchVenueTemplates = useCallback(async () => {
     if (!currentUser) return;
@@ -832,6 +898,44 @@ a.click();
                           <Input id="eventName" defaultValue={currentFloorplan?.name} onBlur={(e) => handleRenameFloorplan(currentFloorplan.id, e.target.value)} />
                         </div>
                       </div>
+
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>Quicket Integration</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="quicketId">Quicket Event ID</Label>
+                            <div className="flex space-x-2">
+                              <Input
+                                id="quicketId"
+                                placeholder="Enter Quicket Event ID"
+                                value={quicketEventId}
+                                onChange={(e) => setQuicketEventId(e.target.value)}
+                              />
+                              <Button onClick={handleSaveQuicketId}>Save</Button>
+                            </div>
+                          </div>
+                          <Button onClick={handleSyncQuicketAttendees} className="w-full" disabled={!quicketEventId}>
+                            <Link className="mr-2 h-4 w-4" /> Sync Attendees
+                          </Button>
+                        </CardContent>
+                      </Card>
+
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>Event Map QR Code</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4 flex flex-col items-center">
+                          <div className="bg-white p-4 rounded-md">
+                            <QRCode id="event-qr-code" value={`${window.location.origin}/event/${currentFloorplan?.id}/map`} size={128} />
+                          </div>
+                          <Button onClick={handleDownloadQrCode} className="w-full">
+                            Download QR Code
+                          </Button>
+                        </CardContent>
+                      </Card>
+
                       <div className="space-y-2">
                         <Label>Danger Zone</Label>
                         <Dialog>

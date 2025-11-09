@@ -13,7 +13,7 @@ import { EventDetailPage } from './pages/EventDetailPage';
 import { SponsorManagementPage } from './pages/SponsorManagementPage';
 import { ProfilePage } from './pages/ProfilePage';
 import VendorSignupPage from './components/VendorSignupPage';
-import SettingsPage from './pages/SettingsPage';
+
 
 export default function App() {
   return (
@@ -113,16 +113,7 @@ export default function App() {
             }
           />
 
-          <Route
-            path="/settings"
-            element={
-              <ProtectedRoute>
-                <AdminLayout>
-                  <SettingsPage />
-                </AdminLayout>
-              </ProtectedRoute>
-            }
-          />
+
           
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
