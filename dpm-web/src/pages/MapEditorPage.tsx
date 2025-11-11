@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
@@ -12,41 +11,21 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  ChevronLeft,
-  Upload,
-  Pointer,
-  MoveHorizontal,
-  Circle,
-  Pencil,
-  Trash2,
-  Pin,
   Share2,
   Save,
   Settings,
-  Eye,
-  EyeOff,
   MapPin,
   Move,
   Plus,
-  FileText,
-  LogOut,
-  HelpCircle,
-  Layout,
-  Star,
-  ShieldCheck,
-  Link,
-  Crown,
+  Trash2,
   LayoutDashboard,
+  Users,
+  Store,
+  Star,
 } from "lucide-react";
 import { FloorplanCanvas } from "@/components/FloorplanCanvas";
-import { ImageUploader } from "@/components/ImageUploader";
-// Temporarily disable screen-size gating for development/debugging.
-// import { useScreenSize } from "@/hooks/useScreenSize";
-// import ScreenSizeRestriction from "@/components/ScreenSizeRestriction";
-import OnboardingFlow from "@/components/OnboardingFlow";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
-import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -64,9 +43,17 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
-import { default as QRCode } from "react-qr-code";
+import QRCode from "react-qr-code";
 import { saveAs } from 'file-saver';
-
+import { ImageUploader } from "@/components/ImageUploader";
+// Typed wrapper to satisfy TS JSX element expectations for react-qr-code
+const QRCodeComponent = QRCode as unknown as React.ComponentType<{
+  id?: string;
+  value: string;
+  size?: number;
+  className?: string;
+  style?: React.CSSProperties;
+}>;
 
 type DrawingMode = "select" | "pan" | "nodes" | "segments" | "pois" | "zones" | 'poi' | 'path' | null;
 
@@ -81,53 +68,79 @@ const MapEditorPage = () => {
   const navigate = useNavigate();
   const canvasRef = useRef(null);
 
-  // State from FloorplanEditor.jsx
   const [drawingMode, setDrawingMode] = useState<DrawingMode | null>(null);
   const [currentFloorplan, setCurrentFloorplan] = useState<any>(null);
   const [currentNodes, setCurrentNodes] = useState<any[]>([]);
   const [currentSegments, setCurrentSegments] = useState<any[]>([]);
   const [currentPois, setCurrentPois] = useState<any[]>([]);
   const [currentZones, setCurrentZones] = useState<any[]>([]);
-  const [currentBeacons, setCurrentBeacons] = useState<any[]>([]);
-  const [newBeacon, setNewBeacon] = useState({ name: '', uuid: '', major: '', minor: '' });
-  const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState(null);
-  const [floorplansList, setFloorplansList] = useState<any[]>([]);
-  const [venueTemplates, setVenueTemplates] = useState<any[]>([]);
-  const [isAddingTemplate, setIsAddingTemplate] = useState(false);
-  const [availableTemplates, setAvailableTemplates] = useState<any[]>([]);
-  const [isCreatingEvent, setIsCreatingEvent] = useState(false);
   const [currentVendors, setCurrentVendors] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [events, setEvents] = useState<any[]>([]);
+  const [isCreatingEvent, setIsCreatingEvent] = useState(false);
   const [newVendorName, setNewVendorName] = useState('');
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [qrCodeValue, setQrCodeValue] = useState('');
   const [activeTab, setActiveTab] = useState('Layout');
-  const [dashboardRole, setDashboardRole] = useState<'Venue Owner' | 'Event Organizer'>('Event Organizer');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [role, setRole] = useState('Venue Owner');
-  const [isSigningUp, setIsSigningUp] = useState(false);
-  const [hoveredId, setHoveredId] = useState<string | null>(null);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
-  const [signupLink, setSignupLink] = useState('');
-  const [showOnboardingHelp, setShowOnboardingHelp] = useState(false);
-  // Screen-size gating temporarily disabled to avoid blocking the editor in dev/test.
-  // Keep the state var for now so other code paths remain unchanged.
-  const [showScreenSizeRestriction, setShowScreenSizeRestriction] = useState(false);
-  // Stub values (force-editor enabled)
-  const width = 1024;
-  const height = 768;
-  const isSuitableForEditor = true;
   const [editorMessage, setEditorMessage] = useState({ text: '', type: '' });
   const [quicketEventId, setQuicketEventId] = useState('');
+  const [scaleInput, setScaleInput] = useState<string>('');
 
 
-  // Logic from FloorplanEditor.jsx
   const showEditorMessage = useCallback((text: string, type: 'info' | 'success' | 'error' | 'warning' = 'info') => {
     console.log(`[${type.toUpperCase()}]: ${text}`);
     setEditorMessage({ text, type });
     setTimeout(() => setEditorMessage({ text: '', type: '' }), 5000);
   }, []);
+
+  const handleCreateEvent = async () => {
+    if (!currentUser) {
+      showEditorMessage('You must be logged in to create an event.', 'error');
+      return;
+    }
+    try {
+      setIsCreatingEvent(true);
+      const { data: newEvent, error } = await supabase
+        .from('events')
+        .insert({
+          name: `New Event - ${new Date().toLocaleDateString()}`,
+          user_id: currentUser.id,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      showEditorMessage('New event created successfully!', 'success');
+      navigate(`/map-editor/${newEvent.id}`);
+    } catch (err: any) {
+      showEditorMessage('Failed to create new event: ' + err.message, 'error');
+    } finally {
+      setIsCreatingEvent(false);
+    }
+  };
+
+  const handleFloorplanUploadSuccess = async (imageUrl: string) => {
+    if (!currentFloorplan) return;
+    try {
+      const { data, error } = await supabase
+        .from('events')
+        .update({ floorplan_image_url: imageUrl })
+        .eq('id', currentFloorplan.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setCurrentFloorplan(data);
+      showEditorMessage('Map uploaded successfully!', 'success');
+    } catch (err: any) {
+      showEditorMessage('Failed to save map URL: ' + err.message, 'error');
+    }
+  };
+
+
+  // Logic from FloorplanEditor.jsx
 
   useEffect(() => {
     if (currentFloorplan) {
@@ -193,163 +206,105 @@ const MapEditorPage = () => {
     }
   };
 
-  const fetchVenueTemplates = useCallback(async () => {
+  const fetchEvents = useCallback(async () => {
     if (!currentUser) return;
-    setLoading(true);
     try {
+      setLoading(true);
       const { data, error } = await supabase
-        .from('venue_templates')
+        .from('events')
         .select('*')
-        .eq('user_id', (currentUser as any).id);
+        .eq('user_id', currentUser.id);
       if (error) throw error;
-      setVenueTemplates(data);
+      setEvents(data);
     } catch (err: any) {
-      showEditorMessage('Failed to fetch venue templates: ' + err.message, 'error');
+      showEditorMessage('Failed to fetch events: ' + err.message, 'error');
     } finally {
       setLoading(false);
     }
   }, [currentUser, showEditorMessage]);
 
-  const fetchAllVenueTemplates = useCallback(async () => {
-    if (!currentUser) return; // guard to avoid anon requests that cause 401 during dev
-    setLoading(true);
+  const selectEvent = useCallback(async (selectedEventId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('venue_templates')
-        .select('*');
-      if (error) throw error;
-      setAvailableTemplates(data);
+      setLoading(true);
+      const { data: eventData, error: eventError } = await supabase
+        .from('events')
+        .select('*')
+        .eq('id', selectedEventId)
+        .single();
+      if (eventError) throw eventError;
+      setCurrentFloorplan(eventData);
+      // Initialize calibration input from event or localStorage fallback
+      const storedScale = localStorage.getItem(`event:${selectedEventId}:scale_meters_per_pixel`);
+      const initScale = (eventData?.scale_meters_per_pixel ?? (storedScale ? Number(storedScale) : ''));
+      setScaleInput(initScale !== '' && !Number.isNaN(initScale) ? String(initScale) : '');
+
+      const { data: nodesData, error: nodesError } = await supabase.from('nodes').select('*').eq('event_id', selectedEventId);
+      if (nodesError) throw nodesError;
+      setCurrentNodes(nodesData);
+
+      const { data: segmentsData, error: segmentsError } = await supabase.from('segments').select('*').eq('event_id', selectedEventId);
+      if (segmentsError) throw segmentsError;
+      setCurrentSegments(segmentsData);
+
+      const { data: poisData, error: poisError } = await supabase.from('pois').select('*').eq('event_id', selectedEventId);
+      if (poisError) throw poisError;
+      setCurrentPois(poisData);
+
+      const { data: zonesData, error: zonesError } = await supabase.from('zones').select('*').eq('event_id', selectedEventId);
+      if (zonesError) throw zonesError;
+      setCurrentZones(zonesData);
+
+      const { data: vendorsData, error: vendorsError } = await supabase.from('vendors').select('*').eq('event_id', selectedEventId);
+      if (vendorsError) throw vendorsError;
+      setCurrentVendors(vendorsData);
+
     } catch (err: any) {
-      showEditorMessage('Failed to fetch available templates: ' + err.message, 'error');
+      showEditorMessage('Failed to load event details: ' + err.message, 'error');
     } finally {
       setLoading(false);
     }
   }, [showEditorMessage]);
 
-  const fetchFloorplans = useCallback(async () => {
-    if (!currentUser) return;
-    try {
-      const { data, error } = await supabase
-        .from('events')
-        .select('*')
-        .eq('user_id', (currentUser as any).id);
-      if (error) throw error;
-      setFloorplansList(data);
-    } catch (err: any) {
-      showEditorMessage('Failed to fetch floorplans: ' + err.message, 'error');
+  useEffect(() => {
+    if (eventId) {
+      selectEvent(eventId);
+    } else {
+      fetchEvents();
     }
-  }, [currentUser, showEditorMessage]);
+  }, [eventId, fetchEvents, selectEvent]);
 
-  const selectFloorplan = async (floorplanId: string) => {
-    try {
-      setLoading(true);
-      const { data: floorplanData, error: floorplanError } = await supabase
-        .from('events')
-        .select('*')
-        .eq('id', floorplanId)
-        .single();
-      if (floorplanError) throw floorplanError;
-      setCurrentFloorplan(floorplanData);
 
-      const { data: nodesData, error: nodesError } = await supabase.from('nodes').select('*').eq('floorplan_id', floorplanId);
-      if (nodesError) throw nodesError;
-      setCurrentNodes(nodesData);
-
-      const { data: segmentsData, error: segmentsError } = await supabase.from('segments').select('*').eq('floorplan_id', floorplanId);
-      if (segmentsError) throw segmentsError;
-      setCurrentSegments(segmentsData);
-
-      const { data: poisData, error: poisError } = await supabase.from('pois').select('*').eq('floorplan_id', floorplanId);
-      if (poisError) throw poisError;
-      setCurrentPois(poisData);
-
-      const { data: zonesData, error: zonesError } = await supabase.from('zones').select('*').eq('floorplan_id', floorplanId);
-      if (zonesError) throw zonesError;
-      setCurrentZones(zonesData);
-
-      const { data: vendorsData, error: vendorsError } = await supabase.from('vendors').select('*').eq('floorplan_id', floorplanId);
-      if (vendorsError) throw vendorsError;
-      setCurrentVendors(vendorsData);
-
-      const { data: beaconsData, error: beaconsError } = await supabase.from('beacons').select('*').eq('floorplan_id', floorplanId);
-      if (beaconsError) throw beaconsError;
-      setCurrentBeacons(beaconsData);
-    } catch (err: any) {
-      showEditorMessage('Failed to load floorplan details: ' + err.message, 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleFloorplanUploadSuccess = async (newFloorplan: any) => {
-    setFloorplansList(prev => [...prev, newFloorplan]);
-    // navigate to editor route so the page loads via URL and state is consistent
-    navigate(`/map-editor/${newFloorplan.id}`);
-    setIsCreatingEvent(false);
-    showEditorMessage('Floorplan uploaded successfully!', 'success');
-  };
-
-  const handleTemplateUploadSuccess = (newTemplate: any) => {
-    setVenueTemplates(prev => [...prev, newTemplate]);
-    setIsAddingTemplate(false);
-    showEditorMessage('Template uploaded successfully!', 'success');
-  };
-
-  const handleSelectTemplate = async (templateId: string) => {
-    const template = availableTemplates.find(t => t.id === templateId);
-    if (!template || !currentUser) return;
-
-    try {
-      const { data: newFloorplan, error } = await supabase.rpc('create_event_from_template', {
-        template_id: template.id,
-        user_id: (currentUser as any).id,
-        event_name: `${template.name} Event`
-      });
-
-      if (error) throw error;
-
-      await fetchFloorplans();
-      showEditorMessage('New event created from template!', 'success');
-      setIsCreatingEvent(false);
-    } catch (err: any) {
-      showEditorMessage('Failed to create event from template: ' + err.message, 'error');
-    }
-  };
-
-  const handleRenameFloorplan = async (floorplanId: string, newName: string) => {
-    if (!newName || newName.trim() === '' || newName.trim() === currentFloorplan?.name) {
-      return; // No change or empty name
-    }
+  const handleRenameEvent = async (eventIdToRename: string, newName: string) => {
+    if (!newName || newName.trim() === '') return;
     try {
       const { data, error } = await supabase
         .from('events')
         .update({ name: newName.trim() })
-        .eq('id', floorplanId)
+        .eq('id', eventIdToRename)
         .select()
         .single();
       if (error) throw error;
-      setFloorplansList(prev => prev.map(fp => fp.id === floorplanId ? data : fp));
-      if (currentFloorplan && currentFloorplan.id === floorplanId) {
+      setEvents(prev => prev.map(e => e.id === eventIdToRename ? data : e));
+      if (currentFloorplan && currentFloorplan.id === eventIdToRename) {
         setCurrentFloorplan(data);
       }
-      showEditorMessage('Floorplan renamed!', 'success');
+      showEditorMessage('Event renamed!', 'success');
     } catch (err: any) {
-      showEditorMessage('Failed to rename floorplan: ' + err.message, 'error');
+      showEditorMessage('Failed to rename event: ' + err.message, 'error');
     }
   };
 
-  const handleDeleteFloorplan = async (floorplan: any) => {
+  const handleDeleteEvent = async (eventToDelete: any) => {
     try {
-      const { error } = await supabase.from('events').delete().eq('id', floorplan.id);
-      if (error) throw error;
-      setFloorplansList(prev => prev.filter(fp => fp.id !== floorplan.id));
-      if (currentFloorplan && currentFloorplan.id === floorplan.id) {
+      await supabase.from('events').delete().eq('id', eventToDelete.id);
+      setEvents(prev => prev.filter(e => e.id !== eventToDelete.id));
+      if (currentFloorplan && currentFloorplan.id === eventToDelete.id) {
         setCurrentFloorplan(null);
+        navigate('/map-editor');
       }
-      setShowDeleteConfirm(null);
-      showEditorMessage('Floorplan deleted.', 'success');
+      showEditorMessage('Event deleted.', 'success');
     } catch (err: any) {
-      showEditorMessage('Failed to delete floorplan: ' + err.message, 'error');
+      showEditorMessage('Failed to delete event: ' + err.message, 'error');
     }
   };
 
@@ -358,8 +313,8 @@ const MapEditorPage = () => {
     try {
       const { data, error } = await supabase.from('nodes').insert({
         ...newNode,
-        floorplan_id: currentFloorplan.id,
-        user_id: (currentUser as any).id,
+        event_id: currentFloorplan.id,
+        user_id: currentUser.id,
       }).select().single();
       if (error) throw error;
       setCurrentNodes(prev => [...prev, data]);
@@ -373,8 +328,8 @@ const MapEditorPage = () => {
     try {
       const { data, error } = await supabase.from('segments').insert({
         ...newSegment,
-        floorplan_id: currentFloorplan.id,
-        user_id: (currentUser as any).id,
+        event_id: currentFloorplan.id,
+        user_id: currentUser.id,
       }).select().single();
       if (error) throw error;
       setCurrentSegments(prev => [...prev, data]);
@@ -388,8 +343,8 @@ const MapEditorPage = () => {
     try {
       const { data, error } = await supabase.from('pois').insert({
         ...newPoi,
-        floorplan_id: currentFloorplan.id,
-        user_id: (currentUser as any).id,
+        event_id: currentFloorplan.id,
+        user_id: currentUser.id,
       }).select().single();
       if (error) throw error;
       setCurrentPois(prev => [...prev, data]);
@@ -403,8 +358,8 @@ const MapEditorPage = () => {
     try {
       const { data, error } = await supabase.from('zones').insert({
         ...newZone,
-        floorplan_id: currentFloorplan.id,
-        user_id: (currentUser as any).id,
+        event_id: currentFloorplan.id,
+        user_id: currentUser.id,
       }).select().single();
       if (error) throw error;
       setCurrentZones(prev => [...prev, data]);
@@ -414,427 +369,276 @@ const MapEditorPage = () => {
   };
 
     const handleScaleCalibrated = async (scale: number) => {
+      if (!currentFloorplan) return;
+      try {
+        const { data, error } = await supabase
+          .from('events')
+          .update({ scale_meters_per_pixel: scale })
+          .eq('id', currentFloorplan.id)
+          .select()
+          .single();
+        if (error) throw error;
+        setCurrentFloorplan(data);
+        showEditorMessage('Scale calibrated and saved!', 'success');
+      } catch (err: any) {
+        // Fallback: persist locally so the MVP remains usable without DB column
+        try {
+          localStorage.setItem(`event:${currentFloorplan.id}:scale_meters_per_pixel`, String(scale));
+          setCurrentFloorplan({ ...currentFloorplan, scale_meters_per_pixel: scale });
+          showEditorMessage('Saved scale locally (DB update failed).', 'warning');
+        } catch (storageErr: any) {
+          showEditorMessage('Failed to save scale: ' + (storageErr?.message || err.message), 'error');
+        }
+      }
+    };
+
+  const handleUpdateNode = async (nodeId: string, updates: any) => {
     if (!currentFloorplan) return;
     try {
-      const { data, error } = await supabase
-        .from('events')
-        .update({ scale_meters_per_pixel: scale })
-        .eq('id', currentFloorplan.id)
-        .select()
-        .single();
+      const { data, error } = await supabase.from('nodes').update(updates).eq('id', nodeId).select().single();
       if (error) throw error;
-      setCurrentFloorplan(data);
-      showEditorMessage('Scale calibrated and saved!', 'success');
+      setCurrentNodes(prev => prev.map(n => n.id === nodeId ? data : n));
     } catch (err: any) {
-      showEditorMessage('Failed to save scale: ' + err.message, 'error');
+      showEditorMessage('Failed to update node: ' + err.message, 'error');
     }
   };
 
-  const handleSaveGeoreference = async (geoData: any) => {
+  const handleDeleteNode = async (nodeId: string) => {
     if (!currentFloorplan) return;
-    setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('events')
-        .update({ georeference_data: geoData })
-        .eq('id', currentFloorplan.id)
-        .select()
-        .single();
-      if (error) throw error;
-      setCurrentFloorplan(data);
-      showEditorMessage("Georeference data saved successfully!", 'success');
-    } catch (err: any) {
-      showEditorMessage("Failed to save georeference data: " + err.message, 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDeleteNodeOnCanvas = async (nodeId: string) => {
-    try {
-      const { error } = await supabase.from('nodes').delete().eq('id', nodeId);
-      if (error) throw error;
+      await supabase.from('segments').delete().or(`start_node_id.eq.${nodeId},end_node_id.eq.${nodeId}`);
+      await supabase.from('nodes').delete().eq('id', nodeId);
       setCurrentNodes(prev => prev.filter(n => n.id !== nodeId));
+      setCurrentSegments(prev => prev.filter(s => s.start_node_id !== nodeId && s.end_node_id !== nodeId));
     } catch (err: any) {
       showEditorMessage('Failed to delete node: ' + err.message, 'error');
     }
   };
 
-  const handleDeleteSegmentOnCanvas = async (segmentId: string) => {
+  const handleDeleteSegment = async (segmentId: string) => {
+    if (!currentFloorplan) return;
     try {
-      const { error } = await supabase.from('segments').delete().eq('id', segmentId);
-      if (error) throw error;
+      await supabase.from('segments').delete().eq('id', segmentId);
       setCurrentSegments(prev => prev.filter(s => s.id !== segmentId));
     } catch (err: any) {
       showEditorMessage('Failed to delete segment: ' + err.message, 'error');
     }
   };
 
-  const handleDeletePoiOnCanvas = async (poiId: string) => {
+  const handleDeletePoi = async (poiId: string) => {
+    if (!currentFloorplan) return;
     try {
-      const { error } = await supabase.from('pois').delete().eq('id', poiId);
-      if (error) throw error;
+      await supabase.from('pois').delete().eq('id', poiId);
       setCurrentPois(prev => prev.filter(p => p.id !== poiId));
     } catch (err: any) {
       showEditorMessage('Failed to delete POI: ' + err.message, 'error');
     }
   };
 
-  const handleDeleteZoneOnCanvas = async (zoneId: string) => {
+  const handleUpdatePoi = async (poiId: string, updates: any) => {
+    if (!currentFloorplan) return;
     try {
-      const { error } = await supabase.from('zones').delete().eq('id', zoneId);
+      const { data, error } = await supabase.from('pois').update(updates).eq('id', poiId).select().single();
       if (error) throw error;
+      setCurrentPois(prev => prev.map(p => p.id === poiId ? data : p));
+    } catch (err: any) {
+      showEditorMessage('Failed to update POI: ' + err.message, 'error');
+    }
+  };
+
+  const handleDeleteZone = async (zoneId: string) => {
+    if (!currentFloorplan) return;
+    try {
+      await supabase.from('zones').delete().eq('id', zoneId);
       setCurrentZones(prev => prev.filter(z => z.id !== zoneId));
     } catch (err: any) {
       showEditorMessage('Failed to delete zone: ' + err.message, 'error');
     }
   };
 
-  const handleDeleteBeacon = async (beaconId: string) => {
-    try {
-      const { error } = await supabase.from('beacons').delete().eq('id', beaconId);
-      if (error) throw error;
-      setCurrentBeacons(prev => prev.filter(b => b.id !== beaconId));
-      showEditorMessage('Beacon deleted successfully!', 'success');
-    } catch (err: any) {
-      showEditorMessage('Failed to delete beacon: ' + err.message, 'error');
-    }
-  };
-
-  const handleBeaconInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setNewBeacon(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleRegisterBeacon = async () => {
-    if (!currentFloorplan || !newBeacon.name || !newBeacon.uuid) {
-      showEditorMessage('Beacon name and UUID are required.', 'error');
-      return;
-    }
-    try {
-      const { data, error } = await supabase.from('beacons').insert({
-        ...newBeacon,
-        floorplan_id: currentFloorplan.id,
-      }).select().single();
-      if (error) throw error;
-      setCurrentBeacons(prev => [...prev, data]);
-      setNewBeacon({ name: '', uuid: '', major: '', minor: '' });
-      showEditorMessage('Beacon registered successfully!', 'success');
-    } catch (err: any) {
-      showEditorMessage('Failed to register beacon: ' + err.message, 'error');
-    }
-  };
-
   const handleAddVendor = async () => {
-    if (!currentFloorplan || !newVendorName.trim()) {
-      showEditorMessage('Vendor name is required.', 'error');
-      return;
-    }
+    if (!currentFloorplan || !newVendorName || !currentUser) return;
     try {
       const { data, error } = await supabase.from('vendors').insert({
-        name: newVendorName.trim(),
-        floorplan_id: currentFloorplan.id,
+        name: newVendorName,
+        event_id: currentFloorplan.id,
+        user_id: currentUser.id,
       }).select().single();
       if (error) throw error;
       setCurrentVendors(prev => [...prev, data]);
       setNewVendorName('');
-      showEditorMessage('Vendor added successfully!', 'success');
     } catch (err: any) {
       showEditorMessage('Failed to add vendor: ' + err.message, 'error');
     }
   };
 
+  const handleDeleteVendor = async (vendorId: string) => {
+    if (!currentFloorplan) return;
+    try {
+      await supabase.from('pois').update({ vendor_id: null }).eq('vendor_id', vendorId);
+      await supabase.from('vendors').delete().eq('id', vendorId);
+      setCurrentVendors(prev => prev.filter(v => v.id !== vendorId));
+      const { data: poisData, error: poisError } = await supabase.from('pois').select('*').eq('event_id', currentFloorplan.id);
+      if (poisError) throw poisError;
+      setCurrentPois(poisData);
+    } catch (err: any) {
+      showEditorMessage('Failed to delete vendor: ' + err.message, 'error');
+    }
+  };
+
+  const handleLinkVendorToPoi = async (poiId: string, vendorId: string | null) => {
+    try {
+      const { data, error } = await supabase
+        .from('pois')
+        .update({ vendor_id: vendorId })
+        .eq('id', poiId)
+        .select()
+        .single();
+      if (error) throw error;
+      setCurrentPois(prev => prev.map(p => p.id === poiId ? data : p));
+      showEditorMessage('POI updated successfully', 'success');
+    } catch (err: any) {
+      showEditorMessage('Failed to link vendor: ' + err.message, 'error');
+    }
+  };
+
   const handleGenerateSignupLink = async (vendorId: string) => {
     try {
-      const { data, error } = await supabase.functions.invoke('vendor-signup', {
-        body: { vendorId }
-      });
+      const { data, error } = await supabase.rpc('create_vendor_signup_token', { vendor_id_arg: vendorId });
+
       if (error) throw error;
-      setSignupLink(data.signupLink);
+
+      const signupUrl = `${window.location.origin}/vendor-signup?token=${data}`;
+      setQrCodeValue(signupUrl);
       setIsQrModalOpen(true);
-      setQrCodeValue(data.signupLink);
+      showEditorMessage('Signup link generated!', 'success');
+
     } catch (err: any) {
       showEditorMessage('Failed to generate signup link: ' + err.message, 'error');
     }
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate('/login');
-    showEditorMessage("Signed out successfully!", 'success');
-  };
-
-  const handleExportData = () => {
-    if (!currentFloorplan) {
-      showEditorMessage("No floorplan selected to export.", "warning");
-      return;
-    }
-    const exportData = {
-      floorplan: currentFloorplan,
-      nodes: currentNodes,
-      segments: currentSegments,
-      pois: currentPois,
-      zones: currentZones,
-      vendors: currentVendors,
-      export_metadata: {
-        timestamp: new Date().toISOString(),
-        version: "1.0.0"
-      }
-    };
-    const jsonString = JSON.stringify(exportData, null, 2);
-    const blob = new Blob([jsonString], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'event-data.json';
-    document.body.appendChild(a);
-a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    showEditorMessage("Event data exported successfully!", "success");
-  };
-
-  const handleShowOnboardingHelp = () => {
-    setShowOnboardingHelp(true);
-  };
-
-  const handleOnboardingHelpComplete = () => {
-    setShowOnboardingHelp(false);
-  };
-
-  useEffect(() => {
-    const fetchUserRole = async () => {
-      if (currentUser) {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', (currentUser as any).id)
-          .single();
-        if (data) {
-          setUserRole(data.role);
-          setDashboardRole(data.role);
-        }
-      }
-    };
-    fetchUserRole();
-  }, [currentUser]);
-
-  useEffect(() => {
-    if (currentUser) {
-      if (dashboardRole === 'Event Organizer') {
-        fetchFloorplans();
-        fetchAllVenueTemplates();
-      }
-      if (dashboardRole === 'Venue Owner') {
-        fetchVenueTemplates();
-      }
-    }
-  }, [currentUser, dashboardRole, fetchFloorplans, fetchAllVenueTemplates, fetchVenueTemplates]);
-
-  useEffect(() => {
-    if (eventId) {
-      selectFloorplan(eventId);
-    } else {
-      setCurrentFloorplan(null);
-    }
-  }, [eventId]);
-
-  // Screen-size restriction useEffect intentionally removed while feature is disabled.
-
-  useEffect(() => {
+  const generateAndSetQrCodeValue = (role: 'attendee' | 'vendor' | 'sponsor') => {
     if (!currentFloorplan) return;
-    const channel = supabase
-      .channel(`pois-for-floorplan-${currentFloorplan.id}`)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'pois', filter: `floorplan_id=eq.${currentFloorplan.id}` },
-        (payload: any) => {
-          console.log('Real-time POI update received!', payload.new);
-          setCurrentPois((prevPois) => prevPois.map((poi) => poi.id === payload.new.id ? { ...poi, is_active: payload.new.is_active, last_pinged_at: payload.new.last_pinged_at } : poi));
-          showEditorMessage(`Location '${payload.new.name}' is now active!`, 'success');
-        })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [currentFloorplan, showEditorMessage]);
+    const url = `${window.location.origin}/mobile-view/${currentFloorplan.id}?role=${role}`;
+    setQrCodeValue(url);
+    setIsQrModalOpen(true);
+  };
 
+  const renderEditor = () => {
+    if (loading) {
+      return <div>Loading...</div>
+    }
 
-  // ScreenSizeRestriction is disabled for now so the editor/dashboard render consistently.
-
-  if (showOnboardingHelp) {
-    return <OnboardingFlow onComplete={() => setShowOnboardingHelp(false)} />;
-  }
-
-  const renderDashboard = () => (
-    <div className="flex flex-col h-screen bg-gray-50">
-      <header className="flex items-center justify-between p-4 bg-white border-b">
-        <div className="flex items-center space-x-4">
-          {/* Replace with your logo if you have one */}
-          <LayoutDashboard className="h-8 w-8 text-gray-700" />
-          <h1 className="text-xl font-bold text-gray-800">Dashboard</h1>
-        </div>
-        <div className="flex items-center space-x-4">
-          <span className="text-sm text-gray-600 hidden md:inline">Welcome, {currentUser?.email}</span>
-          <Button variant="ghost" size="icon" onClick={handleShowOnboardingHelp}><HelpCircle className="h-5 w-5" /></Button>
-          <Button variant="ghost" size="icon" onClick={handleLogout}><LogOut className="h-5 w-5" /></Button>
-        </div>
-      </header>
-
-      <main className="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto">
-        {userRole === 'Venue Owner' && (
-          <div className="flex items-center justify-center mb-6">
-            <Label htmlFor="role-switch" className="mr-3 font-semibold">Event Organizer</Label>
-            <Switch
-              id="role-switch"
-              checked={dashboardRole === 'Venue Owner'}
-              onCheckedChange={(checked) => setDashboardRole(checked ? 'Venue Owner' : 'Event Organizer')}
-            />
-            <Label htmlFor="role-switch" className="ml-3 font-semibold">Venue Owner</Label>
+    if (!currentFloorplan?.floorplan_image_url) {
+      return (
+        <div className="flex flex-col items-center justify-center h-screen bg-gray-50">
+          <div className="text-center mb-8">
+            <h2 className="text-2xl font-bold">Upload Your Map</h2>
+            <p className="text-gray-600">Your event needs a floorplan to get started.</p>
           </div>
-        )}
+          <ImageUploader
+            eventId={currentFloorplan.id}
+            onUploadSuccess={handleFloorplanUploadSuccess}
+          />
+        </div>
+      );
+    }
 
-        {/* Venue Owner Dashboard */}
-        {dashboardRole === 'Venue Owner' ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>My Venue Templates</CardTitle>
-              <CardDescription>Manage your reusable venue layouts.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {isAddingTemplate ? (
-                <div>
-                  <h3 className="font-semibold mb-2">Upload New Venue Template</h3>
-                  <ImageUploader onUploadSuccess={handleTemplateUploadSuccess} onMessage={showEditorMessage} userId={(currentUser as any).id} isVenueTemplate={true} />
-                  <Button variant="outline" className="mt-2" onClick={() => setIsAddingTemplate(false)}>Cancel</Button>
-                </div>
-              ) : (
-                <Button onClick={() => setIsAddingTemplate(true)}><Plus className="mr-2 h-4 w-4" /> Add New Template</Button>
-              )}
-              <div className="mt-4 space-y-2">
-                {venueTemplates.map(template => (
-                  <div key={template.id} className="flex items-center justify-between p-2 border rounded-lg">
-                    <FileText className="mr-2" />
-                    <span className="flex-grow">{template.name}</span>
-                    {/* Add rename/delete for templates if needed */}
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          /* Event Organizer Dashboard */
-          <Card>
-            <CardHeader>
-              <CardTitle>My Events</CardTitle>
-              <CardDescription>Create a new event or edit an existing one.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {isCreatingEvent ? (
-                <div>
-                  <h3 className="font-semibold mb-2">Create New Event</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <h4 className="font-medium mb-2">From a Template</h4>
-                      <Select onValueChange={handleSelectTemplate}>
-                        <SelectTrigger><SelectValue placeholder="Select a venue template" /></SelectTrigger>
-                        <SelectContent>
-                          {availableTemplates.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <h4 className="font-medium mb-2">From Scratch</h4>
-                      <ImageUploader onUploadSuccess={handleFloorplanUploadSuccess} onMessage={showEditorMessage} userId={(currentUser as any).id} />
-                    </div>
-                  </div>
-                  <Button variant="outline" className="mt-4" onClick={() => setIsCreatingEvent(false)}>Cancel</Button>
-                </div>
-              ) : (
-                <Button onClick={() => {
-                  console.log('Create New Event button clicked');
-                  setIsCreatingEvent(true);
-                }}><Plus className="mr-2 h-4 w-4" /> Create New Event</Button>
-              )}
-              <div className="mt-6 space-y-3">
-                <h3 className="font-semibold">Existing Events</h3>
-                {floorplansList.map(fp => (
-                  <div key={fp.id} className="flex items-center justify-between p-3 border rounded-lg bg-white shadow-sm">
-                    <span className="font-medium">{fp.name}</span>
-                    <div className="flex items-center space-x-2">
-                      <Button variant="outline" size="sm" onClick={() => {
-                        const newName = prompt("Enter new floorplan name:", fp.name);
-                        if (newName) {
-                          handleRenameFloorplan(fp.id, newName);
-                        }
-                      }}><Pencil className="h-4 w-4 mr-1" /> Rename</Button>
-                      <Button variant="secondary" size="sm" onClick={() => navigate(`/map-editor/${fp.id}`)}><Layout className="h-4 w-4 mr-1" /> Edit</Button>
-                      <Dialog open={showDeleteConfirm === fp.id} onOpenChange={(isOpen) => !isOpen && setShowDeleteConfirm(null)}>
-                        <DialogTrigger asChild>
-                          <Button variant="destructive" size="sm" onClick={() => setShowDeleteConfirm(fp.id)}><Trash2 className="h-4 w-4 mr-1" /> Delete</Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader><DialogTitle>Are you sure?</DialogTitle></DialogHeader>
-                          <p>This will permanently delete the event "{fp.name}". This action cannot be undone.</p>
-                          <DialogFooter>
-                            <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                            <Button variant="destructive" onClick={() => handleDeleteFloorplan(fp)}>Yes, Delete</Button>
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-      </main>
-    </div>
-  );
-
-  const renderEditor = () => (
-    <div className="flex h-screen bg-gray-100">
-      {/* Sidebar */}
-      <div className="w-64 bg-white border-r flex flex-col">
-        <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-lg font-semibold">Editor</h2>
-          <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')}>
-            <ChevronLeft className="h-5 w-5" />
+    return (
+      <div className="flex h-screen bg-gray-100">
+        <div className="w-16 bg-white border-r flex flex-col items-center py-4 space-y-4">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/map-editor')} title="Back to Dashboard">
+            <LayoutDashboard className="h-6 w-6" />
+          </Button>
+          <div className="flex-grow space-y-2">
+            {tools.map(tool => (
+              <Button
+                key={tool.id}
+                variant={drawingMode === tool.id ? 'secondary' : 'ghost'}
+                size="icon"
+                onClick={() => setDrawingMode(tool.id)}
+                title={tool.label}
+              >
+                <tool.icon className="h-6 w-6" />
+              </Button>
+            ))}
+          </div>
+          <Button variant="ghost" size="icon" onClick={() => navigate('/settings')} title="Global Settings">
+            <Settings className="h-6 w-6" />
           </Button>
         </div>
-        <div className="flex-grow p-4 overflow-y-auto">
-              <Tabs defaultValue="Layout" className="w-full">
-                <TabsList>
+
+        <div className="flex-1 flex flex-col">
+          <div className="bg-white border-b p-2 flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <Input
+                type="text"
+                value={currentFloorplan?.name || ''}
+                onChange={(e) => setCurrentFloorplan({ ...currentFloorplan, name: e.target.value })}
+                onBlur={(e) => handleRenameEvent(currentFloorplan.id, e.target.value)}
+                className="font-semibold text-lg"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => generateAndSetQrCodeValue('attendee')}>
+                <Share2 className="h-4 w-4 mr-2" /> Share
+              </Button>
+              <Button size="sm">
+                <Save className="h-4 w-4 mr-2" /> Save
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex flex-1 overflow-hidden">
+            <div className="flex-1 bg-gray-200 relative">
+              <FloorplanCanvas
+                ref={canvasRef}
+                floorplanImage={currentFloorplan?.floorplan_image_url}
+                nodes={currentNodes}
+                segments={currentSegments}
+                pois={currentPois}
+                zones={currentZones}
+                drawingMode={drawingMode}
+                onNodeAdd={handleNewNodeOnCanvas}
+                onSegmentAdd={handleNewSegmentOnCanvas}
+                onPoiAdd={handleNewPoiOnCanvas}
+                onZoneAdd={handleNewZoneOnCanvas}
+                onScaleCalibrated={handleScaleCalibrated}
+                onNodeUpdate={handleUpdateNode}
+                onNodeDelete={handleDeleteNode}
+                onSegmentDelete={handleDeleteSegment}
+                onPoiDelete={handleDeletePoi}
+                onPoiUpdate={handleUpdatePoi}
+                onZoneDelete={handleDeleteZone}
+              />
+            </div>
+
+            <div className="w-80 bg-white border-l overflow-y-auto">
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="Layout">Layout</TabsTrigger>
                   <TabsTrigger value="Vendors">Vendors</TabsTrigger>
-                  <TabsTrigger value="Beacons">Beacons</TabsTrigger>
                   <TabsTrigger value="Settings">Settings</TabsTrigger>
                 </TabsList>
-                <TabsContent value="Layout">
-                  <FloorplanCanvas
-                    ref={canvasRef}
-                    floorplan={currentFloorplan}
-                    nodes={currentNodes}
-                    segments={currentSegments}
-                    pois={currentPois}
-                    zones={currentZones}
-                    drawingMode={drawingMode}
-                    onNewNode={handleNewNodeOnCanvas}
-                    onNewSegment={handleNewSegmentOnCanvas}
-                    onNewPoi={handleNewPoiOnCanvas}
-                    onNewZone={handleNewZoneOnCanvas}
-                    onDeleteNode={handleDeleteNodeOnCanvas}
-                    onDeleteSegment={handleDeleteSegmentOnCanvas}
-                    onDeletePoi={handleDeletePoiOnCanvas}
-                    onDeleteZone={handleDeleteZoneOnCanvas}
-                    onScaleCalibrated={handleScaleCalibrated}
-                    onSaveGeoreference={handleSaveGeoreference}
-                  />
+                <TabsContent value="Layout" className="p-4">
+                  <h3 className="font-semibold mb-2">Points of Interest</h3>
+                  <ul className="space-y-2">
+                    {currentPois.map(poi => (
+                      <li key={poi.id} className="flex items-center justify-between text-sm">
+                        <span>{poi.name}</span>
+                        <Button variant="ghost" size="icon" onClick={() => handleDeletePoi(poi.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
                 </TabsContent>
-                <TabsContent value="Vendors">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Vendor Management</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex space-x-2">
+                <TabsContent value="Vendors" className="p-4">
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="font-semibold mb-2">Manage Vendors</h3>
+                      <div className="flex gap-2">
                         <Input
                           value={newVendorName}
                           onChange={(e) => setNewVendorName(e.target.value)}
@@ -842,151 +646,184 @@ a.click();
                         />
                         <Button onClick={handleAddVendor}>Add</Button>
                       </div>
-                      <div className="mt-4 space-y-2">
+                      <ul className="mt-2 space-y-2">
                         {currentVendors.map(vendor => (
-                          <div key={vendor.id} className="flex items-center justify-between p-2 border rounded-md">
+                          <li key={vendor.id} className="flex items-center justify-between text-sm p-2 border rounded-md">
                             <span>{vendor.name}</span>
-                            <Button size="sm" onClick={() => handleGenerateSignupLink(vendor.id)}>
-                              <Link className="mr-2 h-4 w-4" />
-                              Get Link
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-                <TabsContent value="Beacons">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Beacon Management</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-2 gap-4">
-                        <Input name="name" value={newBeacon.name} onChange={handleBeaconInputChange} placeholder="Name" />
-                        <Input name="uuid" value={newBeacon.uuid} onChange={handleBeaconInputChange} placeholder="UUID" />
-                        <Input name="major" value={newBeacon.major} onChange={handleBeaconInputChange} placeholder="Major" />
-                        <Input name="minor" value={newBeacon.minor} onChange={handleBeaconInputChange} placeholder="Minor" />
-                      </div>
-                      <Button onClick={handleRegisterBeacon} className="mt-4 w-full">Register</Button>
-                      <div className="mt-4 space-y-2">
-                        {currentBeacons.map((beacon) => (
-                          <div key={beacon.id} className="flex items-center justify-between p-2 border-b">
-                            <div>
-                              <p className="font-semibold">{beacon.name}</p>
-                              <p className="text-xs text-gray-500">{beacon.uuid}</p>
-                            </div>
-                            <Button variant="ghost" size="icon" onClick={() => handleDeleteBeacon(beacon.id)}>
-                              <Trash2 className="h-4 w-4 text-red-500" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-                <TabsContent value="Settings">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Event Settings</CardTitle>
-                      <CardDescription>Manage your event details.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="eventName">Event Name</Label>
-                        <div className="flex space-x-2">
-                          <Input id="eventName" defaultValue={currentFloorplan?.name} onBlur={(e) => handleRenameFloorplan(currentFloorplan.id, e.target.value)} />
-                        </div>
-                      </div>
-
-                      <Card>
-                        <CardHeader>
-                          <CardTitle>Quicket Integration</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="quicketId">Quicket Event ID</Label>
-                            <div className="flex space-x-2">
-                              <Input
-                                id="quicketId"
-                                placeholder="Enter Quicket Event ID"
-                                value={quicketEventId}
-                                onChange={(e) => setQuicketEventId(e.target.value)}
-                              />
-                              <Button onClick={handleSaveQuicketId}>Save</Button>
-                            </div>
-                          </div>
-                          <Button onClick={handleSyncQuicketAttendees} className="w-full" disabled={!quicketEventId}>
-                            <Link className="mr-2 h-4 w-4" /> Sync Attendees
-                          </Button>
-                        </CardContent>
-                      </Card>
-
-                      <Card>
-                        <CardHeader>
-                          <CardTitle>Event Map QR Code</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4 flex flex-col items-center">
-                          <div className="bg-white p-4 rounded-md">
-                            <QRCode id="event-qr-code" value={`${window.location.origin}/event/${currentFloorplan?.id}/map`} size={128} />
-                          </div>
-                          <Button onClick={handleDownloadQrCode} className="w-full">
-                            Download QR Code
-                          </Button>
-                        </CardContent>
-                      </Card>
-
-                      <div className="space-y-2">
-                        <Label>Danger Zone</Label>
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button variant="destructive" className="w-full">
-                              <Trash2 className="mr-2 h-4 w-4" /> Delete Event
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>Are you sure?</DialogTitle>
-                            </DialogHeader>
-                            <p>This will permanently delete the event and all its associated data. This action cannot be undone.</p>
-                            <DialogFooter>
-                              <DialogClose asChild>
-                                <Button variant="outline">Cancel</Button>
-                              </DialogClose>
-                              <Button variant="destructive" onClick={() => handleDeleteFloorplan(currentFloorplan)}>
-                                Yes, delete it
+                            <div className="flex items-center gap-2">
+                              <Button size="sm" variant="outline" onClick={() => handleGenerateSignupLink(vendor.id)}>
+                                Get Link
                               </Button>
-                            </DialogFooter>
-                          </DialogContent>
-                        </Dialog>
-                      </div>
-                    </CardContent>
-                  </Card>
+                              <Button variant="ghost" size="icon" onClick={() => handleDeleteVendor(vendor.id)}>
+                                <Trash2 className="h-4 w-4 text-red-500" />
+                              </Button>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    <hr/>
+                    <div>
+                      <h3 className="font-semibold mb-2">Link POI to Vendor</h3>
+                      {currentPois.map(poi => (
+                        <div key={poi.id} className="grid grid-cols-2 gap-2 items-center mb-2">
+                          <Label>{poi.name}</Label>
+                          <Select
+                            value={poi.vendor_id || ''}
+                            onValueChange={(value) => handleLinkVendorToPoi(poi.id, value || null)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select vendor" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="">None</SelectItem>
+                              {currentVendors.map(vendor => (
+                                <SelectItem key={vendor.id} value={vendor.id}>{vendor.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </TabsContent>
+                <TabsContent value="Settings" className="p-4 space-y-4">
+                  <div>
+                    <h3 className="font-semibold mb-2">Quicket Integration</h3>
+                    <div className="flex gap-2">
+                      <Input
+                        value={quicketEventId}
+                        onChange={(e) => setQuicketEventId(e.target.value)}
+                        placeholder="Quicket Event ID"
+                      />
+                      <Button onClick={handleSaveQuicketId}>Save</Button>
+                    </div>
+                    <Button onClick={handleSyncQuicketAttendees} className="mt-2 w-full">
+                      Sync Attendees
+                    </Button>
+                  </div>
+                  <hr/>
+                  <div>
+                    <h3 className="font-semibold mb-2">Map Calibration</h3>
+                    <p className="text-xs text-slate-500 mb-2">Set meters per pixel to align on-screen distances with real-world measurements.</p>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        step="0.0001"
+                        value={scaleInput}
+                        onChange={(e) => setScaleInput(e.target.value)}
+                        placeholder="Meters per pixel (e.g., 0.075)"
+                      />
+                      <Button
+                        onClick={() => {
+                          const val = Number(scaleInput);
+                          if (!Number.isFinite(val) || val <= 0) {
+                            showEditorMessage('Please enter a valid positive number for meters per pixel.', 'error');
+                            return;
+                          }
+                          handleScaleCalibrated(val);
+                        }}
+                      >Save</Button>
+                    </div>
+                  </div>
+                  <hr/>
+                  <div>
+                    <h3 className="font-semibold mb-2">Shareable Links</h3>
+                    <div className="space-y-2">
+                      <Button className="w-full justify-start" variant="outline" onClick={() => generateAndSetQrCodeValue('attendee')}>
+                        <Users className="mr-2 h-4 w-4"/> Attendee Link
+                      </Button>
+                       <Button className="w-full justify-start" variant="outline" onClick={() => generateAndSetQrCodeValue('vendor')}>
+                        <Store className="mr-2 h-4 w-4"/> Vendor Link
+                      </Button>
+                       <Button className="w-full justify-start" variant="outline" onClick={() => generateAndSetQrCodeValue('sponsor')}>
+                        <Star className="mr-2 h-4 w-4"/> Sponsor Link
+                      </Button>
+                    </div>
+                  </div>
                 </TabsContent>
               </Tabs>
             </div>
           </div>
+        </div>
+
       <Dialog open={isQrModalOpen} onOpenChange={setIsQrModalOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Vendor Signup Link</DialogTitle>
+            <DialogTitle>Share Link</DialogTitle>
           </DialogHeader>
-          <div className="flex flex-col items-center justify-center p-4">
-            <QRCode value={qrCodeValue} size={256} />
-            <p className="mt-4 text-sm text-center break-all">{qrCodeValue}</p>
+          <div className="flex flex-col items-center justify-center p-4" style={{ background: 'white' }}>
+            <QRCodeComponent id="event-qr-code" value={qrCodeValue} size={256} />
+            <p className="mt-4 text-sm text-gray-500 break-all">{qrCodeValue}</p>
           </div>
           <DialogFooter>
-            <Button onClick={() => navigator.clipboard.writeText(qrCodeValue)}>Copy Link</Button>
-            <DialogClose asChild>
-              <Button variant="outline">Close</Button>
-            </DialogClose>
+            <Button variant="outline" onClick={() => navigator.clipboard.writeText(qrCodeValue)}>Copy Link</Button>
+            <Button onClick={handleDownloadQrCode}>Download QR</Button>
+            <Button variant="secondary" onClick={() => setIsQrModalOpen(false)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
+    );
+  };
+
+  const renderDashboard = () => (
+    <div className="container mx-auto p-8">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">My Events</h1>
+        <Button onClick={handleCreateEvent} disabled={isCreatingEvent}>
+          <Plus className="mr-2 h-4 w-4" />
+          {isCreatingEvent ? 'Creating...' : 'Create New Event'}
+        </Button>
+      </div>
+      {loading ? (
+        <p>Loading events...</p>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {events.map(event => (
+            <Card key={event.id}>
+              <CardHeader>
+                <CardTitle>{event.name}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-gray-500">Created on: {new Date(event.created_at).toLocaleDateString()}</p>
+              </CardContent>
+              <CardFooter className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => navigate(`/map-editor/${event.id}`)}>
+                  Edit
+                </Button>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button variant="destructive">Delete</Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Are you sure?</DialogTitle>
+                    </DialogHeader>
+                    <p>This will permanently delete the event and all its data. This action cannot be undone.</p>
+                    <DialogFooter>
+                      <DialogClose asChild>
+                        <Button variant="outline">Cancel</Button>
+                      </DialogClose>
+                      <Button variant="destructive" onClick={() => handleDeleteEvent(event)}>
+                        Yes, delete
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
   );
 
-  return currentFloorplan ? renderEditor() : renderDashboard();
+  if (loading && eventId) {
+    return <div>Loading Editor...</div>;
+  }
+
+  return eventId ? renderEditor() : renderDashboard();
 };
 
 export default MapEditorPage;

@@ -5,7 +5,7 @@ import { Button } from '../components/ui/button';
 import { useAuth } from '../contexts/AuthContext';
 
 export const ProfilePage = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
 
   return (
     <div>
@@ -27,8 +27,10 @@ export const ProfilePage = () => {
                 <Input
                   id="name"
                   type="text"
-                  defaultValue={user?.name}
+                  defaultValue={user?.user_metadata?.full_name || ''}
                   placeholder="John Doe"
+                  disabled
+                  className="bg-slate-100"
                 />
               </div>
 
@@ -37,8 +39,10 @@ export const ProfilePage = () => {
                 <Input
                   id="email"
                   type="email"
-                  defaultValue={user?.email}
+                  defaultValue={user?.email || ''}
                   placeholder="john@example.com"
+                  disabled
+                  className="bg-slate-100"
                 />
               </div>
 
@@ -47,7 +51,7 @@ export const ProfilePage = () => {
                 <Input
                   id="role"
                   type="text"
-                  defaultValue={user?.role}
+                  defaultValue={profile?.role || ''}
                   disabled
                   className="bg-slate-100"
                 />

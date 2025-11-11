@@ -6,13 +6,14 @@ import { RoleSelectorPage } from './pages/RoleSelectorPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { DashboardPage } from './pages/DashboardPage';
-import { SponsorDashboardPage } from './pages/SponsorDashboardPage';
+import SponsorDashboardPage from './pages/SponsorDashboardPage';
 import MapEditorPage from './pages/MapEditorPage';
 import { EventsPage } from './pages/EventsPage';
 import { EventDetailPage } from './pages/EventDetailPage';
 import { SponsorManagementPage } from './pages/SponsorManagementPage';
 import { ProfilePage } from './pages/ProfilePage';
-import VendorSignupPage from './components/VendorSignupPage';
+import VendorSignupPage from './pages/VendorSignupPage';
+import SettingsPage from './pages/SettingsPage';
 
 
 export default function App() {
@@ -23,7 +24,7 @@ export default function App() {
           <Route path="/" element={<RoleSelectorPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
-          <Route path="/signup" element={<VendorSignupPage />} />
+          <Route path="/vendor-signup" element={<VendorSignupPage />} />
           
           <Route
             path="/dashboard"
@@ -81,7 +82,7 @@ export default function App() {
           />
           
           <Route
-            path="/map-editor/:id"
+            path="/map-editor/:eventId"
             element={
               <ProtectedRoute>
                 <AdminLayout>
@@ -113,6 +114,16 @@ export default function App() {
             }
           />
 
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <AdminLayout>
+                  <SettingsPage />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
 
           
           <Route path="*" element={<Navigate to="/" replace />} />

@@ -1,124 +1,99 @@
-## NE DPM V5 — Developer README (Local dev & stabilization notes)
+# NE DPM V5 - Digital Platform Manager
 
-This repository contains the dpm-web (Admin Hub) and related artifacts for the "NE DPM V5" project.
+This repository contains the `dpm-web` application, which serves as the Admin and Sponsor Hub for the NavEaze Digital Platform Manager.
 
-Purpose
--------
-- Stabilize the Admin Hub (dpm-web) so it can act as the source-of-truth for the mobile apps.
-- Provide a working local dev environment, minimal DB objects for local testing, and API-level test artifacts (Postman collection).
+## Project Overview
 
-Quick status (short)
----------------------
-- The Vite frontend and a small local admin Express server were wired to run concurrently for local development.
-- Multiple runtime import and TypeScript issues were fixed (named exports, JSX syntax errors, small type shims).
-- A Postman collection for local and Supabase tests is present at `postman/NE-DPM-V5-collection.json`.
-- Minimal DB tables and a development-safe RPC stub were created to allow the Map Editor workflows to run locally. Some fixes are intentionally temporary (noted below).
+The NavEaze Digital Platform Manager (DPM) is a comprehensive solution for managing live events. It provides tools for event administrators to set up and manage event floorplans, vendors, and sponsors. It also provides a dedicated dashboard for sponsors to track their return on investment (ROI).
 
-Prerequisites
--------------
-- Node.js (16+ recommended) and npm.
-- A Supabase project (for remote testing) or a local dev Supabase instance.
-- Required environment variables (create a `.env` file in the `dpm-web` root or set in your shell):
-  - VITE_SUPABASE_URL — your Supabase URL (e.g. https://your-project.supabase.co)
-  - VITE_SUPABASE_ANON_KEY — anon/public key used by the frontend
-  - SUPABASE_SERVICE_ROLE_KEY — (only for admin scripts/local server; do NOT commit to git)
+This `dpm-web` project is the central web application for all non-attendee users.
 
-Dev server (frontend + admin server)
------------------------------------
-1. Install dependencies
+### Current Status: MVP Complete
 
-```bash
-cd dpm-web
-npm install
-```
+The Minimum Viable Product (MVP) is complete and implements the core user flows for Event Admins and Sponsors.
 
-2. Start dev servers (project uses concurrent servers)
+- **Admin Flow:** Admins can log in, create new events, upload and edit floorplan maps, manage vendor and sponsor placements, and generate unique signup links for vendors.
+- **Sponsor/Vendor Flow:** Vendors or sponsors can use a unique link to sign up and create an account, which is automatically associated with the correct event.
+- **Sponsor ROI:** Sponsors can log in to view a dedicated dashboard that displays key ROI metrics.
 
-```bash
-npm run dev
-# or the repository-specific script that starts the Vite client (default: 5173) and local admin server (default: 5176)
-```
+## Technology Stack
 
-3. Open the frontend at: http://localhost:5173
-   Local admin server health: http://localhost:5176/
+- **Frontend:** React, Vite, TypeScript
+- **Styling:** TailwindCSS, ShadCN/UI
+- **Backend & Database:** Supabase (Auth, Postgres, Storage, RPCs)
+- **Map & Canvas:** `react-konva`
+- **Routing:** `react-router-dom`
 
-Key developer files & directories
----------------------------------
-- `src/pages/MapEditorPage.tsx` — Main map/floorplan editor. Integrates with Supabase tables and RPCs.
-- `src/components/FloorplanCanvas.jsx` — Konva canvas & drawing utilities (named export added).
-- `src/components/ImageUploader.jsx` — Upload helper for Supabase storage (named export added).
-- `src/hooks/useScreenSize.js` — Screen size helper (named export added).
-- `api/server.ts` — Small Express admin server for local checks (listens on 5176 by default).
-- `postman/NE-DPM-V5-collection.json` — Postman collection for Local & Supabase tests (import into Postman).
+## Getting Started
 
-What was done (summary)
-------------------------
-- Fixed several runtime import errors by adding named exports where components were imported as named but exported as default.
-- Resolved JSX parsing issues (unclosed tags) and small syntax errors preventing builds.
-- Added a `SettingsPage` and wired routes for Settings and Vendor Signup in the app router and sidebar.
-- Created a Postman collection containing requests for:
-  - Local admin endpoints
-  - Supabase REST (tables & RPC)
-  - Supabase Functions (vendor-signup)
-  - Supabase Storage file upload and Auth signup
-- Created minimal DB objects and a development-safe RPC stub (`create_event_from_template`) to let the Map Editor and event creation flows execute for local testing.
-- Applied temporary TypeScript casts for quick fixes (e.g., `(currentUser as any).id`) to unblock compilation.
+### Prerequisites
 
-Shortcomings & temporary decisions (known issues)
-------------------------------------------------
-- Several TypeScript casts were applied as a temporary measure. These should be replaced with proper `AuthContext`/`User` types.
-- The DB changes applied for local testing are minimal development helpers and should be replaced by formal migration files in `migrations/` before production use.
-- Sponsor management features remain placeholder and need wiring to Supabase tables.
+- Node.js (v18+ recommended) and npm
+- A Supabase project.
 
-Postman collection & environment
---------------------------------
-- Import `postman/NE-DPM-V5-collection.json` into Postman.
-- Create an environment with the following variables (placeholders in collection):
-  - local_api_base = http://localhost:5176
-  - supabase_url = https://your-project.supabase.co
-  - supabase_anon_key = <ANON_KEY>
-  - supabase_service_role_key = <SERVICE_ROLE_KEY>
-  - user_jwt = <USER_JWT>  (set after signup/auth)
-  - user_id = <USER_ID>    (set after profile creation)
-  - floorplan_id, vendor_id, template_id, file_name — used by specific requests
+### Local Development Setup
 
-Suggested Postman run order (manual guidance)
-1. Local: Health — check admin server at `{{local_api_base}}/`
-2. Supabase Auth: Sign up — create a test user (copy returned JWT)
-3. Supabase: GET/Create floorplans — use service role key for table insert or use authenticated user flow
-4. Supabase Storage: upload floorplan image — upload a small PNG to `floorplans` bucket
-5. Supabase RPC: create_event_from_template — test the RPC that creates an event/floorplan from a template
-6. Supabase Functions: vendor-signup — test vendor signup link generation
+1.  **Clone the repository.**
 
-Security notes
---------------
-- Never commit `SUPABASE_SERVICE_ROLE_KEY` or any private keys to version control.
-- Keep service role keyed requests server-side only. The frontend uses the anon key for normal operations.
+2.  **Navigate to the web application directory:**
+    ```bash
+    cd dpm-web
+    ```
 
-Development hygiene & next steps
--------------------------------
-1. Replace temporary `(currentUser as any)` casts with properly typed auth context and strengthen TypeScript types.
-2. Extract DB changes into formal migration files and add them to `migrations/` (or the project's migration flow).
-3. Wire SponsorManagement and other placeholder UIs to live Supabase data.
-4. Add a small test suite (unit / integration) to validate core behaviors (MapEditor create/delete flows, RPCs).
-5. Consider adding a CONTRIBUTING.md describing local environment secrets and migration practices.
+3.  **Set up environment variables:**
+    -   Copy the example environment file:
+        ```bash
+        cp .env.example .env
+        ```
+    -   Open the new `.env` file and add your Supabase project URL and Anon Key. These can be found in your Supabase project's "API" settings.
+        ```
+        VITE_SUPABASE_URL=https://your-project-id.supabase.co
+        VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+        ```
 
-Where to look for related changes
----------------------------------
-- `src/pages/MapEditorPage.tsx` — many of the edits and temporary casts live here.
-- `src/components/*` — small fixes (named exports) applied to many components to match imports.
-- `postman/NE-DPM-V5-collection.json` — Postman test definitions and placeholders for environment variables.
+4.  **Install dependencies:**
+    ```bash
+    npm install
+    ```
 
-If something's broken when you run dev
--------------------------------------
-- Confirm `.env` values are set and accurate.
-- Ensure the `floorplans` storage bucket exists in Supabase if using storage features.
-- Check the local admin server logs (port 5176) for RPC or admin endpoint errors.
-- If a TS compile error mentions `.id` on `User`, search for `(currentUser as any).id` as a temporary workaround—plan to replace with proper typing.
+5.  **Run the development server:**
+    ```bash
+    npm run dev
+    ```
+    The application will be available at `http://localhost:5173`.
 
-Contact / Notes
----------------
-This README is intended as a developer-facing quickstart specific to the stabilization work done so far. For questions or to hand off next tasks, review the `postman` collection, `src/pages/MapEditorPage.tsx`, and `api/server.ts` first.
+## Key Features & Code Structure
+
+### Core User Flows & Pages
+
+-   **Authentication (`/login`, `/register`):** Handled by `LoginPage.tsx` and `RegisterPage.tsx`, using Supabase Auth.
+-   **Role Selection (`/`):** The `RoleSelectorPage.tsx` is the entry point for new users after login, directing them based on their chosen role ('admin' or 'sponsor').
+-   **Admin Dashboard & Map Editor (`/event/:eventId`):** The `MapEditorPage.tsx` is the primary interface for admins. It allows for:
+    -   Creating new events.
+    -   Uploading a floorplan image via the `ImageUploader.tsx` component.
+    -   Adding, moving, and resizing vendor booths on the canvas.
+    -   Generating unique vendor signup links.
+-   **Vendor Signup (`/vendor-signup`):** The `VendorSignupPage.tsx` allows a user with a valid token from a signup link to create their account.
+-   **Sponsor Dashboard (`/sponsor-dashboard`):** The `SponsorDashboardPage.tsx` displays hard-coded ROI metrics for the MVP.
+
+### Important Directories
+
+-   `src/pages/`: Contains all the top-level page components.
+-   `src/components/`: Contains reusable UI components.
+-   `src/contexts/`: Contains React Context providers, notably `AuthContext.tsx` which manages user sessions and profiles.
+-   `src/lib/`: Contains the Supabase client initialization.
+
+### Supabase Backend
+
+The backend is powered entirely by Supabase:
+
+-   **Auth:** Manages user sign-up and login.
+-   **Database:**
+    -   `profiles`: Stores user data and their role (`admin`, `sponsor`).
+    -   `events`: Stores event information.
+    -   `vendors`: Stores vendor/sponsor data, linked to events.
+-   **Storage:** The `floorplans` bucket stores map images uploaded by admins.
+-   **RPCs (Remote Procedure Calls):** Custom SQL functions are used for security-sensitive operations like creating and verifying vendor signup tokens.
 
 ---
-Last update: 2025-11-05
+*Last updated: 2025-11-10*

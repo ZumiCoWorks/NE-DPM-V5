@@ -12,7 +12,18 @@ if (!supabaseUrl || !supabaseAnonKey) {
   alert("Supabase configuration missing. Check console for details.");
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Ensure the apikey header is always sent; some environments strip headers unexpectedly.
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  global: {
+    headers: {
+      apikey: supabaseAnonKey,
+    },
+  },
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+  },
+});
 
 export async function getPublicUrl(imagePath) {
   // Remove any leading 'public/' if present

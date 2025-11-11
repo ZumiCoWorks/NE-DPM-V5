@@ -1,19 +1,36 @@
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Map } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
+import { supabase } from '@/lib/supabase';
 
 export const EventDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [event, setEvent] = useState<any | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock event data
-  const event = {
-    id: id,
-    name: 'Tech Conference 2024',
-    date: '2024-11-15',
-    venue: 'Convention Center'
-  };
+  useEffect(() => {
+    const loadEvent = async () => {
+      if (!id) return;
+      setLoading(true);
+      setError(null);
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .eq('id', id)
+        .single();
+      if (error) {
+        setError(error.message);
+      } else {
+        setEvent(data);
+      }
+      setLoading(false);
+    };
+    loadEvent();
+  }, [id]);
 
   return (
     <div>
@@ -22,8 +39,17 @@ export const EventDetailPage = () => {
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Events
         </Button>
-        <h1 className="text-3xl mb-2">{event.name}</h1>
-        <p className="text-slate-600">{event.date} • {event.venue}</p>
+        {!loading && !error && event && (
+          <>
+            <h1 className="text-3xl mb-2">{event.name}</h1>
+            <p className="text-slate-600">
+              Created {event.created_at ? new Date(event.created_at).toLocaleDateString() : '—'}
+            </p>
+          </>
+        )}
+        {loading && <p className="text-slate-600">Loading event...</p>}
+        {!loading && error && <p className="text-slate-600">Error: {error}</p>}
+        {!loading && !error && !event && <p className="text-slate-600">Event not found.</p>}
       </div>
 
       <Card>
@@ -38,7 +64,7 @@ export const EventDetailPage = () => {
             <p className="text-slate-600">
               Use the map editor to create an interactive map with points of interest, paths, and sponsor booths.
             </p>
-            <Button onClick={() => navigate(`/events/${id}/editor`)} size="lg">
+            <Button onClick={() => navigate(`/map-editor/${id}`)} size="lg" disabled={!event}>
               <Map className="w-4 h-4 mr-2" />
               Edit Map
             </Button>
