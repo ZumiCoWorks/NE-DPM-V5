@@ -11,6 +11,7 @@ import { DashboardPage } from './pages/DashboardPage'
 import SponsorDashboardPage from './pages/SponsorDashboardPage'
 // Thin integration layer pages
 import QuicketSyncPage from './pages/QuicketSyncPage'
+// @ts-ignore - JSX file without types
 import MapEditorPage from './pages/admin/MapEditor'
 import BoothSetupPage from './pages/BoothSetupPage'
 import ROIDashboardPage from './pages/ROIDashboardPage'
@@ -68,7 +69,7 @@ function App() {
             
             {/* Quicket Sync */}
             <Route path="/quicket-sync" element={
-              <ProtectedRoute roles={['admin', 'event_organizer']}>
+              <ProtectedRoute roles={['admin']}>
                 <Layout>
                   <QuicketSyncPage />
                 </Layout>
@@ -77,7 +78,7 @@ function App() {
             
             {/* Booth Setup */}
             <Route path="/booths" element={
-              <ProtectedRoute roles={['admin', 'event_organizer']}>
+              <ProtectedRoute roles={['admin']}>
                 <Layout>
                   <BoothSetupPage />
                 </Layout>
@@ -86,7 +87,7 @@ function App() {
             
                   {/* ROI Reports */}
                   <Route path="/roi" element={
-                    <ProtectedRoute roles={['admin', 'event_organizer']}>
+                    <ProtectedRoute roles={['admin']}>
                       <Layout>
                         <ROIDashboardPage />
                       </Layout>
@@ -95,7 +96,7 @@ function App() {
                   
                   {/* MVP Setup */}
                   <Route path="/mvp-setup" element={
-                    <ProtectedRoute roles={['admin', 'event_organizer']}>
+                    <ProtectedRoute roles={['admin']}>
                       <Layout>
                         <MVPSetupPage />
                       </Layout>
@@ -104,7 +105,7 @@ function App() {
                   
                   {/* MVP Analytics */}
                   <Route path="/mvp-analytics" element={
-                    <ProtectedRoute roles={['admin', 'event_organizer']}>
+                    <ProtectedRoute roles={['admin']}>
                       <Layout>
                         <MVPAnalyticsPage />
                       </Layout>
@@ -113,7 +114,7 @@ function App() {
 
                   {/* Map Editor (interactive floorplan admin) */}
                   <Route path="/admin/map-editor" element={
-                    <ProtectedRoute roles={["admin", "event_organizer"]}>
+                    <ProtectedRoute roles={["admin"]}>
                       <Layout>
                         <MapEditorPage />
                       </Layout>
@@ -122,21 +123,21 @@ function App() {
 
                   {/* Events */}
                   <Route path="/events" element={
-                    <ProtectedRoute roles={["admin", "event_organizer"]}>
+                    <ProtectedRoute roles={["admin"]}>
                       <Layout>
                         <EventsPage />
                       </Layout>
                     </ProtectedRoute>
                   } />
                   <Route path="/events/create" element={
-                    <ProtectedRoute roles={["admin", "event_organizer"]}>
+                    <ProtectedRoute roles={["admin"]}>
                       <Layout>
                         <CreateEventPage />
                       </Layout>
                     </ProtectedRoute>
                   } />
                   <Route path="/events/:id/edit" element={
-                    <ProtectedRoute roles={["admin", "event_organizer"]}>
+                    <ProtectedRoute roles={["admin"]}>
                       <Layout>
                         <EditEventPage />
                       </Layout>
@@ -145,21 +146,21 @@ function App() {
 
                   {/* Venues */}
                   <Route path="/venues" element={
-                    <ProtectedRoute roles={["admin", "venue_manager"]}>
+                    <ProtectedRoute roles={["admin"]}>
                       <Layout>
                         <VenuesPage />
                       </Layout>
                     </ProtectedRoute>
                   } />
                   <Route path="/venues/create" element={
-                    <ProtectedRoute roles={["admin", "venue_manager"]}>
+                    <ProtectedRoute roles={["admin"]}>
                       <Layout>
                         <CreateVenuePage />
                       </Layout>
                     </ProtectedRoute>
                   } />
                   <Route path="/venues/:id/edit" element={
-                    <ProtectedRoute roles={["admin", "venue_manager"]}>
+                    <ProtectedRoute roles={["admin"]}>
                       <Layout>
                         <EditVenuePage />
                       </Layout>
@@ -168,21 +169,21 @@ function App() {
 
                   {/* AR Campaigns */}
                   <Route path="/ar-campaigns" element={
-                    <ProtectedRoute roles={["admin", "advertiser"]}>
+                    <ProtectedRoute roles={["admin"]}>
                       <Layout>
                         <ARCampaignsPage />
                       </Layout>
                     </ProtectedRoute>
                   } />
                   <Route path="/ar-campaigns/create" element={
-                    <ProtectedRoute roles={["admin", "advertiser"]}>
+                    <ProtectedRoute roles={["admin"]}>
                       <Layout>
                         <CreateARCampaignPage />
                       </Layout>
                     </ProtectedRoute>
                   } />
                   <Route path="/ar-campaigns/:id/edit" element={
-                    <ProtectedRoute roles={["admin", "advertiser"]}>
+                    <ProtectedRoute roles={["admin"]}>
                       <Layout>
                         <EditARCampaignPage />
                       </Layout>

@@ -10,6 +10,8 @@
     ],
     "module": "ESNext",
     "skipLibCheck": true,
+    "allowJs": true,
+    "checkJs": false,
     "moduleResolution": "bundler",
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
@@ -35,7 +37,9 @@
     ]
   },
   "include": [
-    "src",
+    "src"
+  ],
+  "exclude": [
     "api"
   ]
 }

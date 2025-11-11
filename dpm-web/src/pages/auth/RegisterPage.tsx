@@ -13,14 +13,13 @@ export const RegisterPage: React.FC = () => {
     password: '',
     confirmPassword: '',
     fullName: '',
-    role: 'event_organizer' as UserRole,
   })
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   
-  const { user, loading, signUp } = useAuth()
+  const { user, loading, register } = useAuth()
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -74,31 +73,15 @@ export const RegisterPage: React.FC = () => {
     setIsLoading(true)
 
     try {
-      const { error } = await signUp(formData.email, formData.password, {
-        data: {
-          full_name: formData.fullName,
-        },
-        role: formData.role,
-      })
-      
-      if (error) {
-        // `error` may be unknown; coerce safely
-        setError((error as any)?.message || String(error))
-      } else {
-        navigate('/dashboard')
-      }
-    } catch {
-      setError('An unexpected error occurred')
+      await register(formData.email, formData.password, formData.fullName)
+      // After successful registration, user will be redirected to role selector
+      navigate('/role-selector')
+    } catch (err: any) {
+      setError(err?.message || 'An unexpected error occurred')
     } finally {
       setIsLoading(false)
     }
   }
-
-  const roleOptions = [
-    { value: 'event_organizer', label: 'Event Organizer' },
-    { value: 'venue_manager', label: 'Venue Manager' },
-    { value: 'advertiser', label: 'Advertiser' },
-  ]
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -160,26 +143,6 @@ export const RegisterPage: React.FC = () => {
                 className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
                 placeholder="Enter your email"
               />
-            </div>
-            
-            <div>
-              <label htmlFor="role" className="block text-sm font-medium text-gray-700">
-                Role
-              </label>
-              <select
-                id="role"
-                name="role"
-                required
-                value={formData.role}
-                onChange={handleChange}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              >
-                {roleOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
             </div>
             
             <div>

@@ -13,6 +13,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onTabChange }) => {
   const [events, setEvents] = useState<Event[]>([])
   const [venues, setVenues] = useState<Venue[]>([])
   const [loading, setLoading] = useState(true)
+  
+  // Type guard for user
+  const userInfo = user as any
 
   const handleSignOut = async () => {
     await signOut()
@@ -48,7 +51,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onTabChange }) => {
             </div>
             <div className="flex items-center space-x-4">
               <div className="text-sm text-gray-700">
-                Welcome, <span className="font-medium">{user?.full_name}</span>
+                Welcome, <span className="font-medium">{userInfo?.full_name || userInfo?.email || 'User'}</span>
               </div>
               <button
                 onClick={handleSignOut}

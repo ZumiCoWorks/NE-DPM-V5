@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import type { Session, User } from '@supabase/supabase-js'
+import type { Session, User } from '@supabase/auth-js'
 
 // Define a more complete user profile type
 // Lightweight user profile used across the app to avoid strict coupling
@@ -22,7 +22,7 @@ export interface AuthContextType {
   logout: () => Promise<void>
   register: (email: string, password: string, fullName: string) => Promise<void>
   updateProfile: (updates: Partial<Pick<UserProfile, 'full_name' | 'email'>> & Record<string, any>) => Promise<void>
-  updateUserRole: (role: 'event_organizer' | 'venue_manager') => Promise<void>
+  updateUserRole: (role: 'admin' | 'attendee' | 'sponsor' | 'staff') => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -36,13 +36,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const getProfileAndSetUser = async (user: User) => {
     try {
       const { data: profile } = await supabase
-        .from('users')
-        .select('role, full_name')
+        .from('profiles')
+        .select('role, first_name, last_name')
         .eq('id', user.id)
         .single()
       
       if (profile) {
-        setUser({ ...user, role: profile.role, full_name: profile.full_name })
+        const full_name = profile.first_name && profile.last_name 
+          ? `${profile.first_name} ${profile.last_name}`
+          : profile.first_name || profile.last_name || user.email?.split('@')[0] || 'User'
+        setUser({ ...user, role: profile.role, full_name })
       } else {
         // No profile, just set the user.
         // The ProtectedRoute will force role selection.
@@ -59,7 +62,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     setLoading(true)
     // 1. Get the initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data }: { data: { session: Session | null } }) => {
+      const session = data.session
       setSession(session)
       const currentUser = session?.user ?? null
       if (currentUser) {
@@ -71,7 +75,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       // 3. Listen for future auth state changes
       const { data: authListener } = supabase.auth.onAuthStateChange(
-        async (event, session) => {
+        async (_event: string, session: Session | null) => {
           setLoading(true)
           setSession(session)
           const newCurrentUser = session?.user ?? null
@@ -123,43 +127,55 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }
 
   // Function to set role *after* signup (for RoleSelectorPage)
-  const updateUserRole = async (role: 'event_organizer' | 'venue_manager') => {
+  const updateUserRole = async (role: 'admin' | 'attendee' | 'sponsor' | 'staff') => {
     if (!user) throw new Error("No user logged in")
 
-    // 1. Update the 'users' table (or create entry)
+    // 1. Update the 'profiles' table (or create entry)
     const { data, error } = await supabase
-      .from('users')
-      .upsert({ id: user.id, role: role, email: user.email!, updated_at: new Date().toISOString() })
+      .from('profiles')
+      .upsert({ id: user.id, role: role, email: user.email! })
       .select()
       .single()
 
     if (error) throw error
 
     // 2. Update the role on the user object in context
-    setUser({ ...user, role: data.role })
+    const full_name = user.full_name || user.email?.split('@')[0] || 'User'
+    setUser({ ...user, role: data.role, full_name })
   }
 
-  // Update profile details in the 'users' table and reflect in context
+  // Update profile details in the 'profiles' table and reflect in context
   const updateProfile = async (
     updates: Partial<Pick<UserProfile, 'full_name' | 'email'>> & Record<string, any>
   ) => {
     if (!user) throw new Error('No user logged in')
 
-    const payload = {
+    // Extract first_name and last_name from full_name if provided
+    let payload: any = {
       id: user.id,
       ...updates,
-      updated_at: new Date().toISOString(),
+    }
+    
+    if (updates.full_name) {
+      const nameParts = updates.full_name.split(' ')
+      payload.first_name = nameParts[0]
+      payload.last_name = nameParts.slice(1).join(' ') || nameParts[0]
+      delete payload.full_name
     }
 
     const { data, error } = await supabase
-      .from('users')
+      .from('profiles')
       .upsert(payload, { onConflict: 'id' })
-      .select('full_name, role, email')
+      .select('first_name, last_name, role, email')
       .single()
 
     if (error) throw error
 
-    setUser({ ...user, full_name: data.full_name ?? user.full_name, role: data.role ?? user.role, email: data.email ?? user.email })
+    const full_name = data.first_name && data.last_name 
+      ? `${data.first_name} ${data.last_name}`
+      : data.first_name || data.last_name || user.full_name
+
+    setUser({ ...user, full_name, role: data.role ?? user.role, email: data.email ?? user.email })
   }
 
   const value = {

@@ -47,8 +47,8 @@ export const DashboardPage: React.FC = () => {
     const activities: RecentActivity[] = []
 
     try {
-      // Fetch recent events
-      if (user.role === 'admin' || user.role === 'event_organizer') {
+      // Fetch recent events (admin only)
+      if (user.role === 'admin') {
         const { data: events } = await supabase
           .from('events')
           .select('id, name, description, created_at')
@@ -64,50 +64,6 @@ export const DashboardPage: React.FC = () => {
               title: event.name,
               description: event.description || 'No description',
               created_at: event.created_at,
-            }))
-          )
-        }
-      }
-
-      // Fetch recent venues
-      if (user.role === 'admin' || user.role === 'venue_manager') {
-        const { data: venues } = await supabase
-          .from('venues')
-          .select('id, name, description, created_at')
-          .order('created_at', { ascending: false })
-          .limit(3)
-
-        if (venues) {
-          type VenueRow = { id: string; name: string; description?: string | null; created_at: string }
-          activities.push(
-            ...(venues as VenueRow[]).map((venue) => ({
-              id: venue.id,
-              type: 'venue' as const,
-              title: venue.name,
-              description: venue.description || 'No description',
-              created_at: venue.created_at,
-            }))
-          )
-        }
-      }
-
-      // Fetch recent campaigns
-      if (user.role === 'admin' || user.role === 'advertiser') {
-        const { data: campaigns } = await supabase
-          .from('ar_advertisements')
-          .select('id, title, created_at')
-          .order('created_at', { ascending: false })
-          .limit(3)
-
-        if (campaigns) {
-          type CampaignRow = { id: string; title: string; created_at: string }
-          activities.push(
-            ...(campaigns as CampaignRow[]).map((campaign) => ({
-              id: campaign.id,
-              type: 'campaign' as const,
-              title: campaign.title,
-              description: 'AR Advertisement Campaign',
-              created_at: campaign.created_at,
             }))
           )
         }
@@ -131,39 +87,12 @@ export const DashboardPage: React.FC = () => {
       // Fetch stats based on user role
       const statsPromises = []
       
-      if (user.role === 'admin' || user.role === 'event_organizer') {
+      if (user.role === 'admin') {
         statsPromises.push(
           supabase
             .from('events')
             .select('id', { count: 'exact' })
             .then(({ count }: { count: number | null }) => ({ totalEvents: count || 0 }))
-        )
-      }
-      
-      if (user.role === 'admin' || user.role === 'venue_manager') {
-        statsPromises.push(
-          supabase
-            .from('venues')
-            .select('id', { count: 'exact' })
-            .then(({ count }: { count: number | null }) => ({ totalVenues: count || 0 }))
-        )
-      }
-      
-      if (user.role === 'admin' || user.role === 'advertiser') {
-        statsPromises.push(
-          supabase
-            .from('ar_advertisements')
-            .select('id', { count: 'exact' })
-            .then(({ count }: { count: number | null }) => ({ totalCampaigns: count || 0 }))
-        )
-      }
-      
-      if (user.role === 'admin') {
-        statsPromises.push(
-          supabase
-            .from('users')
-            .select('id', { count: 'exact' })
-            .then(({ count }: { count: number | null }) => ({ totalUsers: count || 0 }))
         )
       }
 
@@ -195,7 +124,7 @@ export const DashboardPage: React.FC = () => {
   const getQuickActions = () => {
     const actions = []
     
-    if (user?.role === 'admin' || user?.role === 'event_organizer') {
+    if (user?.role === 'admin') {
       actions.push({
         title: 'Create Event',
         description: 'Set up a new event',
@@ -203,25 +132,39 @@ export const DashboardPage: React.FC = () => {
         icon: Calendar,
         color: 'bg-blue-500',
       })
-    }
-    
-    if (user?.role === 'admin' || user?.role === 'venue_manager') {
       actions.push({
-        title: 'Add Venue',
-        description: 'Register a new venue',
-        href: '/venues/create',
+        title: 'Map Editor',
+        description: 'Edit floorplan and QR codes',
+        href: '/admin/map-editor',
         icon: MapPin,
         color: 'bg-green-500',
       })
+      actions.push({
+        title: 'Settings',
+        description: 'Configure Quicket API',
+        href: '/settings',
+        icon: Users,
+        color: 'bg-purple-500',
+      })
     }
     
-    if (user?.role === 'admin' || user?.role === 'advertiser') {
+    if (user?.role === 'staff' || user?.role === 'admin') {
       actions.push({
-        title: 'Create Campaign',
-        description: 'Launch AR advertisement',
-        href: '/ar-campaigns/create',
+        title: 'Lead Scanner',
+        description: 'Scan and capture leads',
+        href: '/staff-scanner',
         icon: Megaphone,
-        color: 'bg-purple-500',
+        color: 'bg-orange-500',
+      })
+    }
+    
+    if (user?.role === 'sponsor') {
+      actions.push({
+        title: 'My Leads',
+        description: 'View captured leads',
+        href: '/sponsor',
+        icon: Users,
+        color: 'bg-indigo-500',
       })
     }
     
@@ -263,7 +206,7 @@ export const DashboardPage: React.FC = () => {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        {(user?.role === 'admin' || user?.role === 'event_organizer') && (
+        {user?.role === 'admin' && (
           <div className="bg-white overflow-hidden shadow rounded-lg">
             <div className="p-5">
               <div className="flex items-center">
@@ -277,72 +220,6 @@ export const DashboardPage: React.FC = () => {
                     </dt>
                     <dd className="text-lg font-medium text-gray-900">
                       {stats.totalEvents}
-                    </dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {(user?.role === 'admin' || user?.role === 'venue_manager') && (
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <MapPin className="h-6 w-6 text-gray-400" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">
-                      Total Venues
-                    </dt>
-                    <dd className="text-lg font-medium text-gray-900">
-                      {stats.totalVenues}
-                    </dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {(user?.role === 'admin' || user?.role === 'advertiser') && (
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <Megaphone className="h-6 w-6 text-gray-400" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">
-                      AR Campaigns
-                    </dt>
-                    <dd className="text-lg font-medium text-gray-900">
-                      {stats.totalCampaigns}
-                    </dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {user?.role === 'admin' && (
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <Users className="h-6 w-6 text-gray-400" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">
-                      Total Users
-                    </dt>
-                    <dd className="text-lg font-medium text-gray-900">
-                      {stats.totalUsers}
                     </dd>
                   </dl>
                 </div>

@@ -5,7 +5,7 @@ import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 
-type Role = 'event_organizer' | 'venue_manager'
+type Role = 'admin' | 'staff' | 'sponsor'
 
 export const RoleSelectorPage = () => {
   const { user, updateUserRole } = useAuth()
@@ -32,7 +32,7 @@ export const RoleSelectorPage = () => {
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-gray-900">Select Your Role</h1>
             <p className="mt-1 text-sm text-gray-600">
-              Choose how you'll be using the platform. This can be changed later.
+              Choose your role for the DPM platform. This determines your access level.
             </p>
           </div>
           <div className="space-y-4">
@@ -44,22 +44,32 @@ export const RoleSelectorPage = () => {
             <Button
               size="lg"
               variant="outline"
-              onClick={() => handleRoleSelect('event_organizer')}
+              onClick={() => handleRoleSelect('admin')}
               disabled={loading}
               className="w-full"
             >
               {loading ? <LoadingSpinner size="sm" className="mr-2" /> : null}
-              Event Organizer
+              Event Admin
             </Button>
             <Button
               size="lg"
               variant="outline"
-              onClick={() => handleRoleSelect('venue_manager')}
+              onClick={() => handleRoleSelect('staff')}
               disabled={loading}
               className="w-full"
             >
               {loading ? <LoadingSpinner size="sm" className="mr-2" /> : null}
-              Venue Manager
+              Staff
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              onClick={() => handleRoleSelect('sponsor')}
+              disabled={loading}
+              className="w-full"
+            >
+              {loading ? <LoadingSpinner size="sm" className="mr-2" /> : null}
+              Sponsor
             </Button>
           </div>
         </div>

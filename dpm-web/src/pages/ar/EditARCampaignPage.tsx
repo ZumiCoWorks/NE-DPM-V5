@@ -84,7 +84,7 @@ export const EditARCampaignPage: React.FC = () => {
       if (error) throw error
 
       // Check if user has permission to edit this campaign
-      if (profile?.role !== 'admin' && data.advertiser_id !== profile?.id) {
+      if (user?.role !== 'admin' && data.advertiser_id !== user?.id) {
         toast.error('You do not have permission to edit this campaign')
         navigate('/ar-campaigns')
         return
@@ -103,7 +103,7 @@ export const EditARCampaignPage: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [id, profile?.role, profile?.id, navigate])
+  }, [id, user?.role, user?.id, navigate])
 
   const fetchVenues = useCallback(async () => {
     try {

@@ -29,6 +29,7 @@ interface FormErrors {
   end_date?: string
   venue_id?: string
   max_attendees?: string
+  status?: string
   general?: string
 }
 

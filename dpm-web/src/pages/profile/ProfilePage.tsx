@@ -182,15 +182,17 @@ export const ProfilePage: React.FC = () => {
               <div className="mt-2 flex items-center space-x-4">
                 <span className={cn(
                   'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
-                  getRoleColor(user.role)
+                  getRoleColor(user.role || '')
                 )}>
                   <Shield className="h-3 w-3 mr-1" />
-                  {getRoleDisplayName(user.role)}
+                  {getRoleDisplayName(user.role || '')}
                 </span>
-                <span className="text-sm text-gray-500">
-                  <Calendar className="h-4 w-4 inline mr-1" />
-                  Joined {new Date(user.created_at).toLocaleDateString()}
-                </span>
+                {user.created_at && (
+                  <span className="text-sm text-gray-500">
+                    <Calendar className="h-4 w-4 inline mr-1" />
+                    Joined {new Date(user.created_at).toLocaleDateString()}
+                  </span>
+                )}
               </div>
             </div>
           </div>
