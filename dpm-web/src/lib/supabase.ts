@@ -67,10 +67,10 @@ if (supabase && typeof window !== 'undefined') {
   // eslint-disable-next-line no-console
   console.log('LOG: Supabase: registering onAuthStateChange listener')
 
-  supabase.auth.onAuthStateChange((event, session) => {
+  supabase.auth.onAuthStateChange((_event: string, _session: any) => {
     // eslint-disable-next-line no-console
-    console.log('LOG: Supabase auth event:', event, session ? 'session exists' : 'no session')
-    if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
+    console.log('LOG: Supabase auth event:', _event, _session ? 'session exists' : 'no session')
+    if (_event === 'SIGNED_OUT' || _event === 'USER_DELETED') {
       // Clear any client-side state if necessary and redirect to login
       try {
         // eslint-disable-next-line no-console
