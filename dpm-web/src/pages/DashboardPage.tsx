@@ -56,8 +56,9 @@ export const DashboardPage: React.FC = () => {
           .limit(3)
 
         if (events) {
+          type EventRow = { id: string; name: string; description?: string | null; created_at: string }
           activities.push(
-            ...events.map((event) => ({
+            ...(events as EventRow[]).map((event) => ({
               id: event.id,
               type: 'event' as const,
               title: event.name,
@@ -77,8 +78,9 @@ export const DashboardPage: React.FC = () => {
           .limit(3)
 
         if (venues) {
+          type VenueRow = { id: string; name: string; description?: string | null; created_at: string }
           activities.push(
-            ...venues.map((venue) => ({
+            ...(venues as VenueRow[]).map((venue) => ({
               id: venue.id,
               type: 'venue' as const,
               title: venue.name,
@@ -98,8 +100,9 @@ export const DashboardPage: React.FC = () => {
           .limit(3)
 
         if (campaigns) {
+          type CampaignRow = { id: string; title: string; created_at: string }
           activities.push(
-            ...campaigns.map((campaign) => ({
+            ...(campaigns as CampaignRow[]).map((campaign) => ({
               id: campaign.id,
               type: 'campaign' as const,
               title: campaign.title,
@@ -117,7 +120,7 @@ export const DashboardPage: React.FC = () => {
     } catch (error) {
       console.error('Error fetching recent activity:', error)
     }
-  }, [profile])
+  }, [user])
 
   const fetchDashboardData = useCallback(async () => {
     if (!user) return
@@ -133,7 +136,7 @@ export const DashboardPage: React.FC = () => {
           supabase
             .from('events')
             .select('id', { count: 'exact' })
-            .then(({ count }) => ({ totalEvents: count || 0 }))
+            .then(({ count }: { count: number | null }) => ({ totalEvents: count || 0 }))
         )
       }
       
@@ -142,7 +145,7 @@ export const DashboardPage: React.FC = () => {
           supabase
             .from('venues')
             .select('id', { count: 'exact' })
-            .then(({ count }) => ({ totalVenues: count || 0 }))
+            .then(({ count }: { count: number | null }) => ({ totalVenues: count || 0 }))
         )
       }
       
@@ -151,7 +154,7 @@ export const DashboardPage: React.FC = () => {
           supabase
             .from('ar_advertisements')
             .select('id', { count: 'exact' })
-            .then(({ count }) => ({ totalCampaigns: count || 0 }))
+            .then(({ count }: { count: number | null }) => ({ totalCampaigns: count || 0 }))
         )
       }
       
@@ -160,7 +163,7 @@ export const DashboardPage: React.FC = () => {
           supabase
             .from('users')
             .select('id', { count: 'exact' })
-            .then(({ count }) => ({ totalUsers: count || 0 }))
+            .then(({ count }: { count: number | null }) => ({ totalUsers: count || 0 }))
         )
       }
 
@@ -192,7 +195,7 @@ export const DashboardPage: React.FC = () => {
   const getQuickActions = () => {
     const actions = []
     
-    if (profile?.role === 'admin' || profile?.role === 'event_organizer') {
+    if (user?.role === 'admin' || user?.role === 'event_organizer') {
       actions.push({
         title: 'Create Event',
         description: 'Set up a new event',
@@ -202,7 +205,7 @@ export const DashboardPage: React.FC = () => {
       })
     }
     
-    if (profile?.role === 'admin' || profile?.role === 'venue_manager') {
+    if (user?.role === 'admin' || user?.role === 'venue_manager') {
       actions.push({
         title: 'Add Venue',
         description: 'Register a new venue',
@@ -212,7 +215,7 @@ export const DashboardPage: React.FC = () => {
       })
     }
     
-    if (profile?.role === 'admin' || profile?.role === 'advertiser') {
+    if (user?.role === 'admin' || user?.role === 'advertiser') {
       actions.push({
         title: 'Create Campaign',
         description: 'Launch AR advertisement',
@@ -251,16 +254,16 @@ export const DashboardPage: React.FC = () => {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">
-          Welcome back, {profile?.full_name || 'User'}!
+          Welcome back, {user?.full_name || 'User'}!
         </h1>
         <p className="mt-1 text-sm text-gray-500 capitalize">
-          {profile?.role?.replace('_', ' ')} Dashboard
+          {user?.role?.replace('_', ' ')} Dashboard
         </p>
       </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        {(profile?.role === 'admin' || profile?.role === 'event_organizer') && (
+        {(user?.role === 'admin' || user?.role === 'event_organizer') && (
           <div className="bg-white overflow-hidden shadow rounded-lg">
             <div className="p-5">
               <div className="flex items-center">
@@ -282,7 +285,7 @@ export const DashboardPage: React.FC = () => {
           </div>
         )}
 
-        {(profile?.role === 'admin' || profile?.role === 'venue_manager') && (
+        {(user?.role === 'admin' || user?.role === 'venue_manager') && (
           <div className="bg-white overflow-hidden shadow rounded-lg">
             <div className="p-5">
               <div className="flex items-center">
@@ -304,7 +307,7 @@ export const DashboardPage: React.FC = () => {
           </div>
         )}
 
-        {(profile?.role === 'admin' || profile?.role === 'advertiser') && (
+        {(user?.role === 'admin' || user?.role === 'advertiser') && (
           <div className="bg-white overflow-hidden shadow rounded-lg">
             <div className="p-5">
               <div className="flex items-center">
@@ -326,7 +329,7 @@ export const DashboardPage: React.FC = () => {
           </div>
         )}
 
-        {profile?.role === 'admin' && (
+        {user?.role === 'admin' && (
           <div className="bg-white overflow-hidden shadow rounded-lg">
             <div className="p-5">
               <div className="flex items-center">

@@ -48,14 +48,26 @@ export const RegisterPage: React.FC = () => {
     e.preventDefault()
     setError('')
 
+    // Email validation (simple, fast, MVP-friendly)
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
+    const email = formData.email.trim()
+    if (!emailRegex.test(email)) {
+      setError('Please enter a valid email address')
+      return
+    }
+
     // Validation
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match')
       return
     }
 
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters long')
+    // Password validation (keep it simple; stronger rules can come later)
+    const pwd = formData.password
+    const hasMinLength = pwd.length >= 8
+    const hasNumber = /\d/.test(pwd)
+    if (!hasMinLength || !hasNumber) {
+      setError('Password must be at least 8 characters and include a number')
       return
     }
 

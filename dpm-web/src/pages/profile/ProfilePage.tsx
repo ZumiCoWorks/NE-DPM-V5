@@ -26,16 +26,16 @@ interface ProfileFormData {
 }
 
 export const ProfilePage: React.FC = () => {
-  const { user, profile, updateProfile } = useAuth()
+  const { user, updateProfile } = useAuth()
   const [isEditing, setIsEditing] = useState(false)
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState<ProfileFormData>({
-    full_name: (profile?.full_name as string) || '',
+    full_name: (user?.full_name as string) || '',
     email: (user?.email as string) || '',
-    phone: (profile?.phone as string) || '',
-    company: (profile?.company as string) || '',
-    address: (profile?.address as string) || '',
-    bio: (profile?.bio as string) || '',
+    phone: (user?.phone as string) || '',
+    company: (user?.company as string) || '',
+    address: (user?.address as string) || '',
+    bio: (user?.bio as string) || '',
   })
   const [errors, setErrors] = useState<Partial<ProfileFormData>>({})
 
@@ -82,12 +82,12 @@ export const ProfilePage: React.FC = () => {
 
   const handleCancel = () => {
     setFormData({
-      full_name: profile?.full_name || '',
+      full_name: user?.full_name || '',
       email: user?.email || '',
-      phone: profile?.phone || '',
-      company: profile?.company || '',
-      address: profile?.address || '',
-      bio: profile?.bio || '',
+      phone: user?.phone || '',
+      company: user?.company || '',
+      address: user?.address || '',
+      bio: user?.bio || '',
     })
     setErrors({})
     setIsEditing(false)
@@ -123,7 +123,7 @@ export const ProfilePage: React.FC = () => {
     }
   }
 
-  if (!user || !profile) {
+  if (!user) {
     return (
       <div className="flex items-center justify-center h-64">
         <LoadingSpinner size="lg" />
@@ -160,10 +160,10 @@ export const ProfilePage: React.FC = () => {
           <div className="flex items-center space-x-6">
             <div className="relative">
               <div className="h-24 w-24 rounded-full bg-gray-200 flex items-center justify-center">
-                {profile.avatar_url ? (
+                {user?.avatar_url ? (
                   <img
-                    src={profile.avatar_url}
-                    alt={profile.full_name || 'Profile picture'}
+                    src={user.avatar_url}
+                    alt={user.full_name || 'Profile picture'}
                     className="h-24 w-24 rounded-full object-cover"
                   />
                 ) : (
@@ -177,19 +177,19 @@ export const ProfilePage: React.FC = () => {
               )}
             </div>
             <div className="flex-1">
-              <h2 className="text-xl font-bold text-gray-900">{profile.full_name}</h2>
+              <h2 className="text-xl font-bold text-gray-900">{user.full_name}</h2>
               <p className="text-sm text-gray-500">{String(user.email)}</p>
               <div className="mt-2 flex items-center space-x-4">
                 <span className={cn(
                   'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
-                  getRoleColor(profile.role)
+                  getRoleColor(user.role)
                 )}>
                   <Shield className="h-3 w-3 mr-1" />
-                  {getRoleDisplayName(profile.role)}
+                  {getRoleDisplayName(user.role)}
                 </span>
                 <span className="text-sm text-gray-500">
                   <Calendar className="h-4 w-4 inline mr-1" />
-                  Joined {new Date(profile.created_at).toLocaleDateString()}
+                  Joined {new Date(user.created_at).toLocaleDateString()}
                 </span>
               </div>
             </div>
@@ -218,7 +218,7 @@ export const ProfilePage: React.FC = () => {
                   type="text"
                   id="full_name"
                   value={formData.full_name}
-                  onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, full_name: e.target.value })}
                   disabled={!isEditing}
                   className={cn(
                     'block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500',
@@ -244,7 +244,7 @@ export const ProfilePage: React.FC = () => {
                   type="email"
                   id="email"
                   value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, email: e.target.value })}
                   disabled={true} // Email cannot be changed
                   className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 bg-gray-50 text-gray-500"
                   placeholder="Enter your email address"
@@ -392,25 +392,25 @@ export const ProfilePage: React.FC = () => {
             <div>
               <dt className="text-sm font-medium text-gray-500">Account Created</dt>
               <dd className="mt-1 text-sm text-gray-900">
-                {new Date(profile.created_at).toLocaleDateString('en-US', {
+                {user?.created_at ? new Date(user.created_at).toLocaleDateString('en-US', {
                   year: 'numeric',
                   month: 'long',
                   day: 'numeric',
                   hour: '2-digit',
                   minute: '2-digit',
-                })}
+                }) : '—'}
               </dd>
             </div>
             <div>
               <dt className="text-sm font-medium text-gray-500">Last Updated</dt>
               <dd className="mt-1 text-sm text-gray-900">
-                {new Date(profile.updated_at).toLocaleDateString('en-US', {
+                {user && (user as any).updated_at ? new Date((user as any).updated_at).toLocaleDateString('en-US', {
                   year: 'numeric',
                   month: 'long',
                   day: 'numeric',
                   hour: '2-digit',
                   minute: '2-digit',
-                })}
+                }) : '—'}
               </dd>
             </div>
             <div>

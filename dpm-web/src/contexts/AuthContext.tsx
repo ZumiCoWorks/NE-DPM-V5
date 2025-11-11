@@ -1,11 +1,17 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { Session, User } from '@supabase/supabase-js'
+import type { Session, User } from '@supabase/supabase-js'
 
 // Define a more complete user profile type
-export interface UserProfile extends User {
+// Lightweight user profile used across the app to avoid strict coupling
+// with Supabase's types while we stabilize the schema.
+export interface UserProfile {
+  id: string
+  email?: string
   role?: string
   full_name?: string
+  created_at?: string
+  [key: string]: any
 }
 
 export interface AuthContextType {
@@ -15,6 +21,7 @@ export interface AuthContextType {
   login: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
   register: (email: string, password: string, fullName: string) => Promise<void>
+  updateProfile: (updates: Partial<Pick<UserProfile, 'full_name' | 'email'>> & Record<string, any>) => Promise<void>
   updateUserRole: (role: 'event_organizer' | 'venue_manager') => Promise<void>
 }
 
@@ -28,7 +35,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // Helper function to get user profile and set role
   const getProfileAndSetUser = async (user: User) => {
     try {
-      const { data: profile, error } = await supabase
+      const { data: profile } = await supabase
         .from('users')
         .select('role, full_name')
         .eq('id', user.id)
@@ -87,7 +94,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, [])
 
   const login = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
@@ -96,7 +103,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }
 
   const register = async (email: string, password: string, fullName: string) => {
-    const { data, error } = await supabase.auth.signUp({
+    const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -132,6 +139,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setUser({ ...user, role: data.role })
   }
 
+  // Update profile details in the 'users' table and reflect in context
+  const updateProfile = async (
+    updates: Partial<Pick<UserProfile, 'full_name' | 'email'>> & Record<string, any>
+  ) => {
+    if (!user) throw new Error('No user logged in')
+
+    const payload = {
+      id: user.id,
+      ...updates,
+      updated_at: new Date().toISOString(),
+    }
+
+    const { data, error } = await supabase
+      .from('users')
+      .upsert(payload, { onConflict: 'id' })
+      .select('full_name, role, email')
+      .single()
+
+    if (error) throw error
+
+    setUser({ ...user, full_name: data.full_name ?? user.full_name, role: data.role ?? user.role, email: data.email ?? user.email })
+  }
+
   const value = {
     user,
     session,
@@ -139,6 +169,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     login,
     logout,
     register,
+    updateProfile,
     updateUserRole,
   }
 

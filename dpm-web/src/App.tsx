@@ -21,6 +21,16 @@ import { ProfilePage } from "./pages/profile/ProfilePage"
 import { SettingsPage } from './pages/SettingsPage'
 import { StaffScannerPage } from './pages/StaffScannerPage'
 import { NotFoundPage } from './pages/NotFoundPage'
+// Core CRUD pages
+import { EventsPage } from './pages/events/EventsPage'
+import { CreateEventPage } from './pages/events/CreateEventPage'
+import { EditEventPage } from './pages/events/EditEventPage'
+import { VenuesPage } from './pages/venues/VenuesPage'
+import { CreateVenuePage } from './pages/venues/CreateVenuePage'
+import { EditVenuePage } from './pages/venues/EditVenuePage'
+import { ARCampaignsPage } from './pages/ar/ARCampaignsPage'
+import { CreateARCampaignPage } from './pages/ar/CreateARCampaignPage'
+import { EditARCampaignPage } from './pages/ar/EditARCampaignPage'
 
 function App() {
   // Diagnostic log to confirm the App component is mounted and rendering
@@ -106,6 +116,75 @@ function App() {
                     <ProtectedRoute roles={["admin", "event_organizer"]}>
                       <Layout>
                         <MapEditorPage />
+                      </Layout>
+                    </ProtectedRoute>
+                  } />
+
+                  {/* Events */}
+                  <Route path="/events" element={
+                    <ProtectedRoute roles={["admin", "event_organizer"]}>
+                      <Layout>
+                        <EventsPage />
+                      </Layout>
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/events/create" element={
+                    <ProtectedRoute roles={["admin", "event_organizer"]}>
+                      <Layout>
+                        <CreateEventPage />
+                      </Layout>
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/events/:id/edit" element={
+                    <ProtectedRoute roles={["admin", "event_organizer"]}>
+                      <Layout>
+                        <EditEventPage />
+                      </Layout>
+                    </ProtectedRoute>
+                  } />
+
+                  {/* Venues */}
+                  <Route path="/venues" element={
+                    <ProtectedRoute roles={["admin", "venue_manager"]}>
+                      <Layout>
+                        <VenuesPage />
+                      </Layout>
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/venues/create" element={
+                    <ProtectedRoute roles={["admin", "venue_manager"]}>
+                      <Layout>
+                        <CreateVenuePage />
+                      </Layout>
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/venues/:id/edit" element={
+                    <ProtectedRoute roles={["admin", "venue_manager"]}>
+                      <Layout>
+                        <EditVenuePage />
+                      </Layout>
+                    </ProtectedRoute>
+                  } />
+
+                  {/* AR Campaigns */}
+                  <Route path="/ar-campaigns" element={
+                    <ProtectedRoute roles={["admin", "advertiser"]}>
+                      <Layout>
+                        <ARCampaignsPage />
+                      </Layout>
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/ar-campaigns/create" element={
+                    <ProtectedRoute roles={["admin", "advertiser"]}>
+                      <Layout>
+                        <CreateARCampaignPage />
+                      </Layout>
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/ar-campaigns/:id/edit" element={
+                    <ProtectedRoute roles={["admin", "advertiser"]}>
+                      <Layout>
+                        <EditARCampaignPage />
                       </Layout>
                     </ProtectedRoute>
                   } />
