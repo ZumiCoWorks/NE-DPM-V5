@@ -33,21 +33,17 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to="/login" state={{ from: location }} replace />
   }
 
+  if (requireAuth && user && !profile?.role) {
+    // User is authenticated but has no role, send to role selector
+    return <Navigate to="/role-selector" replace />
+  }
+
   if (roles && roles.length > 0 && profile) {
     // Check if user has required role
     if (!roles.includes(profile.role)) {
       // Redirect to dashboard if user doesn't have required role
       return <Navigate to="/dashboard" replace />
     }
-  }
-
-  if (requireAuth && !profile) {
-    // User is authenticated but profile is not loaded yet
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <LoadingSpinner size="lg" />
-      </div>
-    )
   }
 
   return <>{children}</>

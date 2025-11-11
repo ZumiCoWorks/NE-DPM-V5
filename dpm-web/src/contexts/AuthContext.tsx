@@ -1,28 +1,25 @@
-import React, { createContext, useContext, useEffect, useRef, useState } from 'react'
-// Use looser local types here to avoid tight coupling to supabase-js types in the app bundle
-// and to keep the client-side context resilient during incremental typing cleanup.
-// Phase A: provide minimal shapes for Supabase types to avoid widespread `any` while
-// keeping runtime behavior stable. Phase B will replace these with concrete Supabase types.
-type SupabaseUser = { id?: string; [k: string]: unknown } | null
-type SupabaseSession = { user?: { id?: string; [k: string]: unknown } | null } | null
-type SupabaseAuthError = unknown
-type SupabasePostgrestError = unknown
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
+import { Session, User } from '@supabase/supabase-js'
 import type { Database } from '../types/database'
 
 type UserProfile = Database['public']['Tables']['users']['Row']
 
-interface AuthContextType {
-  user: SupabaseUser | null
+// Define a more complete user profile type
+export interface UserProfileExtended extends User {
+  role?: UserProfile['role']
+  full_name?: string
+}
+
+export interface AuthContextType {
+  user: UserProfileExtended | null
   profile: UserProfile | null
-  session: SupabaseSession | null
+  session: Session | null
   loading: boolean
-  signIn: (email: string, password: string) => Promise<{ error: SupabaseAuthError | null }>
-  signUp: (email: string, password: string, options?: any) => Promise<{ error: SupabaseAuthError | SupabasePostgrestError | Error | null }>
-  signOut: () => Promise<void>
-  updateProfile: (updates: Partial<UserProfile>) => Promise<{ error: SupabasePostgrestError | Error | null }>
-  hasRole: (role: UserProfile['role']) => boolean
-  hasAnyRole: (roles: UserProfile['role'][]) => boolean
+  login: (email: string, password: string) => Promise<void>
+  logout: () => Promise<void>
+  register: (email: string, password: string, fullName: string) => Promise<void>
+  updateUserRole: (role: UserProfile['role']) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -35,244 +32,164 @@ export const useAuth = () => {
   return context
 }
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<SupabaseUser | null>(null)
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  const [user, setUser] = useState<UserProfileExtended | null>(null)
   const [profile, setProfile] = useState<UserProfile | null>(null)
-  const [session, setSession] = useState<SupabaseSession | null>(null)
+  const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
-  // keep track of previous user id to detect session removal events
-  const prevUserRef = useRef<string | null>(null)
+
+  const createUserProfile = useCallback(async (authUser: User) => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .insert({
+          id: authUser.id,
+          email: authUser.email!,
+          full_name: authUser.user_metadata?.full_name || null,
+          role: 'event_organizer', // Default role
+        })
+        .select()
+        .single()
+
+      if (error) {
+        console.error('Error creating user profile:', error)
+        setProfile(null)
+      } else if (data) {
+        console.log('User profile created successfully')
+        setProfile(data)
+        setUser({ ...authUser, role: data.role, full_name: data.full_name || undefined })
+      }
+    } catch (error) {
+      console.error('Error creating user profile:', error)
+      setProfile(null)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  // Helper function to get user profile and set role
+  const getProfileAndSetUser = useCallback(async (authUser: User) => {
+    try {
+      const { data: userProfile, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', authUser.id)
+        .single()
+      
+      if (userProfile) {
+        setProfile(userProfile)
+        setUser({ ...authUser, role: userProfile.role, full_name: userProfile.full_name || undefined })
+      } else if (error?.code === 'PGRST116') {
+        // No profile exists, create one
+        await createUserProfile(authUser)
+      } else {
+        // No profile, just set the user.
+        // The ProtectedRoute will force role selection.
+        setUser(authUser)
+        setProfile(null)
+      }
+    } catch (error) {
+      console.error('Error fetching profile:', error)
+      setUser(authUser) // Still set the user
+      setProfile(null)
+    } finally {
+      setLoading(false)
+    }
+  }, [createUserProfile])
 
   useEffect(() => {
-    // Diagnostic: confirm the auth context mount and session flow
-    // eslint-disable-next-line no-console
-    console.log('LOG: AuthContext: useEffect[] is running.')
-
-    // eslint-disable-next-line no-console
-    console.log('LOG: AuthContext: Trying to get session...')
-    // Get initial session
+    setLoading(true)
+    // 1. Get the initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      // eslint-disable-next-line no-console
-      console.log('LOG: AuthContext: Session data received:', session ? 'Session exists' : 'No session')
       setSession(session)
-      setUser(session?.user ?? null)
-      if (session?.user) {
-        fetchUserProfile(session.user.id)
+      const currentUser = session?.user ?? null
+      if (currentUser) {
+        // 2. If session exists, get profile
+        getProfileAndSetUser(currentUser)
       } else {
-        // eslint-disable-next-line no-console
-        console.log('LOG: AuthContext: Setting loading state to false.')
         setLoading(false)
       }
     })
 
-    // Listen for auth changes
-    // Keep a ref of the last known user id so we can detect when the session is removed
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      // eslint-disable-next-line no-console
-      console.log('LOG: AuthContext: onAuthStateChange event:', event, session ? 'session exists' : 'no session')
-      // If session becomes null but we previously had a user, this likely means
-      // the session was cleared (refresh failure or sign out). In that case we
-      // should clear profile and optionally redirect to login so the app doesn't
-      // remain stuck waiting for an auth session.
-      const prevUserId = prevUserRef.current
-      setSession(session)
-      setUser(session?.user ?? null)
+    // 3. Listen for future auth state changes
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        setLoading(true)
+        setSession(session)
+        const newCurrentUser = session?.user ?? null
 
-      if (session?.user) {
-        prevUserRef.current = session.user.id
-        await fetchUserProfile(session.user.id)
-      } else {
-        // session is null
-        setProfile(null)
-        // eslint-disable-next-line no-console
-        console.log('LOG: AuthContext: Session cleared (onAuthStateChange). previous user id:', prevUserId)
-        // If there was a previous user and now session is gone, redirect to login
-        if (prevUserId) {
-          // eslint-disable-next-line no-console
-          console.log('LOG: AuthContext: Previous session removed — redirecting to /login')
-          try {
-            // Clearing loading and then navigate
-            setLoading(false)
-            window.location.href = '/login'
-          } catch (e) {
-            // eslint-disable-next-line no-console
-            console.error('LOG: AuthContext: Redirect to /login failed', e)
-          }
+        if (newCurrentUser) {
+          // User logged in or signed up, get their profile
+          await getProfileAndSetUser(newCurrentUser)
         } else {
-          // No previous user, just finish loading
-          // eslint-disable-next-line no-console
-          console.log('LOG: AuthContext: No previous session found; finishing load')
+          // User logged out
+          setUser(null)
+          setProfile(null)
           setLoading(false)
         }
       }
-    })
+    )
 
-    return () => subscription.unsubscribe()
-  }, [])
-
-  const fetchUserProfile = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single()
-
-      if (error) {
-        // If user profile doesn't exist (PGRST116), create one
-        if (error.code === 'PGRST116') {
-          console.log('User profile not found, creating new profile...')
-          await createUserProfile(userId)
-        } else {
-          console.error('Error fetching user profile:', String(error))
-          setProfile(null)
-        }
-      } else if (data) {
-        setProfile(data)
-      } else {
-        console.error('No user profile data returned')
-        setProfile(null)
-      }
-    } catch (error) {
-      console.error('Error fetching user profile:', String(error))
-    } finally {
-      // eslint-disable-next-line no-console
-      console.log('LOG: AuthContext: fetchUserProfile finally — setting loading false')
-      setLoading(false)
+    return () => {
+      authListener.subscription.unsubscribe()
     }
-  }
+  }, [getProfileAndSetUser])
 
-  const createUserProfile = async (userId: string) => {
-    try {
-      // Get user info from auth
-      const { data: authUser } = await supabase.auth.getUser()
-      
-      if (authUser.user) {
-        const { data, error } = await supabase
-          .from('profiles')
-          .insert({
-            id: userId,
-            email: authUser.user.email!,
-            full_name: authUser.user.user_metadata?.full_name || null,
-            avatar_url: authUser.user.user_metadata?.avatar_url || null,
-            role: 'user'
-          })
-          .select()
-          .single()
-
-        if (error) {
-          console.error('Error creating user profile:', String(error))
-          setProfile(null)
-        } else if (data) {
-          console.log('User profile created successfully')
-          setProfile(data)
-        }
-      }
-    } catch (error) {
-      console.error('Error creating user profile:', String(error))
-      setProfile(null)
-    } finally {
-      // eslint-disable-next-line no-console
-      console.log('LOG: AuthContext: createUserProfile finally — setting loading false')
-      setLoading(false)
-    }
-  }
-
-  const signIn = async (email: string, password: string) => {
-    setLoading(true)
+  const login = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
-    
-    if (error) {
-      setLoading(false)
-    }
-    
-    return { error }
+    if (error) throw error
+    // onAuthStateChange will handle setting the user
   }
 
-  const signUp = async (email: string, password: string, options?: any) => {
-    setLoading(true)
-    
-    const { data, error } = await supabase.auth.signUp({
+  const register = async (email: string, password: string, fullName: string) => {
+    const { error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: {
+          full_name: fullName, // Store name in auth.users table
+        },
+      },
     })
-
-    if (error) {
-      setLoading(false)
-      return { error }
-    }
-
-    // Create user profile
-    if (data.user) {
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          id: data.user.id,
-          email: data.user.email!,
-          first_name: options?.data?.full_name,
-          role: options?.role ?? 'user'
-        })
-
-      if (profileError) {
-        console.error('Error creating user profile:', profileError)
-        setLoading(false)
-        return { error: profileError }
-      }
-    }
-
-    setLoading(false)
-    return { error: null }
+    if (error) throw error
+    // onAuthStateChange will handle setting the user
   }
-
-  const signOut = async () => {
+  
+  const logout = async () => {
     const { error } = await supabase.auth.signOut()
-    if (error) {
-      console.error('Error signing out:', error)
-      throw error
-    }
+    if (error) throw error
+    // onAuthStateChange will handle setting user to null
   }
 
-  const updateProfile = async (updates: Partial<UserProfile>) => {
-    if (!user) {
-      return { error: new Error('No user logged in') }
-    }
+  // Function to set role *after* signup (for RoleSelectorPage)
+  const updateUserRole = async (role: UserProfile['role']) => {
+    if (!user) throw new Error("No user logged in")
 
-    const { data, error } = await supabase
-      .from('profiles')
-      .update(updates)
-      .eq('id', user.id)
+    // 1. Update the 'users' table (or create entry)
+    const { error } = await supabase
+      .from('users')
+      .upsert({ id: user.id, role: role, email: user.email!, updated_at: new Date().toISOString() })
       .select()
       .single()
 
-    if (!error && data) {
-      setProfile(data)
-    }
+    if (error) throw error
 
-    return { error }
+    // 2. Refresh profile to get updated role
+    await getProfileAndSetUser(user)
   }
 
-  const hasRole = (role: UserProfile['role']) => {
-    return profile?.role === role
-  }
-
-  const hasAnyRole = (roles: UserProfile['role'][]) => {
-    return profile ? roles.includes(profile.role) : false
-  }
-
-  const value: AuthContextType = {
+  const value = {
     user,
     profile,
     session,
     loading,
-    signIn,
-    signUp,
-    signOut,
-    updateProfile,
-    hasRole,
-    hasAnyRole,
+    login,
+    logout,
+    register,
+    updateUserRole,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
