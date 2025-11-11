@@ -51,9 +51,10 @@ export const SettingsPage = () => {
       setError(null)
       setSuccess(false)
 
-      // Save to local storage for now
-      // In a real app, you'd save this to the database or a secure settings table
-      localStorage.setItem('quicket_api_key', quicketApiKey)
+      // Store API key in user metadata or session
+      // Note: For production, implement server-side encrypted storage
+      // This is a temporary solution for MVP - API keys should be stored server-side
+      sessionStorage.setItem('quicket_api_key', quicketApiKey)
 
       setSuccess(true)
       setTimeout(() => setSuccess(false), 3000)
@@ -65,8 +66,9 @@ export const SettingsPage = () => {
   }
 
   useEffect(() => {
-    // Load from localStorage on mount
-    const savedKey = localStorage.getItem('quicket_api_key')
+    // Load from sessionStorage on mount
+    // Note: sessionStorage is used instead of localStorage to limit exposure
+    const savedKey = sessionStorage.getItem('quicket_api_key')
     if (savedKey) {
       setQuicketApiKey(savedKey)
     }
@@ -157,10 +159,17 @@ export const SettingsPage = () => {
           <div className="mt-6 pt-6 border-t border-gray-200">
             <h3 className="text-sm font-medium text-gray-900 mb-2">Important Notes:</h3>
             <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
-              <li>Your API key is stored securely and used only for Quicket integration</li>
+              <li>Your API key is stored in session storage (cleared when browser closes)</li>
+              <li>For production use, implement server-side encrypted storage for API keys</li>
               <li>Don't have a Quicket API key? Contact Quicket support to request one</li>
               <li>You can update your API key at any time from this page</li>
             </ul>
+            <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
+              <p className="text-xs text-yellow-800">
+                <strong>Security Note:</strong> This MVP implementation stores API keys in browser session storage. 
+                For production deployment, migrate to server-side encrypted storage or a secrets management service.
+              </p>
+            </div>
           </div>
         </div>
       </Card>
