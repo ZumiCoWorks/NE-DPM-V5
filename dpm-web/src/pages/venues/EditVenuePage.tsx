@@ -157,7 +157,7 @@ export function EditVenuePage() {
   amenities: formData.amenities as unknown as Database['public']['Tables']['venues']['Update']['amenities'],
   contact_info: formData.contact_info as unknown as Database['public']['Tables']['venues']['Update']['contact_info'],
         is_active: formData.is_active,
-        organization_id: profile?.organization_id || formData.organization_id,
+        organization_id: user?.organization_id || formData.organization_id,
       }
 
       const { error } = await supabase

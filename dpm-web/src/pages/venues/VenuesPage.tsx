@@ -79,7 +79,7 @@ export const VenuesPage: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [profile])
+  }, [user])
 
   useEffect(() => {
     fetchVenues()
@@ -253,7 +253,7 @@ export const VenuesPage: React.FC = () => {
                             </div>
                           )}
                         </div>
-                        {profile?.role === 'admin' && venue.manager && (
+                        {user?.role === 'admin' && venue.manager && (
                           <div className="mt-2 text-sm text-gray-500">
                             Manager: {venue.manager.full_name}
                           </div>
