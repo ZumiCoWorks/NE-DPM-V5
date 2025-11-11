@@ -14,7 +14,7 @@ export interface Database {
           id: string
           email: string
           full_name: string | null
-          role: 'admin' | 'event_organizer' | 'venue_manager' | 'advertiser'
+          role: 'admin' | 'event_organizer' | 'venue_manager' | 'advertiser' | 'staff'
           organization_id: string | null
           avatar_url: string | null
           phone: string | null
@@ -30,7 +30,7 @@ export interface Database {
           id?: string
           email: string
           full_name?: string | null
-          role?: 'admin' | 'event_organizer' | 'venue_manager' | 'advertiser'
+          role?: 'admin' | 'event_organizer' | 'venue_manager' | 'advertiser' | 'staff'
           organization_id?: string | null
           avatar_url?: string | null
           phone?: string | null
@@ -46,7 +46,7 @@ export interface Database {
           id?: string
           email?: string
           full_name?: string | null
-          role?: 'admin' | 'event_organizer' | 'venue_manager' | 'advertiser'
+          role?: 'admin' | 'event_organizer' | 'venue_manager' | 'advertiser' | 'staff'
           organization_id?: string | null
           avatar_url?: string | null
           phone?: string | null
@@ -392,6 +392,58 @@ export interface Database {
           ip_address?: string | null
           user_agent?: string | null
           created_at?: string
+        }
+      }
+      map_qr_nodes: {
+        Row: {
+          id: string
+          event_id: string
+          qr_id_text: string
+          x_coord: number
+          y_coord: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          event_id: string
+          qr_id_text: string
+          x_coord: number
+          y_coord: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          event_id?: string
+          qr_id_text?: string
+          x_coord?: number
+          y_coord?: number
+          created_at?: string
+        }
+      }
+      qualified_leads: {
+        Row: {
+          id: string
+          event_id: string
+          staff_user_id: string
+          lead_name: string
+          lead_email: string
+          scanned_at: string
+        }
+        Insert: {
+          id?: string
+          event_id: string
+          staff_user_id: string
+          lead_name: string
+          lead_email: string
+          scanned_at?: string
+        }
+        Update: {
+          id?: string
+          event_id?: string
+          staff_user_id?: string
+          lead_name?: string
+          lead_email?: string
+          scanned_at?: string
         }
       }
     }

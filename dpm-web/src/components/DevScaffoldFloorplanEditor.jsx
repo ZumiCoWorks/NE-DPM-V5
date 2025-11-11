@@ -37,6 +37,10 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialNodes = []
   const [showPoiModal, setShowPoiModal] = useState(false);
   const [pendingPoiCoords, setPendingPoiCoords] = useState(null);
 
+  // QR Code ID for nodes (Part 2: B2C Admin Function)
+  const [currentQrId, setCurrentQrId] = useState('');
+  const [currentEventId, setCurrentEventId] = useState(null);
+
   // Simple message banner
   const [banner, setBanner] = useState(null);
 
@@ -201,13 +205,38 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialNodes = []
     }
   };
 
-  const handleNewNode = useCallback((n) => {
+  const handleNewNode = useCallback(async (n) => {
     const id = `n_${Date.now()}_${Math.floor(Math.random()*1000)}`;
-    const node = { id, name: `Node ${nodes.length+1}`, ...n };
+    const node = { id, name: `Node ${nodes.length+1}`, qr_id: currentQrId || null, ...n };
     setNodes(prev => [...prev, node]);
     showMessage('Node added');
+    
+    // Save QR node to database if QR ID is provided and event is selected
+    if (currentQrId && currentEventId && supabase) {
+      try {
+        const { error } = await supabase
+          .from('map_qr_nodes')
+          .insert({
+            event_id: currentEventId,
+            qr_id_text: currentQrId,
+            x_coord: Math.round(n.x || 0),
+            y_coord: Math.round(n.y || 0)
+          });
+        
+        if (error) {
+          console.warn('Failed to save QR node to database:', error);
+          showMessage('Node added locally (DB save failed)', 3000);
+        } else {
+          showMessage('Node added and QR calibrated!', 2000);
+          setCurrentQrId(''); // Clear QR ID after successful save
+        }
+      } catch (err) {
+        console.warn('Error saving QR node:', err);
+      }
+    }
+    
     return node;
-  }, [nodes.length]);
+  }, [nodes.length, currentQrId, currentEventId]);
 
   const handleNewSegment = useCallback((s) => {
     const id = `s_${Date.now()}_${Math.floor(Math.random()*1000)}`;
@@ -456,6 +485,38 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialNodes = []
 
         <div style={{ marginTop: 12 }}>
     <ImageUploader onUploadSuccess={handleUploadSuccess} uploadFn={uploadToSupabase} />
+        </div>
+
+        {/* QR Code Calibration Section */}
+        <div style={{ marginTop: 12, borderTop: '1px dashed #e5e7eb', paddingTop: 12 }}>
+          <h4 style={{ margin: '6px 0 8px 0', fontSize: 14, fontWeight: 600 }}>QR Code Calibration</h4>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div>
+              <label style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 4 }}>Event ID (for QR nodes)</label>
+              <input 
+                type="text" 
+                placeholder="Event UUID" 
+                value={currentEventId || ''} 
+                onChange={e => setCurrentEventId(e.target.value)}
+                style={{ width: '100%', padding: '4px 8px', fontSize: 13, border: '1px solid #e5e7eb', borderRadius: 4 }}
+              />
+            </div>
+            {mode === 'node' && (
+              <div>
+                <label style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 4 }}>QR Code ID</label>
+                <input 
+                  type="text" 
+                  placeholder="e.g., junction-hall-a" 
+                  value={currentQrId} 
+                  onChange={e => setCurrentQrId(e.target.value)}
+                  style={{ width: '100%', padding: '4px 8px', fontSize: 13, border: '1px solid #e5e7eb', borderRadius: 4 }}
+                />
+                <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>
+                  Enter QR ID before adding node to calibrate location
+                </p>
+              </div>
+            )}
+          </div>
         </div>
 
         <div style={{ marginTop: 12 }}>

@@ -11,6 +11,7 @@ import {
   Menu,
   X,
   Settings,
+  ScanLine,
 } from 'lucide-react'
 import { cn } from '../lib/utils'
 
@@ -44,6 +45,12 @@ const navigation: NavItem[] = [
     href: '/roi',
     icon: Megaphone,
     roles: ['admin', 'event_organizer'],
+  },
+  {
+    name: 'Lead Scanner',
+    href: '/staff-scanner',
+    icon: ScanLine,
+    roles: ['admin', 'staff'],
   },
   {
     name: 'MVP Setup',
