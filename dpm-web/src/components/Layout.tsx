@@ -10,6 +10,8 @@ import {
   LogOut,
   Menu,
   X,
+  Settings,
+  ScanLine,
 } from 'lucide-react'
 import { cn } from '../lib/utils'
 
@@ -45,6 +47,12 @@ const navigation: NavItem[] = [
     roles: ['admin', 'event_organizer'],
   },
   {
+    name: 'Lead Scanner',
+    href: '/staff-scanner',
+    icon: ScanLine,
+    roles: ['admin', 'staff'],
+  },
+  {
     name: 'MVP Setup',
     href: '/mvp-setup',
     icon: MapPin,
@@ -60,13 +68,13 @@ const navigation: NavItem[] = [
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const { profile, signOut } = useAuth()
+  const { user, logout } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
 
   const handleSignOut = async () => {
     try {
-      await signOut()
+      await logout()
       navigate('/login')
     } catch (error) {
       console.error('Error signing out:', error)
@@ -75,7 +83,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const filteredNavigation = navigation.filter((item) => {
     if (!item.roles) return true
-    return profile && item.roles.includes(profile.role)
+    return user && user.role && item.roles.includes(user.role)
   })
 
   return (
@@ -129,16 +137,16 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               <div className="flex-shrink-0">
                 <div className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center">
                   <span className="text-sm font-medium text-white">
-                    {profile?.full_name?.charAt(0) || profile?.email?.charAt(0) || 'U'}
+                    {user?.full_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
                   </span>
                 </div>
               </div>
               <div className="ml-3">
                 <p className="text-sm font-medium text-gray-700">
-                  {profile?.full_name || 'User'}
+                  {user?.full_name || 'User'}
                 </p>
                 <p className="text-xs text-gray-500 capitalize">
-                  {profile?.role?.replace('_', ' ')}
+                  {user?.role?.replace('_', ' ')}
                 </p>
               </div>
             </div>
@@ -150,6 +158,14 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               >
                 <User className="mr-3 h-4 w-4 text-gray-400" />
                 Profile
+              </Link>
+              <Link
+                to="/settings"
+                onClick={() => setSidebarOpen(false)}
+                className="group flex items-center px-2 py-2 text-sm font-medium text-gray-600 rounded-md hover:bg-gray-50 hover:text-gray-900"
+              >
+                <Settings className="mr-3 h-4 w-4 text-gray-400" />
+                Settings
               </Link>
               <button
                 onClick={handleSignOut}
@@ -199,16 +215,16 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               <div className="flex-shrink-0">
                 <div className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center">
                   <span className="text-sm font-medium text-white">
-                    {profile?.full_name?.charAt(0) || profile?.email?.charAt(0) || 'U'}
+                    {user?.full_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
                   </span>
                 </div>
               </div>
               <div className="ml-3">
                 <p className="text-sm font-medium text-gray-700">
-                  {profile?.full_name || 'User'}
+                  {user?.full_name || 'User'}
                 </p>
                 <p className="text-xs text-gray-500 capitalize">
-                  {profile?.role?.replace('_', ' ')}
+                  {user?.role?.replace('_', ' ')}
                 </p>
               </div>
             </div>
@@ -219,6 +235,13 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               >
                 <User className="mr-3 h-4 w-4 text-gray-400" />
                 Profile
+              </Link>
+              <Link
+                to="/settings"
+                className="group flex items-center px-2 py-2 text-sm font-medium text-gray-600 rounded-md hover:bg-gray-50 hover:text-gray-900"
+              >
+                <Settings className="mr-3 h-4 w-4 text-gray-400" />
+                Settings
               </Link>
               <button
                 onClick={handleSignOut}

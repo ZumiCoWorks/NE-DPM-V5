@@ -17,7 +17,9 @@ import ROIDashboardPage from './pages/ROIDashboardPage'
 // MVP Pages
 import MVPSetupPage from './pages/MVPSetupPage'
 import MVPAnalyticsPage from './pages/MVPAnalyticsPage'
-import { ProfilePage } from "./pages/profile/ProfilePage";
+import { ProfilePage } from "./pages/profile/ProfilePage"
+import { SettingsPage } from './pages/SettingsPage'
+import { StaffScannerPage } from './pages/StaffScannerPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 
 function App() {
@@ -113,6 +115,24 @@ function App() {
                     <ProtectedRoute>
                       <Layout>
                         <ProfilePage />
+                      </Layout>
+                    </ProtectedRoute>
+                  } />
+
+                  {/* Settings */}
+                  <Route path="/settings" element={
+                    <ProtectedRoute>
+                      <Layout>
+                        <SettingsPage />
+                      </Layout>
+                    </ProtectedRoute>
+                  } />
+
+                  {/* Staff Scanner */}
+                  <Route path="/staff-scanner" element={
+                    <ProtectedRoute roles={['admin', 'staff']}>
+                      <Layout>
+                        <StaffScannerPage />
                       </Layout>
                     </ProtectedRoute>
                   } />

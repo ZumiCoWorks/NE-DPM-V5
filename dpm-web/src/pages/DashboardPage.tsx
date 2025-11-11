@@ -29,7 +29,7 @@ interface RecentActivity {
 }
 
 export const DashboardPage: React.FC = () => {
-  const { profile, loading: authLoading } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const [stats, setStats] = useState<DashboardStats>({
     totalEvents: 0,
     totalVenues: 0,
@@ -42,13 +42,13 @@ export const DashboardPage: React.FC = () => {
 
 
   const fetchRecentActivity = useCallback(async () => {
-    if (!profile) return
+    if (!user) return
 
     const activities: RecentActivity[] = []
 
     try {
       // Fetch recent events
-      if (profile.role === 'admin' || profile.role === 'event_organizer') {
+      if (user.role === 'admin' || user.role === 'event_organizer') {
         const { data: events } = await supabase
           .from('events')
           .select('id, name, description, created_at')
@@ -69,7 +69,7 @@ export const DashboardPage: React.FC = () => {
       }
 
       // Fetch recent venues
-      if (profile.role === 'admin' || profile.role === 'venue_manager') {
+      if (user.role === 'admin' || user.role === 'venue_manager') {
         const { data: venues } = await supabase
           .from('venues')
           .select('id, name, description, created_at')
@@ -90,7 +90,7 @@ export const DashboardPage: React.FC = () => {
       }
 
       // Fetch recent campaigns
-      if (profile.role === 'admin' || profile.role === 'advertiser') {
+      if (user.role === 'admin' || user.role === 'advertiser') {
         const { data: campaigns } = await supabase
           .from('ar_advertisements')
           .select('id, title, created_at')
@@ -120,7 +120,7 @@ export const DashboardPage: React.FC = () => {
   }, [profile])
 
   const fetchDashboardData = useCallback(async () => {
-    if (!profile) return
+    if (!user) return
 
     try {
       setLoading(true)
@@ -128,7 +128,7 @@ export const DashboardPage: React.FC = () => {
       // Fetch stats based on user role
       const statsPromises = []
       
-      if (profile.role === 'admin' || profile.role === 'event_organizer') {
+      if (user.role === 'admin' || user.role === 'event_organizer') {
         statsPromises.push(
           supabase
             .from('events')
@@ -137,7 +137,7 @@ export const DashboardPage: React.FC = () => {
         )
       }
       
-      if (profile.role === 'admin' || profile.role === 'venue_manager') {
+      if (user.role === 'admin' || user.role === 'venue_manager') {
         statsPromises.push(
           supabase
             .from('venues')
@@ -146,7 +146,7 @@ export const DashboardPage: React.FC = () => {
         )
       }
       
-      if (profile.role === 'admin' || profile.role === 'advertiser') {
+      if (user.role === 'admin' || user.role === 'advertiser') {
         statsPromises.push(
           supabase
             .from('ar_advertisements')
@@ -155,7 +155,7 @@ export const DashboardPage: React.FC = () => {
         )
       }
       
-      if (profile.role === 'admin') {
+      if (user.role === 'admin') {
         statsPromises.push(
           supabase
             .from('users')
@@ -181,13 +181,13 @@ export const DashboardPage: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [profile, fetchRecentActivity])
+  }, [user, fetchRecentActivity])
 
   useEffect(() => {
-    if (profile) {
+    if (user) {
       fetchDashboardData()
     }
-  }, [profile, fetchDashboardData])
+  }, [user, fetchDashboardData])
 
   const getQuickActions = () => {
     const actions = []
@@ -238,7 +238,7 @@ export const DashboardPage: React.FC = () => {
     }
   }
 
-  if (authLoading || loading || !profile) {
+  if (authLoading || loading || !user) {
     return (
       <div className="flex items-center justify-center h-64">
         <LoadingSpinner size="lg" />

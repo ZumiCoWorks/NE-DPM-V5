@@ -41,7 +41,7 @@ interface FormData {
 
 export const CreateARCampaignPage: React.FC = () => {
   const navigate = useNavigate()
-  const { profile } = useAuth()
+  const { user } = useAuth()
   const [loading, setLoading] = useState(false)
   const [venues, setVenues] = useState<Venue[]>([])
   const [events, setEvents] = useState<Event[]>([])

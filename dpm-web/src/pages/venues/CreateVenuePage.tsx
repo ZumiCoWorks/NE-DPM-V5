@@ -41,7 +41,7 @@ const initialFormData: VenueFormData = {
 
 export function CreateVenuePage() {
   const navigate = useNavigate()
-  const { profile } = useAuth()
+  const { user } = useAuth()
   const [formData, setFormData] = useState<VenueFormData>(initialFormData)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -108,7 +108,7 @@ export function CreateVenuePage() {
         venue_type: formData.venue_type,
   amenities: formData.amenities as unknown as Database['public']['Tables']['venues']['Insert']['amenities'],
   contact_info: formData.contact_info as unknown as Database['public']['Tables']['venues']['Insert']['contact_info'],
-        organization_id: profile?.organization_id || '',
+        organization_id: user?.organization_id || '',
         is_active: formData.is_active,
       }
 

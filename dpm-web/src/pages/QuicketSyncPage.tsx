@@ -1,12 +1,21 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
+import { Link } from 'react-router-dom'
 
 export default function QuicketSyncPage() {
   const [apiKey, setApiKey] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+
+  // Load API key from settings on mount
+  useEffect(() => {
+    const savedKey = sessionStorage.getItem('quicket_api_key')
+    if (savedKey) {
+      setApiKey(savedKey)
+    }
+  }, [])
 
   const handleFetchEvents = async () => {
     if (!apiKey.trim()) {
@@ -79,15 +88,20 @@ export default function QuicketSyncPage() {
             className="w-full"
           />
           <p className="mt-2 text-sm text-gray-500">
-            Find your API key in your{' '}
-            <a 
-              href="https://developer.quicket.co.za" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-blue-600 hover:underline"
-            >
-              Quicket Developer Portal
-            </a>
+            {apiKey ? (
+              <>Using saved API key from <Link to="/settings" className="text-blue-600 hover:underline">Settings</Link></>
+            ) : (
+              <>Find your API key in your{' '}
+              <a 
+                href="https://developer.quicket.co.za" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:underline"
+              >
+                Quicket Developer Portal
+              </a>
+              {' '}or save it in <Link to="/settings" className="text-blue-600 hover:underline">Settings</Link></>
+            )}
           </p>
         </div>
 

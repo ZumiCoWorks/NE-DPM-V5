@@ -49,7 +49,7 @@ interface ARAdvertisement {
 export const EditARCampaignPage: React.FC = () => {
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
-  const { profile } = useAuth()
+  const { user } = useAuth()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [venues, setVenues] = useState<Venue[]>([])

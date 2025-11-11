@@ -1,175 +1,92 @@
-import React, { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useState } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
+import { useNavigate, Link } from 'react-router-dom'
+import { Button } from '../../components/ui/Button'
+import { Input } from '../../components/ui/Input'
+import { Card } from '../../components/ui/Card'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
-import { Eye, EyeOff, LogIn } from 'lucide-react'
 
-export const LoginPage: React.FC = () => {
+export const LoginPage = () => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
-  const [error, setError] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
-  const [selectedRole, setSelectedRole] = useState<string | null>(null)
-  
-  const { user, loading, login } = useAuth()
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const { login } = useAuth()
   const navigate = useNavigate()
-
-  useEffect(() => {
-    if (!loading && user) {
-      navigate('/dashboard')
-    }
-  }, [user, loading, navigate])
-
-  useEffect(() => {
-    try {
-      const s = sessionStorage.getItem('selectedRole')
-      if (s) setSelectedRole(s)
-    } catch {
-      // ignore storage errors
-    }
-  }, [])
-
-  if (loading || user) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <LoadingSpinner />
-      </div>
-    )
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError('')
-    setIsLoading(true)
-
+    setLoading(true)
+    setError(null)
     try {
       await login(email, password)
-      // clear the selected role after successful sign in
-      try { 
-        sessionStorage.removeItem('selectedRole') 
-      } catch {
-        // ignore storage errors
-      }
-      // Login successful, onAuthStateChange will trigger navigation
-      navigate('/dashboard', { replace: true })
-    } catch (err) {
-      const error = err as Error
-      setError(error.message || 'Failed to log in')
-    } finally {
-      setIsLoading(false)
+      navigate('/dashboard') // Navigate to dashboard after successful login
+    } catch (err: any) {
+      setError(err.message || 'Failed to log in')
+      setLoading(false)
     }
   }
 
-  
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-blue-100">
-            <LogIn className="h-6 w-6 text-blue-600" />
+    <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <Card className="w-full max-w-sm">
+        <div className="p-6">
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold text-gray-900">Login</h1>
+            <p className="mt-1 text-sm text-gray-600">
+              Enter your email below to login to your account.
+            </p>
           </div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Sign in to NavEaze V4
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Or{' '}
-            <Link
-              to="/register"
-              className="font-medium text-blue-600 hover:text-blue-500"
-            >
-              create a new account
-            </Link>
-          </p>
-          {selectedRole && (
-            <div className="mt-3 text-center">
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-50 text-blue-700">
-                Signing in as {selectedRole}
-              </span>
-            </div>
-          )}
-        </div>
-        
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          {error && (
-            <div className="rounded-md bg-red-50 p-4">
-              <div className="text-sm text-red-700">{error}</div>
-            </div>
-          )}
-          
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                Email address
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="Enter your email"
-              />
-            </div>
-            
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                Password
-              </label>
-              <div className="mt-1 relative">
-                <input
+          <form onSubmit={handleSubmit}>
+            <div className="space-y-4">
+              {error && (
+                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+                  <span className="block sm:inline">{error}</span>
+                </div>
+              )}
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                  Email
+                </label>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  placeholder="m@example.com"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+                  Password
+                </label>
+                <Input
                   id="password"
                   name="password"
-                  type={showPassword ? 'text' : 'password'}
-                  autoComplete="current-password"
+                  type="password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="appearance-none relative block w-full px-3 py-2 pr-10 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                  placeholder="Enter your password"
                 />
-                <button
-                  type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4 text-gray-400" />
-                  ) : (
-                    <Eye className="h-4 w-4 text-gray-400" />
-                  )}
-                </button>
               </div>
             </div>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div className="text-sm">
-              <a href="#" className="font-medium text-blue-600 hover:text-blue-500">
-                Forgot your password?
-              </a>
+            <div className="mt-6">
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading && <LoadingSpinner size="sm" className="mr-2" />}
+                Sign In
+              </Button>
             </div>
-          </div>
-
-          <div>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? (
-                <LoadingSpinner size="sm" className="text-white" />
-              ) : (
-                'Sign in'
-              )}
-            </button>
-          </div>
-        </form>
-      </div>
+            <div className="mt-4 text-center text-sm text-gray-600">
+              Don't have an account?{' '}
+              <Link to="/register" className="text-blue-600 hover:text-blue-500 underline">
+                Sign up
+              </Link>
+            </div>
+          </form>
+        </div>
+      </Card>
     </div>
   )
 }

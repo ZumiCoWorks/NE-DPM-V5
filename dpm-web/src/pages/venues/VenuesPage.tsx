@@ -40,7 +40,7 @@ interface Venue {
 type VenueStatus = 'all' | 'active' | 'inactive' | 'maintenance'
 
 export const VenuesPage: React.FC = () => {
-  const { profile } = useAuth()
+  const { user } = useAuth()
   const [venues, setVenues] = useState<Venue[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -48,7 +48,7 @@ export const VenuesPage: React.FC = () => {
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null)
 
   const fetchVenues = useCallback(async () => {
-    if (!profile) return
+    if (!user) return
 
     try {
       setLoading(true)
@@ -62,8 +62,8 @@ export const VenuesPage: React.FC = () => {
         .order('created_at', { ascending: false })
 
       // Filter by manager if not admin
-      if (profile.role !== 'admin') {
-        query = query.eq('manager_id', profile.id)
+      if (user.role !== 'admin') {
+        query = query.eq('manager_id', user.id)
       }
 
       const { data, error } = await query
@@ -79,7 +79,7 @@ export const VenuesPage: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [profile])
+  }, [user])
 
   useEffect(() => {
     fetchVenues()
@@ -253,7 +253,7 @@ export const VenuesPage: React.FC = () => {
                             </div>
                           )}
                         </div>
-                        {profile?.role === 'admin' && venue.manager && (
+                        {user?.role === 'admin' && venue.manager && (
                           <div className="mt-2 text-sm text-gray-500">
                             Manager: {venue.manager.full_name}
                           </div>

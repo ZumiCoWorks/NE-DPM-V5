@@ -59,7 +59,7 @@ type SortField = 'created_at' | 'title' | 'current_views' | 'budget'
 type SortOrder = 'asc' | 'desc'
 
 export const ARCampaignsPage: React.FC = () => {
-  const { profile } = useAuth()
+  const { user } = useAuth()
   const [campaigns, setCampaigns] = useState<ARAdvertisement[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
