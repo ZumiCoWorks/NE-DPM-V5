@@ -1,134 +1,69 @@
-import React, { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { LoadingSpinner } from '../components/ui/LoadingSpinner'
-import { Card } from '../components/ui/Card'
+import { useNavigate } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
-import { User, Building2 } from 'lucide-react'
-import type { Database } from '../types/database'
+import { Card } from '../components/ui/Card'
+import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 
-type UserRole = Database['public']['Tables']['users']['Row']['role']
+type Role = 'event_organizer' | 'venue_manager'
 
-const roles = [
-  {
-    id: 'event_organizer' as UserRole,
-    title: "Event Organizer",
-    description: 'Manage events, attendees, and event analytics.',
-    icon: User,
-    cta: 'Select Event Organizer',
-  },
-  {
-    id: 'venue_manager' as UserRole,
-    title: "Venue Manager",
-    description: 'Manage venues, spaces, and venue operations.',
-    icon: Building2,
-    cta: 'Select Venue Manager',
-  },
-]
-
-export const RoleSelectorPage: React.FC = () => {
-  const { user, profile, loading, updateUserRole } = useAuth()
-  const [submitting, setSubmitting] = useState(false)
+export const RoleSelectorPage = () => {
+  const { user, updateUserRole } = useAuth()
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
 
-  useEffect(() => {
-    // If user already has a role, redirect to dashboard
-    if (!loading && profile?.role) {
-      navigate('/dashboard')
-    }
-  }, [profile, loading, navigate])
-
-  // If no user, redirect to login
-  useEffect(() => {
-    if (!loading && !user) {
-      navigate('/login')
-    }
-  }, [user, loading, navigate])
-
-  if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <LoadingSpinner />
-      </div>
-    )
-  }
-
-  // If user has role, show loading while redirecting
-  if (profile?.role) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <LoadingSpinner />
-      </div>
-    )
-  }
-
-  const handleSelect = async (role: UserRole) => {
-    setSubmitting(true)
+  const handleRoleSelect = async (role: Role) => {
+    setLoading(true)
     setError(null)
     try {
       await updateUserRole(role)
       navigate('/dashboard') // Role is set, now go to dashboard
-    } catch (err) {
-      const error = err as Error
-      setError(error.message || 'Failed to update role')
-    } finally {
-      setSubmitting(false)
+    } catch (err: any) {
+      setError(err.message || 'Failed to update role')
+      setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-5xl w-full">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-extrabold text-gray-900">Select Your Role</h1>
-          <p className="mt-2 text-sm text-gray-600">Choose how you'll be using the platform</p>
-        </div>
-
-        {error && (
-          <div className="mb-6 rounded-md bg-red-50 p-4">
-            <div className="text-sm text-red-700">{error}</div>
+    <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <Card className="w-full max-w-md">
+        <div className="p-6">
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold text-gray-900">Select Your Role</h1>
+            <p className="mt-1 text-sm text-gray-600">
+              Choose how you'll be using the platform. This can be changed later.
+            </p>
           </div>
-        )}
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          {roles.map((r) => {
-            const Icon = r.icon
-            return (
-              <div key={r.id} className="focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg">
-                <Card className="flex flex-col justify-between h-full hover:shadow-md transition-shadow" padding="lg">
-                  <div>
-                    <div className="flex items-center justify-center h-12 w-12 rounded-md bg-blue-50 mb-4">
-                      <Icon className="h-6 w-6 text-blue-600" />
-                    </div>
-                    <h3 className="text-lg font-medium text-gray-900">{r.title}</h3>
-                    <p className="mt-2 text-sm text-gray-600">{r.description}</p>
-                  </div>
-
-                  <div className="mt-6">
-                    <Button
-                      variant="primary"
-                      size="md"
-                      onClick={() => handleSelect(r.id)}
-                      disabled={submitting}
-                      className="w-full"
-                    >
-                      {submitting ? (
-                        <>
-                          <LoadingSpinner size="sm" className="mr-2" />
-                          Saving...
-                        </>
-                      ) : (
-                        r.cta
-                      )}
-                    </Button>
-                  </div>
-                </Card>
+          <div className="space-y-4">
+            {error && (
+              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+                <span className="block sm:inline">{error}</span>
               </div>
-            )
-          })}
+            )}
+            <Button
+              size="lg"
+              variant="outline"
+              onClick={() => handleRoleSelect('event_organizer')}
+              disabled={loading}
+              className="w-full"
+            >
+              {loading ? <LoadingSpinner size="sm" className="mr-2" /> : null}
+              Event Organizer
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              onClick={() => handleRoleSelect('venue_manager')}
+              disabled={loading}
+              className="w-full"
+            >
+              {loading ? <LoadingSpinner size="sm" className="mr-2" /> : null}
+              Venue Manager
+            </Button>
+          </div>
         </div>
-      </div>
+      </Card>
     </div>
   )
 }

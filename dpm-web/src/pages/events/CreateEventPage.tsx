@@ -24,7 +24,7 @@ interface EventFormData {
 
 export const CreateEventPage: React.FC = () => {
   const navigate = useNavigate()
-  const { profile } = useAuth()
+  const { user } = useAuth()
   const [venues, setVenues] = useState<Venue[]>([])
   const [loading, setLoading] = useState(false)
   const [venuesLoading, setVenuesLoading] = useState(true)
@@ -109,7 +109,7 @@ export const CreateEventPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!validateForm() || !profile) {
+    if (!validateForm() || !user) {
       return
     }
 
@@ -122,7 +122,7 @@ export const CreateEventPage: React.FC = () => {
         start_date: formData.start_date,
         end_date: formData.end_date,
         venue_id: formData.venue_id,
-        organizer_id: profile.id,
+        organizer_id: user.id,
         max_attendees: formData.max_attendees ? parseInt(formData.max_attendees) : null,
         status: formData.status,
       }

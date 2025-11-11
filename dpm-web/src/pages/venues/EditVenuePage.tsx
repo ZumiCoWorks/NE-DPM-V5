@@ -43,7 +43,7 @@ const initialFormData: VenueFormData = {
 export function EditVenuePage() {
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
-  const { profile } = useAuth()
+  const { user } = useAuth()
   const [formData, setFormData] = useState<VenueFormData>(initialFormData)
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)

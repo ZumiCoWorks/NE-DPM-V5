@@ -38,7 +38,7 @@ interface Event {
 type EventStatus = 'all' | 'draft' | 'published' | 'cancelled'
 
 export const EventsPage: React.FC = () => {
-  const { profile } = useAuth()
+  const { user } = useAuth()
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -46,7 +46,7 @@ export const EventsPage: React.FC = () => {
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null)
 
   const fetchEvents = useCallback(async () => {
-    if (!profile) return
+    if (!user) return
 
     try {
       setLoading(true)
@@ -61,8 +61,8 @@ export const EventsPage: React.FC = () => {
         .order('created_at', { ascending: false })
 
       // Filter by organizer if not admin
-      if (profile.role !== 'admin') {
-        query = query.eq('organizer_id', profile.id)
+      if (user.role !== 'admin') {
+        query = query.eq('organizer_id', user.id)
       }
 
       const { data, error } = await query
@@ -78,7 +78,7 @@ export const EventsPage: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [profile])
+  }, [user])
 
   useEffect(() => {
     fetchEvents()
@@ -243,7 +243,7 @@ export const EventsPage: React.FC = () => {
                             <p>Max {event.max_attendees} attendees</p>
                           </div>
                         )}
-                        {profile?.role === 'admin' && event.organizer && (
+                        {user?.role === 'admin' && event.organizer && (
                           <div className="mt-2 text-sm text-gray-500">
                             Organizer: {event.organizer.full_name}
                           </div>

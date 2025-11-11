@@ -60,13 +60,13 @@ const navigation: NavItem[] = [
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const { profile, signOut } = useAuth()
+  const { user, logout } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
 
   const handleSignOut = async () => {
     try {
-      await signOut()
+      await logout()
       navigate('/login')
     } catch (error) {
       console.error('Error signing out:', error)
@@ -75,7 +75,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const filteredNavigation = navigation.filter((item) => {
     if (!item.roles) return true
-    return profile && item.roles.includes(profile.role)
+    return user && user.role && item.roles.includes(user.role)
   })
 
   return (
@@ -129,16 +129,16 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               <div className="flex-shrink-0">
                 <div className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center">
                   <span className="text-sm font-medium text-white">
-                    {profile?.full_name?.charAt(0) || profile?.email?.charAt(0) || 'U'}
+                    {user?.full_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
                   </span>
                 </div>
               </div>
               <div className="ml-3">
                 <p className="text-sm font-medium text-gray-700">
-                  {profile?.full_name || 'User'}
+                  {user?.full_name || 'User'}
                 </p>
                 <p className="text-xs text-gray-500 capitalize">
-                  {profile?.role?.replace('_', ' ')}
+                  {user?.role?.replace('_', ' ')}
                 </p>
               </div>
             </div>
@@ -199,16 +199,16 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               <div className="flex-shrink-0">
                 <div className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center">
                   <span className="text-sm font-medium text-white">
-                    {profile?.full_name?.charAt(0) || profile?.email?.charAt(0) || 'U'}
+                    {user?.full_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
                   </span>
                 </div>
               </div>
               <div className="ml-3">
                 <p className="text-sm font-medium text-gray-700">
-                  {profile?.full_name || 'User'}
+                  {user?.full_name || 'User'}
                 </p>
                 <p className="text-xs text-gray-500 capitalize">
-                  {profile?.role?.replace('_', ' ')}
+                  {user?.role?.replace('_', ' ')}
                 </p>
               </div>
             </div>

@@ -41,7 +41,7 @@ const initialFormData: VenueFormData = {
 
 export function CreateVenuePage() {
   const navigate = useNavigate()
-  const { profile } = useAuth()
+  const { user } = useAuth()
   const [formData, setFormData] = useState<VenueFormData>(initialFormData)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
