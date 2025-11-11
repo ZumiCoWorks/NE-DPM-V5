@@ -33,6 +33,7 @@ function App() {
             {/* Public routes */}
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/role-selector" element={<RoleSelectorPage />} />
             
             {/* Public root: role selector */}
             <Route path="/" element={<RoleSelectorPage />} />

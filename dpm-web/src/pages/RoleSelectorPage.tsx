@@ -1,46 +1,52 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
-import { User, DollarSign, Shield } from 'lucide-react'
+import { User, Building2 } from 'lucide-react'
+import type { Database } from '../types/database'
+
+type UserRole = Database['public']['Tables']['users']['Row']['role']
 
 const roles = [
   {
-    id: 'attendee',
-    title: "I'm an Attendee",
-    description: 'Browse sessions, collect materials, and scan QR codes at booths.',
+    id: 'event_organizer' as UserRole,
+    title: "Event Organizer",
+    description: 'Manage events, attendees, and event analytics.',
     icon: User,
-    cta: 'Enter as Attendee',
+    cta: 'Select Event Organizer',
   },
   {
-    id: 'sponsor',
-    title: "I'm a Sponsor",
-    description: 'Manage your booth leads, share collateral and follow up with prospects.',
-    icon: DollarSign,
-    cta: 'Enter as Sponsor',
-  },
-  {
-    id: 'admin',
-    title: "I'm an Admin",
-    description: 'Event setup, analytics and data exports for organisers and admins.',
-    icon: Shield,
-    cta: 'Enter as Admin',
+    id: 'venue_manager' as UserRole,
+    title: "Venue Manager",
+    description: 'Manage venues, spaces, and venue operations.',
+    icon: Building2,
+    cta: 'Select Venue Manager',
   },
 ]
 
 export const RoleSelectorPage: React.FC = () => {
-  const { user, loading } = useAuth()
+  const { user, profile, loading, updateUserRole } = useAuth()
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
 
   useEffect(() => {
-    if (!loading && user) {
+    // If user already has a role, redirect to dashboard
+    if (!loading && profile?.role) {
       navigate('/dashboard')
+    }
+  }, [profile, loading, navigate])
+
+  // If no user, redirect to login
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate('/login')
     }
   }, [user, loading, navigate])
 
-  if (loading || user) {
+  if (loading) {
     return (
       <div className="flex h-screen items-center justify-center">
         <LoadingSpinner />
@@ -48,42 +54,48 @@ export const RoleSelectorPage: React.FC = () => {
     )
   }
 
-  const handleSelect = (role: string) => {
+  // If user has role, show loading while redirecting
+  if (profile?.role) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <LoadingSpinner />
+      </div>
+    )
+  }
+
+  const handleSelect = async (role: UserRole) => {
+    setSubmitting(true)
+    setError(null)
     try {
-      // persist choice so subsequent flows can pick it up (login/register pages can read this)
-      sessionStorage.setItem('selectedRole', role)
-    } catch (e) {
-      // ignore storage errors
+      await updateUserRole(role)
+      navigate('/dashboard') // Role is set, now go to dashboard
+    } catch (err) {
+      const error = err as Error
+      setError(error.message || 'Failed to update role')
+    } finally {
+      setSubmitting(false)
     }
-    // send user to login to continue; pages can read sessionStorage to pre-select flows
-    navigate('/login')
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-5xl w-full">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-extrabold text-gray-900">Welcome to NavEaze</h1>
-          <p className="mt-2 text-sm text-gray-600">Select how you'd like to use the app</p>
+          <h1 className="text-3xl font-extrabold text-gray-900">Select Your Role</h1>
+          <p className="mt-2 text-sm text-gray-600">Choose how you'll be using the platform</p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {error && (
+          <div className="mb-6 rounded-md bg-red-50 p-4">
+            <div className="text-sm text-red-700">{error}</div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           {roles.map((r) => {
             const Icon = r.icon
             return (
-              <div
-                key={r.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => handleSelect(r.id)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    handleSelect(r.id)
-                  }
-                }}
-                className="focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg"
-              >
+              <div key={r.id} className="focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg">
                 <Card className="flex flex-col justify-between h-full hover:shadow-md transition-shadow" padding="lg">
                   <div>
                     <div className="flex items-center justify-center h-12 w-12 rounded-md bg-blue-50 mb-4">
@@ -97,13 +109,18 @@ export const RoleSelectorPage: React.FC = () => {
                     <Button
                       variant="primary"
                       size="md"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleSelect(r.id)
-                      }}
+                      onClick={() => handleSelect(r.id)}
+                      disabled={submitting}
                       className="w-full"
                     >
-                      {r.cta}
+                      {submitting ? (
+                        <>
+                          <LoadingSpinner size="sm" className="mr-2" />
+                          Saving...
+                        </>
+                      ) : (
+                        r.cta
+                      )}
                     </Button>
                   </div>
                 </Card>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
 import { Eye, EyeOff, LogIn } from 'lucide-react'
@@ -12,10 +12,8 @@ export const LoginPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [selectedRole, setSelectedRole] = useState<string | null>(null)
   
-  const { user, loading, signIn } = useAuth()
+  const { user, loading, login } = useAuth()
   const navigate = useNavigate()
-  const location = useLocation()
-  const from = location.state?.from?.pathname || '/dashboard'
 
   useEffect(() => {
     if (!loading && user) {
@@ -27,8 +25,8 @@ export const LoginPage: React.FC = () => {
     try {
       const s = sessionStorage.getItem('selectedRole')
       if (s) setSelectedRole(s)
-    } catch (e) {
-      // ignore
+    } catch {
+      // ignore storage errors
     }
   }, [])
 
@@ -46,23 +44,18 @@ export const LoginPage: React.FC = () => {
     setIsLoading(true)
 
     try {
-      const { error } = await signIn(email, password)
-      
-      if (error) {
-        // `error` may be unknown; coerce safely
-        setError((error as any)?.message || String(error))
-      } else {
-        // clear the selected role after successful sign in
-        try { sessionStorage.removeItem('selectedRole') } catch {}
-        // If user selected Sponsor on the role selector, send them to sponsor dashboard
-        if (selectedRole === 'sponsor') {
-          navigate('/sponsor', { replace: true })
-        } else {
-          navigate(from, { replace: true })
-        }
+      await login(email, password)
+      // clear the selected role after successful sign in
+      try { 
+        sessionStorage.removeItem('selectedRole') 
+      } catch {
+        // ignore storage errors
       }
-    } catch {
-      setError('Invalid email or password')
+      // Login successful, onAuthStateChange will trigger navigation
+      navigate('/dashboard', { replace: true })
+    } catch (err) {
+      const error = err as Error
+      setError(error.message || 'Failed to log in')
     } finally {
       setIsLoading(false)
     }
