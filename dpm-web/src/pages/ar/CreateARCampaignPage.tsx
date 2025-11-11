@@ -175,7 +175,7 @@ export const CreateARCampaignPage: React.FC = () => {
       
       const campaignData = {
         ...formData,
-        advertiser_id: profile?.id,
+        advertiser_id: user?.id,
         event_id: formData.event_id || null,
         is_active: false, // Start as inactive
         current_views: 0,

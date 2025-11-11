@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 
 // Lazy-load the unified FloorplanEditor merged into src/components
+// @ts-ignore - JSX file without types
 const FloorplanEditor = React.lazy(() => import('../../components/FloorplanEditor'))
 
 export const UnifiedMapEditorPage: React.FC = () => {

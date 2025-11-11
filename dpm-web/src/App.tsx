@@ -11,6 +11,7 @@ import { DashboardPage } from './pages/DashboardPage'
 import SponsorDashboardPage from './pages/SponsorDashboardPage'
 // Thin integration layer pages
 import QuicketSyncPage from './pages/QuicketSyncPage'
+// @ts-ignore - JSX file without types
 import MapEditorPage from './pages/admin/MapEditor'
 import BoothSetupPage from './pages/BoothSetupPage'
 import ROIDashboardPage from './pages/ROIDashboardPage'

@@ -81,8 +81,8 @@ export const ARCampaignsPage: React.FC = () => {
         `)
 
       // Filter by advertiser if not admin
-      if (profile?.role !== 'admin') {
-        query = query.eq('advertiser_id', profile?.id)
+      if (user?.role !== 'admin') {
+        query = query.eq('advertiser_id', user?.id)
       }
 
       const { data, error } = await query.order('created_at', { ascending: false })
@@ -98,7 +98,7 @@ export const ARCampaignsPage: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [profile])
+  }, [user])
 
   useEffect(() => {
     fetchCampaigns()

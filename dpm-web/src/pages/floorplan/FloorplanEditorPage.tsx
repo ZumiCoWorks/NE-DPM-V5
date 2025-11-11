@@ -15,6 +15,7 @@ import {
   RotateCcw,
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
+// @ts-ignore - JSX file without types
 const UnifiedFloorplanEditor = React.lazy(() => import('../../components/FloorplanEditor'))
 
 interface NavigationPoint {
