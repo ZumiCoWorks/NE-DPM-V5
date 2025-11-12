@@ -9,6 +9,7 @@ const FloorplanEditor = React.lazy(() => import('../../components/FloorplanEdito
 export const UnifiedMapEditorPage: React.FC = () => {
   const [searchParams] = useSearchParams()
   const floorplanId = searchParams.get('floorplanId')
+  const eventId = searchParams.get('eventId')
   const [initialFloorplanUrl, setInitialFloorplanUrl] = useState<string | null>(null)
 
   useEffect(() => {
@@ -40,7 +41,7 @@ export const UnifiedMapEditorPage: React.FC = () => {
       <p style={{ color: '#6b7280' }}>This is the unified editor for building POIs, paths and QR anchors for the NavEaze MVP.</p>
       <div style={{ marginTop: 12 }}>
         <Suspense fallback={<div style={{ padding: 24 }}><LoadingSpinner size="lg" /></div>}>
-          <FloorplanEditor initialFloorplan={initialFloorplanUrl ?? undefined} />
+          <FloorplanEditor initialFloorplan={initialFloorplanUrl ?? undefined} initialEventId={eventId ?? undefined} />
         </Suspense>
       </div>
     </div>

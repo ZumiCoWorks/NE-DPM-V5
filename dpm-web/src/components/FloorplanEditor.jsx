@@ -5,3 +5,9 @@ import DevScaffoldFloorplanEditor from './DevScaffoldFloorplanEditor';
 // DevScaffoldFloorplanEditor implementation we adapted from the scaffold.
 
 export default DevScaffoldFloorplanEditor;
+
+export const FloorplanEditor = ({ initialFloorplan, initialEventId }) => {
+  return (
+    <DevScaffoldFloorplanEditor initialFloorplan={initialFloorplan} initialEventId={initialEventId} />
+  );
+};

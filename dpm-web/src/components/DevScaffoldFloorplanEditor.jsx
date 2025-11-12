@@ -10,7 +10,7 @@ import { supabase } from '../lib/supabase';
 
 const MODES = ['poi', 'node', 'draw-path'];
 
-const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialNodes = [], initialSegments = [], initialPois = [], initialZones = [] }) => {
+const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = null, initialNodes = [], initialSegments = [], initialPois = [], initialZones = [] }) => {
   const [floorplanUrl, setFloorplanUrl] = useState(initialFloorplan);
   const [nodes, setNodes] = useState(initialNodes);
   const [segments, setSegments] = useState(initialSegments);
@@ -35,6 +35,10 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialNodes = []
   useEffect(() => {
     if (initialFloorplan) setFloorplanUrl(initialFloorplan);
   }, [initialFloorplan]);
+
+  useEffect(() => {
+    if (initialEventId) setCurrentEventId(initialEventId);
+  }, [initialEventId]);
 
   // Show setup modal initially until a floorplan is chosen/uploaded
   useEffect(() => {

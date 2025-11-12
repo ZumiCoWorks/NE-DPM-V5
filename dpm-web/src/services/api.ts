@@ -2,7 +2,7 @@ import { supabase } from '../lib/supabase'
 import { mockApiResponses } from './mockData'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
-const USE_MOCK_DATA = true // Set to false to use real API
+const USE_MOCK_DATA = false // Set to false to use real API
 
 // Helper function to get auth headers
 const getAuthHeaders = async () => {
