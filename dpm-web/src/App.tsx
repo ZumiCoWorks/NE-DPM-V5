@@ -9,29 +9,17 @@ import { RegisterPage } from './pages/auth/RegisterPage'
 import RoleSelectorPage from './pages/RoleSelectorPage'
 import { DashboardPage } from './pages/DashboardPage'
 import SponsorDashboardPage from './pages/SponsorDashboardPage'
-// Thin integration layer pages
-import QuicketSyncPage from './pages/QuicketSyncPage'
-// @ts-ignore - JSX file without types
 import MapEditorPage from './pages/admin/MapEditor'
-import BoothSetupPage from './pages/BoothSetupPage'
 import ROIDashboardPage from './pages/ROIDashboardPage'
-// MVP Pages
-import MVPSetupPage from './pages/MVPSetupPage'
-import MVPAnalyticsPage from './pages/MVPAnalyticsPage'
 import { ProfilePage } from "./pages/profile/ProfilePage"
 import { SettingsPage } from './pages/SettingsPage'
-import { StaffScannerPage } from './pages/StaffScannerPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 // Core CRUD pages
 import { EventsPage } from './pages/events/EventsPage'
 import { CreateEventPage } from './pages/events/CreateEventPage'
 import { EditEventPage } from './pages/events/EditEventPage'
-import { VenuesPage } from './pages/venues/VenuesPage'
-import { CreateVenuePage } from './pages/venues/CreateVenuePage'
-import { EditVenuePage } from './pages/venues/EditVenuePage'
-import { ARCampaignsPage } from './pages/ar/ARCampaignsPage'
-import { CreateARCampaignPage } from './pages/ar/CreateARCampaignPage'
-import { EditARCampaignPage } from './pages/ar/EditARCampaignPage'
+// Removed non-MVP pages: Venues
+import ARCampaignsPage from './pages/ar/ARCampaignsPage'
 
 function App() {
   // Diagnostic log to confirm the App component is mounted and rendering
@@ -67,23 +55,7 @@ function App() {
               </ProtectedRoute>
             } />
             
-            {/* Quicket Sync */}
-            <Route path="/quicket-sync" element={
-              <ProtectedRoute roles={['admin']}>
-                <Layout>
-                  <QuicketSyncPage />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            
-            {/* Booth Setup */}
-            <Route path="/booths" element={
-              <ProtectedRoute roles={['admin']}>
-                <Layout>
-                  <BoothSetupPage />
-                </Layout>
-              </ProtectedRoute>
-            } />
+            {/* Removed non-MVP routes: Quicket Sync, Booth Setup */}
             
                   {/* ROI Reports */}
                   <Route path="/roi" element={
@@ -94,23 +66,7 @@ function App() {
                     </ProtectedRoute>
                   } />
                   
-                  {/* MVP Setup */}
-                  <Route path="/mvp-setup" element={
-                    <ProtectedRoute roles={['admin']}>
-                      <Layout>
-                        <MVPSetupPage />
-                      </Layout>
-                    </ProtectedRoute>
-                  } />
-                  
-                  {/* MVP Analytics */}
-                  <Route path="/mvp-analytics" element={
-                    <ProtectedRoute roles={['admin']}>
-                      <Layout>
-                        <MVPAnalyticsPage />
-                      </Layout>
-                    </ProtectedRoute>
-                  } />
+                  {/* Removed non-MVP routes: MVP Setup, MVP Analytics */}
 
                   {/* Map Editor (interactive floorplan admin) */}
                   <Route path="/admin/map-editor" element={
@@ -144,48 +100,13 @@ function App() {
                     </ProtectedRoute>
                   } />
 
-                  {/* Venues */}
-                  <Route path="/venues" element={
-                    <ProtectedRoute roles={["admin"]}>
-                      <Layout>
-                        <VenuesPage />
-                      </Layout>
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/venues/create" element={
-                    <ProtectedRoute roles={["admin"]}>
-                      <Layout>
-                        <CreateVenuePage />
-                      </Layout>
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/venues/:id/edit" element={
-                    <ProtectedRoute roles={["admin"]}>
-                      <Layout>
-                        <EditVenuePage />
-                      </Layout>
-                    </ProtectedRoute>
-                  } />
+                  {/* Removed non-MVP routes: Venues */}
 
-                  {/* AR Campaigns */}
+                  {/* AR Campaigns (organizer entry for AR scavenger hunts) */}
                   <Route path="/ar-campaigns" element={
                     <ProtectedRoute roles={["admin"]}>
                       <Layout>
                         <ARCampaignsPage />
-                      </Layout>
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/ar-campaigns/create" element={
-                    <ProtectedRoute roles={["admin"]}>
-                      <Layout>
-                        <CreateARCampaignPage />
-                      </Layout>
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/ar-campaigns/:id/edit" element={
-                    <ProtectedRoute roles={["admin"]}>
-                      <Layout>
-                        <EditARCampaignPage />
                       </Layout>
                     </ProtectedRoute>
                   } />
@@ -208,14 +129,7 @@ function App() {
                     </ProtectedRoute>
                   } />
 
-                  {/* Staff Scanner */}
-                  <Route path="/staff-scanner" element={
-                    <ProtectedRoute roles={['admin', 'staff']}>
-                      <Layout>
-                        <StaffScannerPage />
-                      </Layout>
-                    </ProtectedRoute>
-                  } />
+                  {/* Removed non-MVP route: Staff Scanner (handled in staff-mobile) */}
             
             {/* Catch all */}
             <Route path="*" element={<NotFoundPage />} />

@@ -75,6 +75,12 @@ export const EditARCampaignPage: React.FC = () => {
   const fetchCampaign = useCallback(async () => {
     try {
       setLoading(true)
+      if (!supabase) {
+        console.warn('Supabase client not initialized when fetching campaign')
+        toast.error('Failed to load campaign')
+        navigate('/ar-campaigns')
+        return
+      }
       const { data, error } = await supabase
         .from('ar_advertisements')
         .select('*')
@@ -84,17 +90,17 @@ export const EditARCampaignPage: React.FC = () => {
       if (error) throw error
 
       // Check if user has permission to edit this campaign
-      if (user?.role !== 'admin' && data.advertiser_id !== user?.id) {
+      if (user?.role !== 'admin' && (data as { advertiser_id?: string | null })?.advertiser_id !== user?.id) {
         toast.error('You do not have permission to edit this campaign')
         navigate('/ar-campaigns')
         return
       }
 
-      setCampaign(data)
+      setCampaign((data as ARAdvertisement) || null)
       setFormData({
-        ...data,
-        start_date: data.start_date ? new Date(data.start_date).toISOString().slice(0, 16) : '',
-        end_date: data.end_date ? new Date(data.end_date).toISOString().slice(0, 16) : ''
+        ...(data as Partial<ARAdvertisement>),
+        start_date: (data as any)?.start_date ? new Date((data as any).start_date).toISOString().slice(0, 16) : '',
+        end_date: (data as any)?.end_date ? new Date((data as any).end_date).toISOString().slice(0, 16) : ''
       })
     } catch (error) {
       console.error('Error fetching campaign:', error)
@@ -107,6 +113,11 @@ export const EditARCampaignPage: React.FC = () => {
 
   const fetchVenues = useCallback(async () => {
     try {
+      if (!supabase) {
+        console.warn('Supabase client not initialized when fetching venues')
+        setVenues([])
+        return
+      }
       const { data, error } = await supabase
         .from('venues')
         .select('id, name')
@@ -114,7 +125,7 @@ export const EditARCampaignPage: React.FC = () => {
         .order('name')
 
       if (error) throw error
-      setVenues(data || [])
+      setVenues((data as Venue[]) || [])
     } catch (error) {
       console.error('Error fetching venues:', error)
       toast.error('Failed to load venues')
@@ -123,6 +134,11 @@ export const EditARCampaignPage: React.FC = () => {
 
   const fetchEvents = useCallback(async (venueId: string) => {
     try {
+      if (!supabase) {
+        console.warn('Supabase client not initialized when fetching events')
+        setEvents([])
+        return
+      }
       const { data, error } = await supabase
         .from('events')
         .select('id, name, venue_id')
@@ -131,7 +147,7 @@ export const EditARCampaignPage: React.FC = () => {
         .order('name')
 
       if (error) throw error
-      setEvents(data || [])
+      setEvents((data as Event[]) || [])
     } catch (error) {
       console.error('Error fetching events:', error)
       toast.error('Failed to load events')
@@ -197,6 +213,7 @@ export const EditARCampaignPage: React.FC = () => {
     
     try {
       setSaving(true)
+      if (!supabase) throw new Error('Supabase not initialized')
       
       const updateData: Record<string, unknown> = {
         ...(formData as Record<string, unknown>),

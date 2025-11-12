@@ -40,6 +40,8 @@
     "src"
   ],
   "exclude": [
-    "api"
+    "api",
+    "src/_deprecated",
+    "_deprecated"
   ]
 }

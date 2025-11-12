@@ -8,7 +8,7 @@ import { supabase } from '../lib/supabase';
 // It imports some scaffold components directly (ImageUploader/POIForm/FloorplanCanvas) from scaffold/ but
 // calls the app's `src/lib/supabase` for DB calls. This is a dev-only bridge to preview the editor.
 
-const MODES = ['pan', 'node', 'segment', 'poi', 'zone', 'draw-path', 'pathfind', 'edit', 'calibrate', 'georeference'];
+const MODES = ['poi', 'node', 'draw-path'];
 
 const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialNodes = [], initialSegments = [], initialPois = [], initialZones = [] }) => {
   const [floorplanUrl, setFloorplanUrl] = useState(initialFloorplan);
@@ -16,23 +16,11 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialNodes = []
   const [segments, setSegments] = useState(initialSegments);
   const [pois, setPois] = useState(initialPois);
   const [zones, setZones] = useState(initialZones);
-  const [mode, setMode] = useState('pan');
-  const [highlightPath, setHighlightPath] = useState([]);
-  const [previewMode, setPreviewMode] = useState(false);
-  const [previewDestination, setPreviewDestination] = useState(null);
-  const [previewUserLocation, setPreviewUserLocation] = useState(null);
-  const [showQrListModal, setShowQrListModal] = useState(false);
-  const [generatedQrs, setGeneratedQrs] = useState([]);
+  const [mode, setMode] = useState('poi');
   const [currentUser, setCurrentUser] = useState(null);
   const [floorplansList, setFloorplansList] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [showTemplateModal, setShowTemplateModal] = useState(false);
-  const [templateName, setTemplateName] = useState('');
-  const [showQrModal, setShowQrModal] = useState(false);
-  const [qrValue, setQrValue] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isSigningUp, setIsSigningUp] = useState(false);
+  const [showSetupModal, setShowSetupModal] = useState(false);
 
   const [showPoiModal, setShowPoiModal] = useState(false);
   const [pendingPoiCoords, setPendingPoiCoords] = useState(null);
@@ -47,6 +35,11 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialNodes = []
   useEffect(() => {
     if (initialFloorplan) setFloorplanUrl(initialFloorplan);
   }, [initialFloorplan]);
+
+  // Show setup modal initially until a floorplan is chosen/uploaded
+  useEffect(() => {
+    setShowSetupModal(!floorplanUrl);
+  }, [floorplanUrl]);
 
   useEffect(() => {
     // auth listener - use app supabase (may throw if not configured)
@@ -81,6 +74,7 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialNodes = []
   // ImageUploader success handler
   const handleUploadSuccess = async (url, dims) => {
     setFloorplanUrl(url);
+    setShowSetupModal(false);
     showMessage('Floorplan uploaded');
     // Persist to Supabase floorplans table if available and user present
     if (supabase && currentUser) {
@@ -131,6 +125,7 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialNodes = []
       setPois(poisData || []);
       setZones(zonesData || []);
       setFloorplanUrl(fp.image_url);
+      setShowSetupModal(false);
       showMessage(`Loaded floorplan: ${fp.name}`);
     } catch (err) {
       console.warn('selectFloorplan supabase fetch failed:', err.message || err);
@@ -141,69 +136,7 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialNodes = []
     }
   };
 
-  const handleCreateTemplate = async () => {
-    if (!templateName) return showMessage('Template name required');
-    if (!floorplanUrl) return showMessage('Upload a floorplan image first');
-    setLoading(true);
-    try {
-      const payload = { template_name: templateName, image_url: floorplanUrl, dimensions: { width: 0, height: 0 } };
-      if (supabase && currentUser) {
-        const { error } = await supabase.from('venue_templates').insert({ ...payload, user_id: currentUser.id });
-        if (error) throw error;
-        showMessage('Template created');
-        setShowTemplateModal(false);
-        setTemplateName('');
-      } else {
-        showMessage('Template saved locally (no DB)');
-        setShowTemplateModal(false);
-        setTemplateName('');
-      }
-    } catch (err) {
-      console.warn('create template failed:', err.message || err);
-      showMessage('Failed to create template');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleShowQr = (value) => {
-    if (!value) return;
-    setQrValue(value);
-    setShowQrModal(true);
-  };
-
-  const handleAuth = async (e) => {
-    e && e.preventDefault && e.preventDefault();
-    setLoading(true);
-    try {
-      if (isSigningUp) {
-        const { error } = await supabase.auth.signUp({ email, password });
-        if (error) throw error;
-        showMessage('Sign-up started; check your email');
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        showMessage('Signed in');
-      }
-    } catch (err) {
-      console.warn('auth failed', err.message || err);
-      showMessage('Auth failed');
-    } finally {
-      setLoading(false);
-      setEmail('');
-      setPassword('');
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      await supabase.auth.signOut();
-      setCurrentUser(null);
-      showMessage('Signed out');
-    } catch (err) {
-      console.warn('signout failed', err.message || err);
-    }
-  };
+  // Removed template creation, QR preview, and auth helpers for MVP simplification
 
   const handleNewNode = useCallback(async (n) => {
     const id = `n_${Date.now()}_${Math.floor(Math.random()*1000)}`;
@@ -299,68 +232,7 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialNodes = []
     }
   };
 
-  // Frontend-only helpers: local save, export/import JSON (no backend required)
-  const fileInputRef = useRef(null);
-
-  const handleLocalSave = () => {
-    if (!floorplanUrl) return showMessage('Upload a floorplan first');
-    const payload = { floorplanUrl, nodes, segments, pois, zones, savedAt: new Date().toISOString() };
-    try {
-      localStorage.setItem('dev_floorplan_auto_save', JSON.stringify(payload));
-      showMessage('Saved to localStorage (dev_floorplan_auto_save)');
-    } catch (err) {
-      console.warn('localSave failed', err);
-      showMessage('Local save failed');
-    }
-  };
-
-  const handleExportJSON = () => {
-    if (!floorplanUrl) return showMessage('Upload a floorplan first');
-    const payload = { floorplanUrl, nodes, segments, pois, zones, exportedAt: new Date().toISOString() };
-    try {
-      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `floorplan_export_${Date.now()}.json`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-      showMessage('Exported JSON');
-    } catch (err) {
-      console.warn('export failed', err);
-      showMessage('Export failed');
-    }
-  };
-
-  const handleImportClick = () => {
-    fileInputRef.current && fileInputRef.current.click();
-  };
-
-  const handleImportFile = (e) => {
-    const f = e.target.files && e.target.files[0];
-    if (!f) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      try {
-        const parsed = JSON.parse(ev.target.result);
-        // defensive mapping
-        setFloorplanUrl(parsed.floorplanUrl || parsed.storage_url || parsed.image_url || null);
-        setNodes(Array.isArray(parsed.nodes) ? parsed.nodes : (parsed.nodes || []));
-        setSegments(Array.isArray(parsed.segments) ? parsed.segments : (parsed.paths || []));
-        setPois(Array.isArray(parsed.pois) ? parsed.pois : (parsed.pois || []));
-        setZones(Array.isArray(parsed.zones) ? parsed.zones : (parsed.zones || []));
-        showMessage('Imported JSON');
-      } catch (err) {
-        console.warn('import parse failed', err);
-        showMessage('Failed to import JSON');
-      }
-    };
-    reader.readAsText(f);
-    // reset so same file can be re-imported later
-    e.target.value = '';
-  };
+  // Removed local save/export/import for MVP simplification
 
   // --- Pathfinding helpers (simple Dijkstra on the node graph) ---
   const buildAdjacency = () => {
@@ -426,125 +298,13 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialNodes = []
     }).filter(Boolean);
   };
 
-  // Preview navigation: pick destination (booth), pick a localization POI as start, compute path
-  const startPreviewNavigation = (destinationPoiId, localizationPoiId = null) => {
-    const destPoi = pois.find(p => p.id === destinationPoiId);
-    if (!destPoi) return showMessage('Select a destination POI');
-    let startPoi = null;
-    if (localizationPoiId) startPoi = pois.find(p => p.id === localizationPoiId);
-    if (!startPoi) startPoi = pois.find(p => p.type === 'localization') || pois[0];
-    if (!startPoi) return showMessage('No localization POI available (add one)');
-    setPreviewDestination(destPoi.id);
-    setPreviewUserLocation(startPoi.id);
-    // map to nearest nodes
-    const startNode = nearestNodeForPoi(startPoi);
-    const endNode = nearestNodeForPoi(destPoi);
-    if (!startNode || !endNode) return showMessage('Both start and destination must be near defined nodes');
-    const nodePath = findShortestNodePath(startNode.id, endNode.id);
-    const coords = nodePathToCoords(nodePath);
-    setHighlightPath(coords);
-    setPreviewMode(true);
-    showMessage('Preview route generated');
-  };
-
-  // Generate QR codes for localization and booth POIs (uses online qr API, returns display URLs)
-  const handleGenerateQRCodes = () => {
-    const targets = pois.filter(p => p.type === 'localization' || p.type === 'booth');
-    if (targets.length === 0) return showMessage('No localization or booth POIs to generate QR for');
-    const qrs = targets.map(p => {
-      const payload = { type: p.type, poi_id: p.id, name: p.name, map_url: floorplanUrl };
-      const data = encodeURIComponent(JSON.stringify(payload));
-      const url = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${data}`;
-      return { poi: p, url };
-    });
-    setGeneratedQrs(qrs);
-    setShowQrListModal(true);
-  };
+  // Removed attendee preview and bulk QR generation for MVP simplification
 
   return (
-    <div style={{ padding: 12, display: 'flex', gap: 12 }}>
-      {/* Left column: floorplans, templates, auth */}
-      <aside style={{ width: 300, border: '1px solid #e5e7eb', padding: 12, borderRadius: 8 }}>
-        <h3 style={{ marginTop: 0 }}>Floorplans</h3>
-        <div style={{ maxHeight: 300, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {loading && <div>Loading...</div>}
-          {!loading && floorplansList.length === 0 && <div style={{ color: '#6b7280' }}>No saved floorplans yet</div>}
-          {floorplansList.map(fp => (
-            <div key={fp.id} style={{ display: 'flex', gap: 8, alignItems: 'center', borderBottom: '1px solid #f3f4f6', paddingBottom: 8 }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 600 }}>{fp.name}</div>
-                <div style={{ fontSize: 12, color: '#6b7280' }}>{fp.created_at ? new Date(fp.created_at).toLocaleString() : ''}</div>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <button onClick={() => handleSelectFloorplan(fp)} style={{ padding: '4px 8px' }}>Open</button>
-                <button onClick={() => handleShowQr(fp.image_url)} style={{ padding: '4px 8px' }}>QR</button>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div style={{ marginTop: 12 }}>
-    <ImageUploader onUploadSuccess={handleUploadSuccess} uploadFn={uploadToSupabase} />
-        </div>
-
-        {/* QR Code Calibration Section */}
-        <div style={{ marginTop: 12, borderTop: '1px dashed #e5e7eb', paddingTop: 12 }}>
-          <h4 style={{ margin: '6px 0 8px 0', fontSize: 14, fontWeight: 600 }}>QR Code Calibration</h4>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div>
-              <label style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 4 }}>Event ID (for QR nodes)</label>
-              <input 
-                type="text" 
-                placeholder="Event UUID" 
-                value={currentEventId || ''} 
-                onChange={e => setCurrentEventId(e.target.value)}
-                style={{ width: '100%', padding: '4px 8px', fontSize: 13, border: '1px solid #e5e7eb', borderRadius: 4 }}
-              />
-            </div>
-            {mode === 'node' && (
-              <div>
-                <label style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 4 }}>QR Code ID</label>
-                <input 
-                  type="text" 
-                  placeholder="e.g., junction-hall-a" 
-                  value={currentQrId} 
-                  onChange={e => setCurrentQrId(e.target.value)}
-                  style={{ width: '100%', padding: '4px 8px', fontSize: 13, border: '1px solid #e5e7eb', borderRadius: 4 }}
-                />
-                <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>
-                  Enter QR ID before adding node to calibrate location
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div style={{ marginTop: 12 }}>
-          <button onClick={() => setShowTemplateModal(true)} style={{ width: '100%', padding: 8 }}>Create Template</button>
-        </div>
-
-        <div style={{ marginTop: 12, borderTop: '1px dashed #e5e7eb', paddingTop: 12 }}>
-          <h4 style={{ margin: '6px 0' }}>Account</h4>
-          {currentUser ? (
-            <div>
-              <div style={{ fontSize: 13, marginBottom: 8 }}>Signed in as {currentUser.email}</div>
-              <button onClick={handleLogout} style={{ padding: '6px 8px' }}>Sign out</button>
-            </div>
-          ) : (
-            <form onSubmit={handleAuth} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <input placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} />
-              <input placeholder="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} />
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button type="submit" style={{ padding: '6px 8px' }}>{isSigningUp ? 'Sign up' : 'Sign in'}</button>
-                <button type="button" onClick={() => setIsSigningUp(s => !s)} style={{ padding: '6px 8px' }}>{isSigningUp ? 'Switch to sign in' : 'Switch to sign up'}</button>
-              </div>
-            </form>
-          )}
-        </div>
-      </aside>
+    <div style={{ padding: 12 }}>
 
       {/* Right column: editor */}
-      <main style={{ flex: 1 }}>
+      <main>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
           <div style={{ display: 'flex', gap: 6 }}>
             {MODES.map(m => (
@@ -553,13 +313,39 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialNodes = []
           </div>
 
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button onClick={() => setShowSetupModal(true)}>Change floorplan</button>
             <button onClick={handleSaveMap}>Save (server)</button>
-            <button onClick={handleLocalSave}>Save (local)</button>
-            <button onClick={handleExportJSON}>Export JSON</button>
-            <button onClick={handleImportClick}>Import JSON</button>
-            <button onClick={() => handleShowQr(floorplanUrl)} disabled={!floorplanUrl}>Show map QR</button>
-            <input ref={fileInputRef} type="file" accept="application/json" onChange={handleImportFile} style={{ display: 'none' }} />
           </div>
+        </div>
+
+        {/* Calibration panel */}
+        <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', marginBottom: 12, borderTop: '1px dashed #e5e7eb', paddingTop: 12 }}>
+          <div style={{ maxWidth: 360 }}>
+            <label style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 4 }}>Event ID (for QR nodes)</label>
+            <input
+              type="text"
+              placeholder="Event UUID"
+              value={currentEventId || ''}
+              onChange={e => setCurrentEventId(e.target.value)}
+              style={{ width: '100%', padding: '4px 8px', fontSize: 13, border: '1px solid #e5e7eb', borderRadius: 4 }}
+            />
+          </div>
+          {mode === 'node' && (
+            <div style={{ maxWidth: 360 }}>
+              <label style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 4 }}>QR Code ID</label>
+              <input
+                type="text"
+                placeholder="e.g., junction-hall-a"
+                value={currentQrId}
+                onChange={e => setCurrentQrId(e.target.value)}
+                style={{ width: '100%', padding: '4px 8px', fontSize: 13, border: '1px solid #e5e7eb', borderRadius: 4 }}
+              />
+              <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>
+                Enter QR ID before adding node to calibrate location
+              </p>
+            </div>
+          )}
+          {/* Templates removed for MVP */}
         </div>
 
         {banner && <div style={{ marginBottom: 8, padding: 8, background: '#f0f9ff', border: '1px solid #bfdbfe' }}>{banner}</div>}
@@ -572,116 +358,44 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialNodes = []
             pois={pois}
             zones={zones}
             mode={mode}
-            highlightPath={highlightPath}
-            onNewNode={(n) => { if (mode === 'node') handleNewNode(n); }}
-            onNewSegment={(s) => { if (mode === 'segment') handleNewSegment(s); }}
+            onNewNode={(n) => { if (mode === 'node' || mode === 'draw-path') return handleNewNode(n); }}
+            onNewSegment={(s) => { if (mode === 'draw-path') handleNewSegment(s); }}
             onNewPoi={(p) => { if (mode === 'poi') handleCanvasClickForPoi(p); }}
           />
         </div>
       </main>
 
-      {/* QR list modal (bulk generated) */}
-      {showQrListModal && (
-        <div style={{ position: 'fixed', left: 0, top: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ width: 720, maxHeight: '80vh', overflow: 'auto', background: '#fff', padding: 16, borderRadius: 8 }}>
-            <h3>Generated QR Anchors</h3>
-            <p style={{ marginTop: 0 }}>Download or open each QR. The QR encodes a small JSON payload with keys: type, poi_id, name, map_url.</p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-              {generatedQrs.map((q) => (
-                <div key={q.poi.id} style={{ border: '1px solid #e5e7eb', padding: 8, borderRadius: 6, textAlign: 'center' }}>
-                  <div style={{ fontWeight: 600 }}>{q.poi.name}</div>
-                  <div style={{ fontSize: 12, color: '#6b7280' }}>{q.poi.type}</div>
-                  <img src={q.url} alt={`qr-${q.poi.id}`} style={{ width: 180, height: 180, marginTop: 8 }} />
-                  <div style={{ marginTop: 8 }}>
-                    <a href={q.url} target="_blank" rel="noreferrer" style={{ marginRight: 8 }}>Open</a>
-                    <a href={q.url} download={`qr_${q.poi.id}.png`}>Download</a>
-                  </div>
-                </div>
-              ))}
+      {/* Setup modal: upload/select floorplan */}
+      {showSetupModal && (
+        <div style={{ position: 'fixed', left: 0, top: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
+          <div style={{ width: 860, maxHeight: '80vh', overflow: 'auto', background: '#fff', padding: 16, borderRadius: 8 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ margin: 0 }}>Setup Floorplan</h3>
+              <button onClick={() => setShowSetupModal(false)} style={{ padding: '6px 10px' }}>Close</button>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
-              <button onClick={() => setShowQrListModal(false)}>Close</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Preview / mobile-sim controls (simple) */}
-      <div style={{ position: 'fixed', right: 16, bottom: 16 }}> 
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={() => { setPreviewMode(p => !p); setHighlightPath([]); }}>{previewMode ? 'Exit Preview' : 'Enter Preview'}</button>
-          <button onClick={handleGenerateQRCodes}>Generate QR Anchors</button>
-        </div>
-      </div>
-
-      {/* Preview panel (simple mobile-sim) */}
-      {previewMode && (
-        <div style={{ position: 'fixed', left: 16, bottom: 16, width: 360, height: 640, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'auto' }}>
-          <div style={{ padding: 12, borderBottom: '1px solid #f3f4f6' }}>
-            <h4 style={{ margin: 0 }}>Preview (Attendee)</h4>
-            <div style={{ marginTop: 8 }}>
-              <select value={previewDestination || ''} onChange={e => setPreviewDestination(e.target.value)} style={{ width: '100%' }}>
-                <option value="">Select destination (POI)</option>
-                {pois.filter(p=>p.type === 'booth' || p.type === 'general').map(p => (
-                  <option key={p.id} value={p.id}>{p.name} ({p.type})</option>
-                ))}
-              </select>
-              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                <button onClick={() => startPreviewNavigation(previewDestination)}>Start Navigation (simulate scan)</button>
-                <button onClick={() => { setPreviewDestination(null); setPreviewUserLocation(null); setHighlightPath([]); }}>Reset</button>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 12 }}>
+              <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: 12 }}>
+                <h4 style={{ marginTop: 0 }}>Upload New Floorplan</h4>
+                <ImageUploader onUploadSuccess={handleUploadSuccess} uploadFn={uploadToSupabase} />
               </div>
-            </div>
-          </div>
-          <div style={{ padding: 12 }}>
-            <div style={{ fontSize: 13, color: '#6b7280' }}>Scan simulation: choose a localization anchor in the map editor by adding POIs with type 'localization'. The preview will use the first available localization POI if none explicitly selected.</div>
-            <div style={{ marginTop: 12 }}>
-              <div style={{ fontWeight: 600 }}>Localization POIs</div>
-              <ul>
-                {pois.filter(p=>p.type === 'localization').map(p => (
-                  <li key={p.id}>{p.name} — <button onClick={() => startPreviewNavigation(previewDestination, p.id)}>Use & Navigate</button></li>
-                ))}
-              </ul>
-            </div>
-            <div style={{ marginTop: 12 }}>
-              <div style={{ fontWeight: 600 }}>Route</div>
-              {highlightPath && highlightPath.length > 0 ? (
-                <ol>
-                  {highlightPath.map((pt, idx) => (<li key={idx}>{Math.round(pt.x)},{Math.round(pt.y)}</li>))}
-                </ol>
-              ) : (
-                <div style={{ color: '#6b7280' }}>No route — draw nodes & segments in the editor first.</div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Template modal */}
-      {showTemplateModal && (
-        <div style={{ position: 'fixed', left: 0, top: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ width: 480, background: '#fff', padding: 16, borderRadius: 8 }}>
-            <h3>Create Template</h3>
-            <input placeholder="Template name" value={templateName} onChange={e => setTemplateName(e.target.value)} style={{ width: '100%', marginBottom: 8 }} />
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => setShowTemplateModal(false)}>Cancel</button>
-              <button onClick={handleCreateTemplate}>Create</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* QR modal */}
-      {showQrModal && (
-        <div style={{ position: 'fixed', left: 0, top: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ width: 360, background: '#fff', padding: 16, borderRadius: 8, textAlign: 'center' }}>
-            <h4>Scan to open</h4>
-            {qrValue ? (
-              <img alt="qr" src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrValue)}`} />
-            ) : (
-              <div>No QR data</div>
-            )}
-            <div style={{ marginTop: 12 }}>
-              <button onClick={() => setShowQrModal(false)}>Close</button>
+              <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: 12 }}>
+                <h4 style={{ marginTop: 0 }}>Saved Floorplans</h4>
+                <div style={{ maxHeight: 360, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {loading && <div>Loading...</div>}
+                  {!loading && floorplansList.length === 0 && <div style={{ color: '#6b7280' }}>No saved floorplans yet</div>}
+                  {floorplansList.map(fp => (
+                    <div key={fp.id} style={{ display: 'flex', gap: 8, alignItems: 'center', borderBottom: '1px solid #f3f4f6', paddingBottom: 8 }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 600 }}>{fp.name}</div>
+                        <div style={{ fontSize: 12, color: '#6b7280' }}>{fp.created_at ? new Date(fp.created_at).toLocaleString() : ''}</div>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <button onClick={() => handleSelectFloorplan(fp)} style={{ padding: '4px 8px' }}>Open</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>

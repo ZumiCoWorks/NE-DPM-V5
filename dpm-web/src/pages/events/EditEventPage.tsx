@@ -20,6 +20,7 @@ interface EventFormData {
   venue_id: string
   max_attendees: string
   status: 'draft' | 'published'
+  quicket_event_id?: string
 }
 
 interface FormErrors {
@@ -31,6 +32,7 @@ interface FormErrors {
   max_attendees?: string
   status?: string
   general?: string
+  quicket_event_id?: string
 }
 
 export const EditEventPage: React.FC = () => {
@@ -48,6 +50,7 @@ export const EditEventPage: React.FC = () => {
     venue_id: '',
     max_attendees: '',
     status: 'draft',
+    quicket_event_id: '',
   })
   const [errors, setErrors] = useState<FormErrors>({})
 
@@ -55,6 +58,11 @@ export const EditEventPage: React.FC = () => {
     if (!id) return
 
     try {
+      if (!supabase) {
+        console.warn('Supabase client not initialized when fetching event')
+        setErrors({ general: 'Failed to load event details' })
+        return
+      }
       const { data: event, error } = await supabase
         .from('events')
         .select('*')
@@ -68,14 +76,25 @@ export const EditEventPage: React.FC = () => {
       }
 
       if (event) {
+        const e = event as {
+          name?: string
+          description?: string
+          start_date?: string | Date
+          end_date?: string | Date
+          venue_id?: string
+          max_attendees?: number | null
+          status?: 'draft' | 'published'
+          quicket_event_id?: string | null
+        }
         setFormData({
-          name: event.name || '',
-          description: event.description || '',
-          start_date: event.start_date ? new Date(event.start_date).toISOString().slice(0, 16) : '',
-          end_date: event.end_date ? new Date(event.end_date).toISOString().slice(0, 16) : '',
-          venue_id: event.venue_id || '',
-          max_attendees: event.max_attendees ? event.max_attendees.toString() : '',
-          status: event.status || 'draft',
+          name: e.name || '',
+          description: e.description || '',
+          start_date: e.start_date ? new Date(e.start_date).toISOString().slice(0, 16) : '',
+          end_date: e.end_date ? new Date(e.end_date).toISOString().slice(0, 16) : '',
+          venue_id: e.venue_id || '',
+          max_attendees: e.max_attendees ? String(e.max_attendees) : '',
+          status: e.status || 'draft',
+          quicket_event_id: e.quicket_event_id || '',
         })
       }
     } catch (error) {
@@ -88,6 +107,11 @@ export const EditEventPage: React.FC = () => {
 
   const fetchVenues = useCallback(async () => {
     try {
+      if (!supabase) {
+        console.warn('Supabase client not initialized when fetching venues')
+        setVenues([])
+        return
+      }
       const { data: venuesData, error } = await supabase
         .from('venues')
         .select('id, name, address')
@@ -99,7 +123,7 @@ export const EditEventPage: React.FC = () => {
         return
       }
 
-      setVenues(venuesData || [])
+      setVenues((venuesData as Venue[]) || [])
     } catch (error) {
       console.error('Error fetching venues:', error)
     }
@@ -157,6 +181,11 @@ export const EditEventPage: React.FC = () => {
       setSubmitting(true)
       setErrors({})
 
+      if (!supabase) {
+        setErrors({ general: 'Failed to update event. Please try again.' })
+        return
+      }
+
       const eventData = {
         name: formData.name.trim(),
         description: formData.description.trim() || null,
@@ -166,6 +195,7 @@ export const EditEventPage: React.FC = () => {
         max_attendees: formData.max_attendees ? parseInt(formData.max_attendees) : null,
         status: formData.status,
         updated_at: new Date().toISOString(),
+        quicket_event_id: formData.quicket_event_id?.trim() || null,
       }
 
       const { error } = await supabase
@@ -280,6 +310,26 @@ export const EditEventPage: React.FC = () => {
             </div>
             {errors.description && (
               <p className="mt-1 text-sm text-red-600">{errors.description}</p>
+            )}
+          </div>
+
+          {/* Quicket Event ID (optional) */}
+          <div className="mb-6">
+            <label htmlFor="quicket_event_id" className="block text-sm font-medium text-gray-700">
+              Quicket Event ID (optional)
+            </label>
+            <div className="mt-1">
+              <input
+                type="text"
+                id="quicket_event_id"
+                value={formData.quicket_event_id}
+                onChange={(e) => handleInputChange('quicket_event_id', e.target.value)}
+                className="block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Link to an external Quicket event"
+              />
+            </div>
+            {errors.quicket_event_id && (
+              <p className="mt-1 text-sm text-red-600">{errors.quicket_event_id}</p>
             )}
           </div>
 

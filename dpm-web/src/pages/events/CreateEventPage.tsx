@@ -20,6 +20,7 @@ interface EventFormData {
   venue_id: string
   max_attendees: string
   status: 'draft' | 'published'
+  quicket_event_id?: string
 }
 
 export const CreateEventPage: React.FC = () => {
@@ -36,6 +37,7 @@ export const CreateEventPage: React.FC = () => {
     venue_id: '',
     max_attendees: '',
     status: 'draft',
+    quicket_event_id: '',
   })
   const [errors, setErrors] = useState<Partial<EventFormData>>({})
 
@@ -46,6 +48,11 @@ export const CreateEventPage: React.FC = () => {
   const fetchVenues = async () => {
     try {
       setVenuesLoading(true)
+      if (!supabase) {
+        console.warn('Supabase client not initialized when fetching venues')
+        setVenues([])
+        return
+      }
       
       const { data, error } = await supabase
         .from('venues')
@@ -58,7 +65,7 @@ export const CreateEventPage: React.FC = () => {
         return
       }
 
-      setVenues(data || [])
+      setVenues((data as Venue[]) || [])
     } catch (error) {
       console.error('Error fetching venues:', error)
     } finally {
@@ -115,6 +122,7 @@ export const CreateEventPage: React.FC = () => {
 
     try {
       setLoading(true)
+      if (!supabase) throw new Error('Supabase not initialized')
       
       const eventData = {
         name: formData.name.trim(),
@@ -125,6 +133,7 @@ export const CreateEventPage: React.FC = () => {
         organizer_id: user.id,
         max_attendees: formData.max_attendees ? parseInt(formData.max_attendees) : null,
         status: formData.status,
+        quicket_event_id: formData.quicket_event_id?.trim() || null,
       }
 
       const { error } = await supabase
@@ -203,25 +212,40 @@ export const CreateEventPage: React.FC = () => {
             )}
           </div>
 
-          {/* Description */}
-          <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700">
-              Description
-            </label>
-            <div className="mt-1 relative">
-              <div className="absolute top-3 left-3 pointer-events-none">
-                <FileText className="h-5 w-5 text-gray-400" />
-              </div>
-              <textarea
-                id="description"
-                rows={4}
-                value={formData.description}
-                onChange={(e) => handleInputChange('description', e.target.value)}
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Describe your event..."
-              />
+        {/* Description */}
+        <div>
+          <label htmlFor="description" className="block text-sm font-medium text-gray-700">
+            Description
+          </label>
+          <div className="mt-1 relative">
+            <div className="absolute top-3 left-3 pointer-events-none">
+              <FileText className="h-5 w-5 text-gray-400" />
             </div>
+            <textarea
+              id="description"
+              rows={4}
+              value={formData.description}
+              onChange={(e) => handleInputChange('description', e.target.value)}
+              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Describe your event..."
+            />
           </div>
+        </div>
+
+        {/* Quicket Event ID (optional) */}
+        <div>
+          <label htmlFor="quicket_event_id" className="block text-sm font-medium text-gray-700">
+            Quicket Event ID (optional)
+          </label>
+          <input
+            type="text"
+            id="quicket_event_id"
+            value={formData.quicket_event_id}
+            onChange={(e) => handleInputChange('quicket_event_id', e.target.value)}
+            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+            placeholder="Link to an external Quicket event"
+          />
+        </div>
 
           {/* Date Range */}
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">

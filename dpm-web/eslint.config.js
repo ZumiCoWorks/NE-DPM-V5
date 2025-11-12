@@ -5,7 +5,7 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import tseslint from 'typescript-eslint'
 
 export default tseslint.config(
-  { ignores: ['dist', 'node_modules', '_OLD', 'coverage', '.next', '.expo', 'mobile-app/node_modules', 'naveaze-v4', '**/* 2.ts'] },
+  { ignores: ['dist', 'node_modules', '_OLD', 'coverage', '.next', '.expo', 'mobile-app/node_modules', 'naveaze-v4', '**/* 2.ts', 'src/_deprecated/**', '_deprecated/**'] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ['**/*.{ts,tsx}'],

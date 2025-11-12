@@ -1,32 +1,101 @@
 import { createClient } from '@supabase/supabase-js'
+import type { Session } from '@supabase/auth-js'
 
-const supabaseUrl = (import.meta as { env: Record<string, string> }).env.VITE_SUPABASE_URL
-const supabaseAnonKey = (import.meta as { env: Record<string, string> }).env.VITE_SUPABASE_ANON_KEY
+const env = (import.meta as { env: Record<string, string> }).env
+const supabaseUrl = env.VITE_SUPABASE_URL
+const supabaseAnonKey = env.VITE_SUPABASE_ANON_KEY
+const demoMode = env.VITE_DEMO_MODE === 'true'
 
-// Try to create the Supabase client. If env vars are missing or invalid (e.g. placeholder
-// values), don't throw during module initialization — log a warning and export a null
-// client. This prevents the entire app from crashing before React can render and lets
-// the UI handle the missing configuration (or the developer fill in real values).
-let _supabase: any = null
-if (supabaseUrl && supabaseAnonKey) {
-  try {
-    _supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        autoRefreshToken: true,
-        persistSession: true,
-        detectSessionInUrl: true,
+// Minimal interfaces to type the demo/mock client without using `any`.
+// Keep the surface strictly to what the app uses to avoid over-typing.
+interface QueryBuilder extends PromiseLike<{ data: unknown; error: null }> {
+  select(columns?: string): QueryBuilder
+  eq(column: string, value: unknown): QueryBuilder
+  order(column: string, opts?: { ascending?: boolean; nullsFirst?: boolean }): QueryBuilder
+  limit(n: number): QueryBuilder
+  single(): QueryBuilder
+  delete(): QueryBuilder
+  insert(rows?: unknown): QueryBuilder
+  update(values?: unknown): QueryBuilder
+  upsert(values?: unknown): QueryBuilder
+}
+
+interface SupabaseAuthLike {
+  getSession(): Promise<{ data: { session: Session | null } }>
+  onAuthStateChange(
+    callback: (event: string, session: Session | null) => void
+  ): { data: { subscription: { unsubscribe(): void } } }
+  getUser(): Promise<{ data: { user: { id: string; email: string } }; error: null }>
+  signInWithPassword(_opts?: unknown): Promise<{ error: null }>
+  signUp(_opts?: unknown): Promise<{ error: null }>
+  signOut(): Promise<{ error: null }>
+}
+
+interface SupabaseClientLike {
+  from(table: string): QueryBuilder
+  auth: SupabaseAuthLike
+}
+
+let _supabase: SupabaseClientLike | null = null
+
+if (demoMode) {
+  // A lightweight thenable query builder to mimic supabase-js chaining in demo mode.
+  const makeBuilder = (initialData: unknown = []) => {
+    let data = initialData
+    const builder: QueryBuilder = {
+      select: (_columns?: string) => { void _columns; return builder },
+      eq: (_column: string, _value: unknown) => { void _column; void _value; return builder },
+      order: (_column: string, _opts?: { ascending?: boolean; nullsFirst?: boolean }) => { void _column; void _opts; return builder },
+      limit: (n: number) => { void n; return builder },
+      single: () => { data = null; return builder },
+      delete: () => { data = null; return builder },
+      insert: (_rows?: unknown) => { void _rows; data = null; return builder },
+      update: (_values?: unknown) => { void _values; data = null; return builder },
+      upsert: (_values?: unknown) => { void _values; data = { role: 'admin' }; return builder },
+      // Provide a PromiseLike-compliant `then` signature to satisfy TypeScript
+      then: (onfulfilled?: (value: { data: unknown; error: null }) => unknown, _onrejected?: (reason: unknown) => unknown) => {
+        void _onrejected
+        const payload = { data, error: null as null }
+        return Promise.resolve(onfulfilled ? onfulfilled(payload) : payload)
       }
-    })
-  } catch (err) {
-    // Could be an invalid URL or other initialization error from the library
-    // Log the error but don't throw to avoid a blank page on startup.
-    // eslint-disable-next-line no-console
-    console.error('Failed to initialize Supabase client:', err)
-    _supabase = null
+    }
+    return builder
   }
-} else {
+  const mockAuth: SupabaseAuthLike = {
+    getSession: async () => ({ data: { session: null } }),
+    onAuthStateChange: (callback: (event: string, session: Session | null) => void) => { void callback; return { data: { subscription: { unsubscribe() {} } } } },
+    getUser: async () => ({ data: { user: { id: 'demo-user', email: 'demo@example.com' } }, error: null }),
+    signInWithPassword: async (_opts?: unknown) => { void _opts; return { error: null } },
+    signUp: async (_opts?: unknown) => { void _opts; return { error: null } },
+    signOut: async () => ({ error: null }),
+  }
+  _supabase = {
+    from: (table: string) => { void table; return makeBuilder([]) },
+    auth: mockAuth,
+  }
   // eslint-disable-next-line no-console
-  console.warn('Supabase environment variables are not set (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).')
+  console.log('LOG: Demo mode enabled — using mock Supabase client')
+} else {
+  // Try to create the Supabase client. If env vars are missing or invalid (e.g. placeholder
+  // values), don't throw during module initialization — log a warning and export a null client.
+  if (supabaseUrl && supabaseAnonKey) {
+    try {
+      _supabase = createClient(supabaseUrl, supabaseAnonKey, {
+        auth: {
+          autoRefreshToken: true,
+          persistSession: true,
+          detectSessionInUrl: true,
+        }
+      }) as unknown as SupabaseClientLike
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to initialize Supabase client:', err)
+      _supabase = null
+    }
+  } else {
+    // eslint-disable-next-line no-console
+    console.warn('Supabase environment variables are not set (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).')
+  }
 }
 
 export const supabase = _supabase
@@ -57,20 +126,23 @@ export const signOut = async () => {
 
 // Log the supabase URL so we can quickly validate runtime env at startup
 /* eslint-disable no-console */
-console.log("LOG: Supabase client created. URL:", (import.meta as { env: Record<string, string> }).env.VITE_SUPABASE_URL)
+if (!demoMode) {
+  console.log('LOG: Supabase client created. URL:', env.VITE_SUPABASE_URL)
+}
 /* eslint-enable no-console */
 
 // If the client was created, listen for auth state changes and redirect on sign-out / deletion.
 // This helps ensure the UI doesn't remain stuck when the library clears a session due to
 // an invalid refresh token or other auth issues.
-if (supabase && typeof window !== 'undefined') {
+if (supabase && typeof window !== 'undefined' && !demoMode) {
   // eslint-disable-next-line no-console
   console.log('LOG: Supabase: registering onAuthStateChange listener')
 
-  supabase.auth.onAuthStateChange((_event: string, _session: any) => {
+  // Real client only: type listener params to avoid `any`.
+  supabase.auth.onAuthStateChange((event: string, session: Session | null) => {
     // eslint-disable-next-line no-console
-    console.log('LOG: Supabase auth event:', _event, _session ? 'session exists' : 'no session')
-    if (_event === 'SIGNED_OUT' || _event === 'USER_DELETED') {
+    console.log('LOG: Supabase auth event:', event, session ? 'session exists' : 'no session')
+    if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
       // Clear any client-side state if necessary and redirect to login
       try {
         // eslint-disable-next-line no-console

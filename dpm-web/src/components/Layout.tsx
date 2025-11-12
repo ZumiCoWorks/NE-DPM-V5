@@ -11,7 +11,6 @@ import {
   Menu,
   X,
   Settings,
-  ScanLine,
 } from 'lucide-react'
 import { cn } from '../lib/utils'
 
@@ -29,40 +28,28 @@ interface NavItem {
 const navigation: NavItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
   {
-    name: '1. Import Event',
-    href: '/quicket-sync',
+    name: 'Events',
+    href: '/events',
     icon: Calendar,
-    roles: ['admin', 'event_organizer'],
+    roles: ['admin'],
   },
   {
-    name: '2. Setup Booths',
-    href: '/booths',
+    name: 'Map Editor',
+    href: '/admin/map-editor',
     icon: MapPin,
-    roles: ['admin', 'event_organizer'],
+    roles: ['admin'],
   },
   {
-    name: '3. ROI Reports',
+    name: 'ROI Reports',
     href: '/roi',
     icon: Megaphone,
-    roles: ['admin', 'event_organizer'],
+    roles: ['admin'],
   },
   {
-    name: 'Lead Scanner',
-    href: '/staff-scanner',
-    icon: ScanLine,
-    roles: ['admin', 'staff'],
-  },
-  {
-    name: 'MVP Setup',
-    href: '/mvp-setup',
+    name: 'AR Campaigns',
+    href: '/ar-campaigns',
     icon: MapPin,
-    roles: ['admin', 'event_organizer'],
-  },
-  {
-    name: 'MVP Analytics',
-    href: '/mvp-analytics',
-    icon: Megaphone,
-    roles: ['admin', 'event_organizer'],
+    roles: ['admin'],
   },
 ]
 

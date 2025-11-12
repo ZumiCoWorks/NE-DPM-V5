@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+const demoMode = (import.meta as { env: Record<string, string> }).env.VITE_DEMO_MODE === 'true'
 import type { Session, User } from '@supabase/auth-js'
 
 // Define a more complete user profile type
@@ -11,7 +12,7 @@ export interface UserProfile {
   role?: string
   full_name?: string
   created_at?: string
-  [key: string]: any
+  [key: string]: unknown
 }
 
 export interface AuthContextType {
@@ -21,7 +22,7 @@ export interface AuthContextType {
   login: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
   register: (email: string, password: string, fullName: string) => Promise<void>
-  updateProfile: (updates: Partial<Pick<UserProfile, 'full_name' | 'email'>> & Record<string, any>) => Promise<void>
+  updateProfile: (updates: Partial<Pick<UserProfile, 'full_name' | 'email'>> & Record<string, unknown>) => Promise<void>
   updateUserRole: (role: 'admin' | 'attendee' | 'sponsor' | 'staff') => Promise<void>
 }
 
@@ -33,27 +34,33 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true)
 
   // Helper function to get user profile and set role
-  const getProfileAndSetUser = async (user: User) => {
+  const getProfileAndSetUser = async (authUser: User) => {
     try {
-      const { data: profile } = await supabase
+      if (!supabase) {
+        // In demo or missing client, just set minimal user fields
+        setUser({ id: authUser.id, email: authUser.email ?? undefined })
+        return
+      }
+      const { data } = await supabase
         .from('profiles')
         .select('role, first_name, last_name')
-        .eq('id', user.id)
+        .eq('id', authUser.id)
         .single()
-      
+      const profile = (data as { role?: string; first_name?: string; last_name?: string } | null)
+
       if (profile) {
         const full_name = profile.first_name && profile.last_name 
           ? `${profile.first_name} ${profile.last_name}`
-          : profile.first_name || profile.last_name || user.email?.split('@')[0] || 'User'
-        setUser({ ...user, role: profile.role, full_name })
+          : profile.first_name || profile.last_name || authUser.email?.split('@')[0] || 'User'
+        setUser({ id: authUser.id, email: authUser.email ?? undefined, role: profile.role, full_name })
       } else {
         // No profile, just set the user.
         // The ProtectedRoute will force role selection.
-        setUser(user)
+        setUser({ id: authUser.id, email: authUser.email ?? undefined })
       }
     } catch (error) {
       console.error('Error fetching profile:', error)
-      setUser(user) // Still set the user
+      setUser({ id: authUser.id, email: authUser.email ?? undefined }) // Still set the user
     } finally {
       setLoading(false)
     }
@@ -61,19 +68,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     setLoading(true)
-    // 1. Get the initial session
+    if (demoMode) {
+      setSession(null)
+      setUser({ id: 'demo-user', email: 'demo@example.com', role: 'admin', full_name: 'Demo Admin' })
+      setLoading(false)
+      return
+    }
+
+    if (!supabase) {
+      setSession(null)
+      setLoading(false)
+      return
+    }
     supabase.auth.getSession().then(({ data }: { data: { session: Session | null } }) => {
       const session = data.session
       setSession(session)
       const currentUser = session?.user ?? null
       if (currentUser) {
-        // 2. If session exists, get profile
         getProfileAndSetUser(currentUser)
       } else {
         setLoading(false)
       }
 
-      // 3. Listen for future auth state changes
       const { data: authListener } = supabase.auth.onAuthStateChange(
         async (_event: string, session: Session | null) => {
           setLoading(true)
@@ -81,10 +97,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           const newCurrentUser = session?.user ?? null
 
           if (newCurrentUser) {
-            // User logged in or signed up, get their profile
             await getProfileAndSetUser(newCurrentUser)
           } else {
-            // User logged out
             setUser(null)
           }
           setLoading(false)
@@ -98,6 +112,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, [])
 
   const login = async (email: string, password: string) => {
+    if (!supabase) throw new Error('Supabase not initialized')
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -107,6 +122,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }
 
   const register = async (email: string, password: string, fullName: string) => {
+    if (!supabase) throw new Error('Supabase not initialized')
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -121,6 +137,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }
   
   const logout = async () => {
+    if (!supabase) return
     const { error } = await supabase.auth.signOut()
     if (error) throw error
     // onAuthStateChange will handle setting user to null
@@ -129,8 +146,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // Function to set role *after* signup (for RoleSelectorPage)
   const updateUserRole = async (role: 'admin' | 'attendee' | 'sponsor' | 'staff') => {
     if (!user) throw new Error("No user logged in")
+    if (demoMode) {
+      const full_name = user.full_name || user.email?.split('@')[0] || 'User'
+      setUser({ ...user, role, full_name })
+      return
+    }
 
-    // 1. Update the 'profiles' table (or create entry)
+    if (!supabase) throw new Error('Supabase not initialized')
     const { data, error } = await supabase
       .from('profiles')
       .upsert({ id: user.id, role: role, email: user.email! })
@@ -138,20 +160,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       .single()
 
     if (error) throw error
-
-    // 2. Update the role on the user object in context
+    const updated = (data as { role?: string } | null)
     const full_name = user.full_name || user.email?.split('@')[0] || 'User'
-    setUser({ ...user, role: data.role, full_name })
+    setUser({ ...user, role: updated?.role ?? role, full_name })
   }
 
   // Update profile details in the 'profiles' table and reflect in context
   const updateProfile = async (
-    updates: Partial<Pick<UserProfile, 'full_name' | 'email'>> & Record<string, any>
+    updates: Partial<Pick<UserProfile, 'full_name' | 'email'>> & Record<string, unknown>
   ) => {
     if (!user) throw new Error('No user logged in')
 
     // Extract first_name and last_name from full_name if provided
-    let payload: any = {
+    const payload: Record<string, unknown> = {
       id: user.id,
       ...updates,
     }
@@ -163,19 +184,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       delete payload.full_name
     }
 
+    if (!supabase) throw new Error('Supabase not initialized')
     const { data, error } = await supabase
       .from('profiles')
-      .upsert(payload, { onConflict: 'id' })
+      .upsert(payload)
       .select('first_name, last_name, role, email')
       .single()
 
     if (error) throw error
+    const profileData = (data as { first_name?: string; last_name?: string; role?: string; email?: string } | null) || {}
+    const full_name = profileData.first_name && profileData.last_name 
+      ? `${profileData.first_name} ${profileData.last_name}`
+      : profileData.first_name || profileData.last_name || user.full_name
 
-    const full_name = data.first_name && data.last_name 
-      ? `${data.first_name} ${data.last_name}`
-      : data.first_name || data.last_name || user.full_name
-
-    setUser({ ...user, full_name, role: data.role ?? user.role, email: data.email ?? user.email })
+    setUser({ ...user, full_name, role: profileData.role ?? user.role, email: profileData.email ?? user.email })
   }
 
   const value = {

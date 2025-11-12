@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback, Suspense } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 // import { useAuth } from '../../contexts/AuthContext'
@@ -15,8 +15,7 @@ import {
   RotateCcw,
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
-// @ts-ignore - JSX file without types
-const UnifiedFloorplanEditor = React.lazy(() => import('../../components/FloorplanEditor'))
+// Removed unused lazy import of UnifiedFloorplanEditor to reduce bundle and fix diagnostics
 
 interface NavigationPoint {
   id: string
@@ -59,6 +58,11 @@ export const FloorplanEditorPage: React.FC = () => {
     if (!id) return
     try {
       setLoading(true)
+      if (!supabase) {
+        console.warn('Supabase client not initialized for FloorplanEditor')
+        setLoading(false)
+        return
+      }
       
       // Fetch floorplan
       const { data: floorplanData, error: floorplanError } = await supabase
@@ -72,7 +76,7 @@ export const FloorplanEditorPage: React.FC = () => {
         return
       }
 
-      setFloorplan(floorplanData)
+      setFloorplan((floorplanData as Floorplan) || null)
 
       // Fetch navigation points
       const { data: pointsData, error: pointsError } = await supabase

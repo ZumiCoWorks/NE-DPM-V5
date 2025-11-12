@@ -4,7 +4,6 @@ import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 
 // Lazy-load the unified FloorplanEditor merged into src/components
-// @ts-ignore - JSX file without types
 const FloorplanEditor = React.lazy(() => import('../../components/FloorplanEditor'))
 
 export const UnifiedMapEditorPage: React.FC = () => {
@@ -17,12 +16,17 @@ export const UnifiedMapEditorPage: React.FC = () => {
     let mounted = true
     ;(async () => {
       try {
-        const { data, error } = await supabase.from('floorplans').select('image_url').eq('id', floorplanId).single()
-        if (error) {
-          console.warn('Could not fetch floorplan for unified editor:', error.message || error)
+        if (!supabase) {
+          console.warn('Supabase client not initialized for UnifiedMapEditor')
           return
         }
-        if (mounted) setInitialFloorplanUrl(data?.image_url ?? null)
+        const { data, error } = await supabase.from('floorplans').select('image_url').eq('id', floorplanId).single()
+        if (error) {
+          console.warn('Could not fetch floorplan for unified editor:', error)
+          return
+        }
+        const row = (data as { image_url?: string } | null)
+        if (mounted) setInitialFloorplanUrl(row?.image_url ?? null)
       } catch (err) {
         console.warn('UnifiedMapEditor fetch failed', err)
       }
@@ -36,7 +40,7 @@ export const UnifiedMapEditorPage: React.FC = () => {
       <p style={{ color: '#6b7280' }}>This is the unified editor for building POIs, paths and QR anchors for the NavEaze MVP.</p>
       <div style={{ marginTop: 12 }}>
         <Suspense fallback={<div style={{ padding: 24 }}><LoadingSpinner size="lg" /></div>}>
-          <FloorplanEditor initialFloorplan={initialFloorplanUrl as any} />
+          <FloorplanEditor initialFloorplan={initialFloorplanUrl ?? undefined} />
         </Suspense>
       </div>
     </div>

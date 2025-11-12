@@ -2,7 +2,7 @@ import React, { Suspense } from 'react'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
 
 // Lazy-load a dev-local copy of the scaffold editor so Vite can resolve it.
-// @ts-ignore - JSX file without types
+// @ts-expect-error - JSX file without types
 const ScaffoldFloorplanEditor = React.lazy(() => import('../components/DevScaffoldFloorplanEditor'))
 
 export const DevFloorplanEditorPage: React.FC = () => {

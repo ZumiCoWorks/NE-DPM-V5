@@ -43,6 +43,7 @@ export const DashboardPage: React.FC = () => {
 
   const fetchRecentActivity = useCallback(async () => {
     if (!user) return
+    if (!supabase) return
 
     const activities: RecentActivity[] = []
 
@@ -80,29 +81,32 @@ export const DashboardPage: React.FC = () => {
 
   const fetchDashboardData = useCallback(async () => {
     if (!user) return
+    if (!supabase) return
 
     try {
       setLoading(true)
       
       // Fetch stats based on user role
-      const statsPromises = []
+      const statsPromises: Promise<Partial<DashboardStats>>[] = []
       
       if (user.role === 'admin') {
-        statsPromises.push(
-          supabase
-            .from('events')
-            .select('id', { count: 'exact' })
-            .then(({ count }: { count: number | null }) => ({ totalEvents: count || 0 }))
-        )
+        statsPromises.push((async () => {
+          const { data } = await supabase.from('events').select('id')
+          const totalEvents = Array.isArray(data) ? data.length : 0
+          return { totalEvents }
+        })())
       }
 
       const results = await Promise.all(statsPromises)
-      const newStats = results.reduce((acc, result) => ({ ...acc, ...result }), {
+      let newStats: DashboardStats = {
         totalEvents: 0,
         totalVenues: 0,
         totalCampaigns: 0,
         totalUsers: 0,
-      })
+      }
+      for (const r of results) {
+        newStats = { ...newStats, ...r }
+      }
       setStats(newStats)
 
       // Fetch recent activity
@@ -148,12 +152,12 @@ export const DashboardPage: React.FC = () => {
       })
     }
     
-    if (user?.role === 'staff' || user?.role === 'admin') {
+    if (user?.role === 'admin') {
       actions.push({
-        title: 'Lead Scanner',
-        description: 'Scan and capture leads',
-        href: '/staff-scanner',
-        icon: Megaphone,
+        title: 'AR Campaigns',
+        description: 'Manage scavenger hunts',
+        href: '/ar-campaigns',
+        icon: MapPin,
         color: 'bg-orange-500',
       })
     }
