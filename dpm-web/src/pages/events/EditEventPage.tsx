@@ -186,11 +186,15 @@ export const EditEventPage: React.FC = () => {
         return
       }
 
+      const startISO = new Date(formData.start_date).toISOString()
+      const endISO = new Date(formData.end_date).toISOString()
       const eventData = {
         name: formData.name.trim(),
         description: formData.description.trim() || null,
-        start_date: new Date(formData.start_date).toISOString(),
-        end_date: new Date(formData.end_date).toISOString(),
+        start_date: startISO,
+        end_date: endISO,
+        start_time: startISO,
+        end_time: endISO,
         venue_id: formData.venue_id,
         max_attendees: formData.max_attendees ? parseInt(formData.max_attendees) : null,
         status: formData.status,

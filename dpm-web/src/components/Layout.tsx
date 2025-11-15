@@ -34,6 +34,12 @@ const navigation: NavItem[] = [
     roles: ['admin'],
   },
   {
+    name: 'Venues',
+    href: '/venues',
+    icon: MapPin,
+    roles: ['admin'],
+  },
+  {
     name: 'Map Editor',
     href: '/admin/map-editor',
     icon: MapPin,

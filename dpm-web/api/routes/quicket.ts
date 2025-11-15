@@ -44,10 +44,17 @@ router.post('/test-connection', authenticateToken, async (req: AuthenticatedRequ
  */
 router.get('/events', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const userToken = req.headers['x-quicket-api-key'] as string
-
+    let userToken = req.headers['x-quicket-api-key'] as string
+    if (!userToken && req.user?.id) {
+      const { data } = await supabaseAdmin
+        .from('profiles')
+        .select('quicket_api_key')
+        .eq('id', req.user.id)
+        .single()
+      userToken = (data as { quicket_api_key?: string } | null)?.quicket_api_key || ''
+    }
     if (!userToken) {
-      return res.status(400).json({ error: 'Quicket API key required in headers' })
+      return res.status(400).json({ error: 'Quicket API key required. Set it in Settings.' })
     }
 
     const events = await quicketService.getUserEvents(userToken)
@@ -70,10 +77,17 @@ router.get('/events', authenticateToken, async (req: AuthenticatedRequest, res: 
 router.get('/events/:eventId/guests', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { eventId } = req.params
-    const userToken = req.headers['x-quicket-api-key'] as string
-
+    let userToken = req.headers['x-quicket-api-key'] as string
+    if (!userToken && req.user?.id) {
+      const { data } = await supabaseAdmin
+        .from('profiles')
+        .select('quicket_api_key')
+        .eq('id', req.user.id)
+        .single()
+      userToken = (data as { quicket_api_key?: string } | null)?.quicket_api_key || ''
+    }
     if (!userToken) {
-      return res.status(400).json({ error: 'Quicket API key required in headers' })
+      return res.status(400).json({ error: 'Quicket API key required. Set it in Settings.' })
     }
 
     const guests = await quicketService.getEventGuestList(eventId, userToken)
@@ -97,14 +111,22 @@ router.get('/events/:eventId/guests', authenticateToken, async (req: Authenticat
 router.post('/match-attendee', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { email, eventId } = req.body
-    const userToken = req.headers['x-quicket-api-key'] as string
+    let userToken = req.headers['x-quicket-api-key'] as string
 
     if (!email || !eventId) {
       return res.status(400).json({ error: 'email and eventId are required' })
     }
 
+    if (!userToken && req.user?.id) {
+      const { data } = await supabaseAdmin
+        .from('profiles')
+        .select('quicket_api_key')
+        .eq('id', req.user.id)
+        .single()
+      userToken = (data as { quicket_api_key?: string } | null)?.quicket_api_key || ''
+    }
     if (!userToken) {
-      return res.status(400).json({ error: 'Quicket API key required in headers' })
+      return res.status(400).json({ error: 'Quicket API key required. Set it in Settings.' })
     }
 
     const match = await quicketService.matchAttendee(email, eventId, userToken)
@@ -171,7 +193,7 @@ router.put('/config', authenticateToken, async (req: AuthenticatedRequest, res: 
 router.post('/sync-event', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { eventId } = req.body
-    const apiKey = req.headers['x-quicket-api-key'] as string
+    let apiKey = req.headers['x-quicket-api-key'] as string
 
     if (!eventId) {
       return res.status(400).json({
@@ -180,11 +202,16 @@ router.post('/sync-event', authenticateToken, async (req: AuthenticatedRequest, 
       })
     }
 
+    if (!apiKey && req.user?.id) {
+      const { data } = await supabaseAdmin
+        .from('profiles')
+        .select('quicket_api_key')
+        .eq('id', req.user.id)
+        .single()
+      apiKey = (data as { quicket_api_key?: string } | null)?.quicket_api_key || ''
+    }
     if (!apiKey) {
-      return res.status(400).json({
-        success: false,
-        message: 'Quicket API key required in headers'
-      })
+      return res.status(400).json({ success: false, message: 'Quicket API key required. Set it in Settings.' })
     }
 
     // Fetch event details from Quicket

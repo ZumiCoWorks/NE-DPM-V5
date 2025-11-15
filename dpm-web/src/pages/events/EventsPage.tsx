@@ -51,13 +51,10 @@ export const EventsPage: React.FC = () => {
     try {
       setLoading(true)
       
+      // Fetch raw events without embedded relations to avoid schema/relationship mismatch
       let query = supabase
         .from('events')
-        .select(`
-          *,
-          venue:venues(name, address),
-          organizer:users(full_name)
-        `)
+        .select('*')
         .order('created_at', { ascending: false })
 
       // Filter by organizer if not admin
@@ -65,14 +62,50 @@ export const EventsPage: React.FC = () => {
         query = query.eq('organizer_id', user.id)
       }
 
-      const { data, error } = await query
+      const { data: eventsData, error } = await query
 
       if (error) {
         console.error('Error fetching events:', error)
         return
       }
 
-      setEvents(data || [])
+      const baseEvents: Event[] = (eventsData || []) as unknown as Event[]
+
+      // Hydrate venue details
+      const venueIds = Array.from(new Set(baseEvents.map(e => e.venue_id).filter(Boolean)))
+      let venuesMap: Record<string, { name: string; address: string }> = {}
+      if (venueIds.length) {
+        const { data: venues } = await supabase
+          .from('venues')
+          .select('id, name, address')
+          .in('id', venueIds)
+        venuesMap = Object.fromEntries((venues || []).map(v => [v.id as string, { name: v.name as string, address: (v.address as string) || '' }]))
+      }
+
+      // Optional: hydrate organizer (profiles) for admin view
+      let profilesMap: Record<string, { full_name: string }> = {}
+      if (user?.role === 'admin') {
+        const organizerIds = Array.from(new Set(baseEvents.map(e => e.organizer_id).filter(Boolean)))
+        if (organizerIds.length) {
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id, email')
+            .in('id', organizerIds)
+          profilesMap = Object.fromEntries((profiles || []).map(p => {
+            const email = (p.email as string) || ''
+            const name = email ? (email.split('@')[0] || email) : 'Organizer'
+            return [p.id as string, { full_name: name }]
+          }))
+        }
+      }
+
+      const hydrated = baseEvents.map(e => ({
+        ...e,
+        venue: e.venue_id ? venuesMap[e.venue_id] : undefined,
+        organizer: e.organizer_id && profilesMap[e.organizer_id] ? profilesMap[e.organizer_id] : undefined,
+      }))
+
+      setEvents(hydrated)
     } catch (error) {
       console.error('Error fetching events:', error)
     } finally {

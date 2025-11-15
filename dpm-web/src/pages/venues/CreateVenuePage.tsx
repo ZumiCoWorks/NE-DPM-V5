@@ -488,3 +488,4 @@ export function CreateVenuePage() {
     </div>
   )
 }
+export default CreateVenuePage

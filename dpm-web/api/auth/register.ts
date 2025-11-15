@@ -18,9 +18,9 @@ export const register = async (req: Request, res: Response) => {
     const validatedData = registerSchema.parse(req.body)
     const { email, password, full_name, role, phone, organization_id } = validatedData
 
-    // Check if user already exists
+    // Check if user already exists (profiles)
     const existingUserResult = await supabase
-      .from('users')
+      .from('profiles')
       .select('id')
       .eq('email', email)
       .single()
@@ -62,16 +62,18 @@ export const register = async (req: Request, res: Response) => {
       })
     }
 
-    // Create user profile in users table
+    // Create user profile in profiles table
+    const [first_name, ...restName] = String(full_name).trim().split(' ')
+    const last_name = restName.join(' ') || first_name
+
     const profileResult = await supabase
-      .from('users')
+      .from('profiles')
       .insert({
         id: authData.user.id,
         email: authData.user.email,
-        full_name,
         role,
-        phone: phone || null,
-        organization_id: organization_id || null,
+        first_name,
+        last_name,
       })
       .select()
       .single()
@@ -130,13 +132,9 @@ export const register = async (req: Request, res: Response) => {
       },
       profile: {
         id: profile.id,
-        full_name: profile.full_name,
+        full_name: [profile.first_name, profile.last_name].filter(Boolean).join(' ') || undefined,
         role: profile.role,
-        avatar_url: profile.avatar_url,
-        phone: profile.phone,
-        organization_id: profile.organization_id,
         created_at: profile.created_at,
-        updated_at: profile.updated_at,
       },
       token,
     })

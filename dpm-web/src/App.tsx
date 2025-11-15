@@ -10,6 +10,7 @@ import RoleSelectorPage from './pages/RoleSelectorPage'
 import { DashboardPage } from './pages/DashboardPage'
 import SponsorDashboardPage from './pages/SponsorDashboardPage'
 import MapEditorPage from './pages/admin/MapEditor'
+import UnifiedMapEditorPage from './pages/admin/UnifiedMapEditorPage'
 import ROIDashboardPage from './pages/ROIDashboardPage'
 import { ProfilePage } from "./pages/profile/ProfilePage"
 import { SettingsPage } from './pages/SettingsPage'
@@ -18,6 +19,8 @@ import { NotFoundPage } from './pages/NotFoundPage'
 import { EventsPage } from './pages/events/EventsPage'
 import { CreateEventPage } from './pages/events/CreateEventPage'
 import { EditEventPage } from './pages/events/EditEventPage'
+import VenuesPage from './pages/venues/VenuesPage'
+import CreateVenuePage from './pages/venues/CreateVenuePage'
 // Removed non-MVP pages: Venues
 import ARCampaignsPage from './pages/ar/ARCampaignsPage'
 
@@ -77,6 +80,15 @@ function App() {
                     </ProtectedRoute>
                   } />
 
+                  {/* Unified Map Editor with floorplanId & eventId */}
+                  <Route path="/admin/unified-map-editor" element={
+                    <ProtectedRoute roles={["admin"]}>
+                      <Layout>
+                        <UnifiedMapEditorPage />
+                      </Layout>
+                    </ProtectedRoute>
+                  } />
+
                   {/* Events */}
                   <Route path="/events" element={
                     <ProtectedRoute roles={["admin"]}>
@@ -100,7 +112,20 @@ function App() {
                     </ProtectedRoute>
                   } />
 
-                  {/* Removed non-MVP routes: Venues */}
+                  <Route path="/venues" element={
+                    <ProtectedRoute roles={["admin"]}>
+                      <Layout>
+                        <VenuesPage />
+                      </Layout>
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/venues/create" element={
+                    <ProtectedRoute roles={["admin"]}>
+                      <Layout>
+                        <CreateVenuePage />
+                      </Layout>
+                    </ProtectedRoute>
+                  } />
 
                   {/* AR Campaigns (organizer entry for AR scavenger hunts) */}
                   <Route path="/ar-campaigns" element={

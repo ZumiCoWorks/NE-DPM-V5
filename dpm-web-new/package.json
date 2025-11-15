@@ -1,0 +1,23 @@
+{
+  "name": "dpm-web-new",
+  "version": "1.0.0",
+  "description": "Digital Project Management Web Application",
+  "private": true,
+  "scripts": {
+    "dev": "npm run dev:client",
+    "dev:client": "cd client && npm run dev",
+    "dev:server": "cd server && npm run server:dev",
+    "build": "npm run build:client && npm run build:server",
+    "build:client": "cd client && npm run build",
+    "build:server": "cd server && npm run build",
+    "supabase:init": "npx supabase init",
+    "supabase:link": "npx supabase link",
+    "supabase:reset": "./reset-local.sh",
+    "supabase:push": "npx supabase db push",
+    "supabase:status": "npx supabase status",
+    "setup": "npm install && cd client && npm install && cd ../server && npm install && npm run supabase:init"
+  },
+  "devDependencies": {
+    "supabase": "^1.223.10"
+  }
+}

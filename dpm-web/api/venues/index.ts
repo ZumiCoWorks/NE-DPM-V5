@@ -24,13 +24,7 @@ export const getVenues = async (req: AuthenticatedRequest, res: Response) => {
 
     let query = supabase
       .from('venues')
-      .select(`
-        *,
-        users (
-          id,
-          full_name
-        )
-      `)
+      .select('*')
 
     // Filter by organization for non-admin users
     if (req.user?.role !== 'admin') {
@@ -85,20 +79,7 @@ export const getVenue = async (req: AuthenticatedRequest, res: Response) => {
 
     let query = supabase
       .from('venues')
-      .select(`
-        *,
-        users (
-          id,
-          full_name,
-          email
-        ),
-        floorplans (
-          id,
-          name,
-          floor_number,
-          is_active
-        )
-      `)
+      .select('*')
       .eq('id', id)
 
     // Filter by organization for non-admin users
@@ -148,13 +129,7 @@ export const createVenue = async (req: AuthenticatedRequest, res: Response) => {
         ...validatedData,
         organization_id: req.user?.organization_id,
       })
-      .select(`
-        *,
-        users (
-          id,
-          full_name
-        )
-      `)
+      .select('*')
       .single()
 
     if (error) {
@@ -224,13 +199,7 @@ export const updateVenue = async (req: AuthenticatedRequest, res: Response) => {
       .from('venues')
       .update(validatedData)
       .eq('id', id)
-      .select(`
-        *,
-        users (
-          id,
-          full_name
-        )
-      `)
+      .select('*')
       .single()
 
     if (error) {
@@ -299,7 +268,6 @@ export const deleteVenue = async (req: AuthenticatedRequest, res: Response) => {
       .from('events')
       .select('id')
       .eq('venue_id', id)
-      .in('status', ['published'])
       .limit(1)
 
     if (eventsError) {

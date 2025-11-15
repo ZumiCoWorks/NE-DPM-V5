@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
-import { supabase } from '../lib/supabase'
+import { supabase, getUserFromToken } from '../lib/supabase'
 
 interface AuthenticatedRequest extends Request {
   user?: {
@@ -39,39 +39,49 @@ export const authenticateToken = async (
       })
     }
 
-    // Verify JWT token
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET || 'fallback-secret'
-    ) as JWTPayload
+    let decoded: JWTPayload | null = null
+    try {
+      decoded = jwt.verify(
+        token,
+        process.env.JWT_SECRET || 'fallback-secret'
+      ) as JWTPayload
+    } catch {
+      // Fallback: treat token as Supabase access token
+      const supaUser = await getUserFromToken(token)
+      if (!supaUser) {
+        return res.status(401).json({
+          error: 'Access denied',
+          message: 'Invalid or expired token',
+        })
+      }
+      decoded = {
+        userId: supaUser.id,
+        email: supaUser.email || '',
+        role: '',
+        iat: 0,
+        exp: 0,
+      }
+    }
 
-    // Verify user still exists and is active
+    // Verify profile when available; if missing, proceed with Supabase auth user
     const { data: user, error } = await supabase
-      .from('users')
+      .from('profiles')
       .select('id, email, role')
       .eq('id', decoded.userId)
       .single()
 
-    if (error) {
-      console.error('Database error during authentication:', error)
-      return res.status(401).json({
-        error: 'Access denied',
-        message: 'Invalid or expired token',
-      })
-    }
-
-    if (!user) {
-      return res.status(401).json({
-        error: 'Access denied',
-        message: 'User not found',
-      })
-    }
-
-    // Add user info to request
-    req.user = {
-      id: user.id,
-      email: user.email,
-      role: user.role,
+    if (user && !error) {
+      req.user = {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+      }
+    } else {
+      req.user = {
+        id: decoded.userId,
+        email: decoded.email,
+        role: '',
+      }
     }
 
     next()

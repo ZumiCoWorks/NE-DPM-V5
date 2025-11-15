@@ -21,20 +21,12 @@ export const SettingsPage = () => {
 
   const loadSettings = async () => {
     if (!user) return
-
     try {
       setLoading(true)
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', user.id)
-        .single()
-
-      if (error) throw error
-
-      // Assuming the API key is stored in a JSON field or metadata
-      // You may need to adjust this based on your actual database schema
-      setQuicketApiKey('')
+      const res = await fetch((import.meta as any).env.VITE_API_URL + '/settings/quicket-key', { credentials: 'include' })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json?.message || json?.error || 'Failed to load settings')
+      setQuicketApiKey(json?.data?.quicket_api_key || '')
     } catch (err: any) {
       console.error('Error loading settings:', err)
       setError('Failed to load settings')
@@ -51,11 +43,14 @@ export const SettingsPage = () => {
       setError(null)
       setSuccess(false)
 
-      // Store API key in user metadata or session
-      // Note: For production, implement server-side encrypted storage
-      // This is a temporary solution for MVP - API keys should be stored server-side
-      sessionStorage.setItem('quicket_api_key', quicketApiKey)
-
+      const res = await fetch((import.meta as any).env.VITE_API_URL + '/settings/quicket-key', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ quicket_api_key: quicketApiKey })
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json?.message || json?.error || 'Failed to save settings')
       setSuccess(true)
       setTimeout(() => setSuccess(false), 3000)
     } catch (err: any) {
@@ -66,12 +61,6 @@ export const SettingsPage = () => {
   }
 
   useEffect(() => {
-    // Load from sessionStorage on mount
-    // Note: sessionStorage is used instead of localStorage to limit exposure
-    const savedKey = sessionStorage.getItem('quicket_api_key')
-    if (savedKey) {
-      setQuicketApiKey(savedKey)
-    }
     setLoading(false)
   }, [])
 

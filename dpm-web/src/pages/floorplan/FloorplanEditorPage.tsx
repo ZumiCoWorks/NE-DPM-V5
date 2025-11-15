@@ -67,7 +67,7 @@ export const FloorplanEditorPage: React.FC = () => {
       // Fetch floorplan
       const { data: floorplanData, error: floorplanError } = await supabase
         .from('floorplans')
-        .select('*')
+        .select('id, name, image_url')
         .eq('id', id)
         .single()
 
@@ -76,7 +76,20 @@ export const FloorplanEditorPage: React.FC = () => {
         return
       }
 
-      setFloorplan((floorplanData as Floorplan) || null)
+      const fp = floorplanData as Partial<Floorplan> | null
+      if (fp) {
+        setFloorplan({
+          id: String(fp.id),
+          name: String(fp.name || 'Floorplan'),
+          venue_id: '',
+          image_url: fp.image_url ?? null,
+          width: 800,
+          height: 600,
+          scale: 1,
+        })
+      } else {
+        setFloorplan(null)
+      }
 
       // Fetch navigation points
       const { data: pointsData, error: pointsError } = await supabase
@@ -399,12 +412,12 @@ export const FloorplanEditorPage: React.FC = () => {
           </button>
           {/* Link to unified editor for advanced Konva-based editing */}
           {id && (
-            <Link
-              to={`/admin/unified-map-editor?floorplanId=${id}`}
-              className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 ml-2"
-            >
-              Open Unified Editor
-            </Link>
+          <Link
+            to={`/admin/unified-map-editor?floorplanId=${id}`}
+            className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 ml-2"
+          >
+            Open Unified Editor
+          </Link>
           )}
         </div>
       </div>

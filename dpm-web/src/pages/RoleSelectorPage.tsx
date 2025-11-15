@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
@@ -13,6 +13,12 @@ export const RoleSelectorPage = () => {
   const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
 
+  useEffect(() => {
+    if (!user) {
+      navigate('/login')
+    }
+  }, [user, navigate])
+
   const handleRoleSelect = async (role: Role) => {
     setLoading(true)
     setError(null)
@@ -23,6 +29,25 @@ export const RoleSelectorPage = () => {
       setError(err.message || 'Failed to update role')
       setLoading(false)
     }
+  }
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <Card className="w-full max-w-md">
+          <div className="p-6">
+            <div className="mb-4">
+              <h1 className="text-2xl font-bold text-gray-900">No user logged in</h1>
+              <p className="mt-1 text-sm text-gray-600">Please log in or register to select a role.</p>
+            </div>
+            <div className="flex gap-3">
+              <Button onClick={() => navigate('/login')} className="w-1/2">Login</Button>
+              <Button variant="outline" onClick={() => navigate('/register')} className="w-1/2">Register</Button>
+            </div>
+          </div>
+        </Card>
+      </div>
+    )
   }
 
   return (

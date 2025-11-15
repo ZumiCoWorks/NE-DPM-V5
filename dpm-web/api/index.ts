@@ -11,56 +11,36 @@ config({ path: path.resolve(__dirname, '../.env') })
 import express, { Request, Response, NextFunction } from 'express'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
-import helmet from 'helmet'
-import rateLimit from 'express-rate-limit'
+// security middleware optional in dev
 
 // Import middleware
 import { authenticateToken, requireEventOrganizer, requireVenueManager, AuthenticatedRequest } from './middleware/auth'
 
 // Import route handlers
 import { login, register, logout } from './auth/index'
+import storageRoutes from './routes/storage.js'
+import editorRoutes from './routes/editor.js'
 import { getEvents, getEvent, createEvent, updateEvent, deleteEvent } from './events/index'
 import { getVenues, getVenue, createVenue, updateVenue, deleteVenue } from './venues/index'
 
 const app = express()
 const PORT = process.env.PORT || 3001
 
-// Security middleware
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'"],
-      imgSrc: ["'self'", "data:", "https:"],
-    },
-  },
-}))
+// Security middleware (omitted in dev if not installed)
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: {
-    error: 'Too many requests',
-    message: 'Too many requests from this IP, please try again later.',
-  },
-})
-
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // limit each IP to 5 auth requests per windowMs
-  message: {
-    error: 'Too many authentication attempts',
-    message: 'Too many authentication attempts, please try again later.',
-  },
-})
-
-app.use(limiter)
+// Rate limiting omitted in dev
 
 // CORS configuration
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    const allowed = [
+      process.env.FRONTEND_URL || 'http://localhost:5173',
+      'http://localhost:5173',
+      'http://localhost:5174',
+    ]
+    if (!origin || allowed.includes(origin)) return callback(null, true)
+    return callback(new Error('Not allowed by CORS'))
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -81,9 +61,15 @@ app.get('/api/health', (req, res) => {
 })
 
 // Authentication routes (public)
-app.post('/api/auth/login', authLimiter, login)
-app.post('/api/auth/register', authLimiter, register)
+app.post('/api/auth/login', login)
+app.post('/api/auth/register', register)
 app.post('/api/auth/logout', logout)
+
+// Storage routes
+app.use('/api/storage', authenticateToken, storageRoutes)
+
+// Editor routes
+app.use('/api/editor', authenticateToken, editorRoutes)
 
 // Protected routes - Events
 app.get('/api/events', authenticateToken, requireEventOrganizer, getEvents)
@@ -105,8 +91,8 @@ app.get('/api/profile', authenticateToken, async (req: AuthenticatedRequest, res
     const { supabase } = await import('./lib/supabase')
     
     const { data: profile, error } = await supabase
-      .from('users')
-      .select('*')
+      .from('profiles')
+      .select('id, email, first_name, last_name, role')
       .eq('id', req.user.id)
       .single()
 
@@ -124,9 +110,15 @@ app.get('/api/profile', authenticateToken, async (req: AuthenticatedRequest, res
       })
     }
 
+    const p = profile as { id: string; email?: string; first_name?: string; last_name?: string; role?: string }
     res.json({
       success: true,
-      data: profile,
+      data: {
+        id: p.id,
+        email: p.email,
+        full_name: [p.first_name, p.last_name].filter(Boolean).join(' ') || undefined,
+        role: p.role,
+      },
     })
   } catch (error) {
     console.error('Get profile error:', error)
@@ -140,20 +132,25 @@ app.get('/api/profile', authenticateToken, async (req: AuthenticatedRequest, res
 app.put('/api/profile', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { supabase } = await import('./lib/supabase')
-    const { full_name, phone, company, address, bio } = req.body
+    const { full_name, email } = req.body as { full_name?: string; email?: string }
+
+    let first_name: string | undefined
+    let last_name: string | undefined
+    if (full_name) {
+      const parts = String(full_name).trim().split(' ')
+      first_name = parts[0]
+      last_name = parts.slice(1).join(' ') || parts[0]
+    }
 
     const { data: profile, error } = await supabase
-      .from('users')
+      .from('profiles')
       .update({
-        full_name,
-        phone,
-        company,
-        address,
-        bio,
-        updated_at: new Date().toISOString(),
+        ...(email ? { email } : {}),
+        ...(first_name ? { first_name } : {}),
+        ...(last_name ? { last_name } : {}),
       })
       .eq('id', req.user.id)
-      .select()
+      .select('id, email, first_name, last_name, role')
       .single()
 
     if (error) {
@@ -170,9 +167,15 @@ app.put('/api/profile', authenticateToken, async (req: AuthenticatedRequest, res
       })
     }
 
+    const p = profile as { id: string; email?: string; first_name?: string; last_name?: string; role?: string }
     res.json({
       success: true,
-      data: profile,
+      data: {
+        id: p.id,
+        email: p.email,
+        full_name: [p.first_name, p.last_name].filter(Boolean).join(' ') || undefined,
+        role: p.role,
+      },
       message: 'Profile updated successfully',
     })
   } catch (error) {
@@ -181,6 +184,43 @@ app.put('/api/profile', authenticateToken, async (req: AuthenticatedRequest, res
       error: 'Internal server error',
       message: 'Failed to update profile',
     })
+  }
+})
+
+// Settings: Quicket API key storage
+app.get('/api/settings/quicket-key', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { supabase } = await import('./lib/supabase')
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('quicket_api_key')
+      .eq('id', req.user.id)
+      .single()
+    if (error) {
+      return res.status(500).json({ error: 'Failed to load Quicket key', message: error.message })
+    }
+    res.json({ success: true, data: { quicket_api_key: (data as { quicket_api_key?: string } | null)?.quicket_api_key || '' } })
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error', message: 'Failed to load Quicket key' })
+  }
+})
+
+app.put('/api/settings/quicket-key', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { supabase } = await import('./lib/supabase')
+    const { quicket_api_key } = req.body as { quicket_api_key?: string }
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({ quicket_api_key: quicket_api_key || null })
+      .eq('id', req.user.id)
+      .select('quicket_api_key')
+      .single()
+    if (error) {
+      return res.status(500).json({ error: 'Failed to save Quicket key', message: error.message })
+    }
+    res.json({ success: true, data: { quicket_api_key: (data as { quicket_api_key?: string } | null)?.quicket_api_key || '' }, message: 'Saved' })
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error', message: 'Failed to save Quicket key' })
   }
 })
 
@@ -195,17 +235,17 @@ app.get('/api/dashboard/stats', authenticateToken, async (req: AuthenticatedRequ
 
     if (userRole === 'admin') {
       // Admin sees all stats
-      const [eventsResult, venuesResult, usersResult, campaignsResult] = await Promise.all([
+      const [eventsResult, venuesResult, profilesResult, campaignsResult] = await Promise.all([
         supabase.from('events').select('id', { count: 'exact' }),
         supabase.from('venues').select('id', { count: 'exact' }),
-        supabase.from('users').select('id', { count: 'exact' }),
+        supabase.from('profiles').select('id', { count: 'exact' }),
         supabase.from('ar_advertisements').select('id', { count: 'exact' }),
       ])
 
       stats = {
         totalEvents: eventsResult.count || 0,
         totalVenues: venuesResult.count || 0,
-        totalUsers: usersResult.count || 0,
+        totalUsers: profilesResult.count || 0,
         totalCampaigns: campaignsResult.count || 0,
       }
     } else if (userRole === 'event_organizer') {
@@ -254,6 +294,55 @@ app.get('/api/dashboard/stats', authenticateToken, async (req: AuthenticatedRequ
       error: 'Internal server error',
       message: 'Failed to fetch dashboard statistics',
     })
+  }
+})
+
+// Dev: Seed demo data (define BEFORE 404 handler)
+app.post('/api/dev/seed', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if ((process.env.NODE_ENV || 'development') !== 'development') {
+      return res.status(403).json({ error: 'Dev-only endpoint' })
+    }
+    const { supabase } = await import('./lib/supabase')
+    const { data: venue } = await supabase
+      .from('venues')
+      .upsert({ name: 'Demo Venue', address: '123 Demo St', description: 'Demo seeded venue', status: 'active' })
+      .select()
+      .single()
+    const { data: event } = await supabase
+      .from('events')
+      .upsert({ name: 'Demo Event', description: 'Seeded event', start_date: new Date().toISOString(), venue_id: venue?.id })
+      .select()
+      .single()
+    const { data: campaign } = await supabase
+      .from('ar_advertisements')
+      .upsert({ name: 'Demo Campaign', advertiser_id: req.user?.id })
+      .select()
+      .single()
+    res.json({ success: true, data: { venue, event, campaign } })
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to seed demo data' })
+  }
+})
+
+// Dev: Set user role in profiles
+app.post('/api/dev/set-role', async (req: Request, res: Response) => {
+  try {
+    if ((process.env.NODE_ENV || 'development') !== 'development') {
+      return res.status(403).json({ error: 'Dev-only endpoint' })
+    }
+    const { supabase } = await import('./lib/supabase')
+    const { userId, role, email } = req.body as { userId: string; role: string; email?: string }
+    if (!userId || !role) return res.status(400).json({ error: 'userId and role required' })
+    const { data, error } = await supabase
+      .from('profiles')
+      .upsert({ id: userId, role, ...(email ? { email } : {}) })
+      .select('id, role, email')
+      .single()
+    if (error) return res.status(500).json({ error: 'Failed to set role', message: error.message })
+    res.json({ success: true, data })
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error', message: 'Failed to set role' })
   }
 })
 

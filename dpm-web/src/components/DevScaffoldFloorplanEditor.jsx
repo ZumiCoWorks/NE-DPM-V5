@@ -19,6 +19,7 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
   const [mode, setMode] = useState('poi');
   const [currentUser, setCurrentUser] = useState(null);
   const [floorplansList, setFloorplansList] = useState([]);
+  const [currentFloorplan, setCurrentFloorplan] = useState(null);
   const [loading, setLoading] = useState(false);
   const [showSetupModal, setShowSetupModal] = useState(false);
 
@@ -84,7 +85,11 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
     if (supabase && currentUser) {
       setLoading(true);
       try {
-        const { data, error } = await supabase.from('floorplans').insert({ name: `Floorplan ${new Date().toLocaleString()}`, image_url: url, dimensions: dims, user_id: currentUser.id, scale_meters_per_pixel: 0 }).select().single();
+        const { data, error } = await supabase
+          .from('floorplans')
+          .insert({ name: `Floorplan ${new Date().toLocaleString()}`, image_url: url, dimensions: dims, user_id: currentUser.id })
+          .select('*')
+          .single();
         if (error) throw error;
         // refresh list
         await fetchFloorplans(currentUser.id);
@@ -100,35 +105,43 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
 
   // Upload helper that uses the app Supabase client to store the file in 'floorplans' bucket
   const uploadToSupabase = async (file) => {
-    if (!supabase) throw new Error('Supabase client not configured');
     const fileExt = file.name.split('.').pop();
     const fileName = `floorplan_${Date.now()}_${Math.random().toString(36).slice(2,10)}.${fileExt}`;
-    try {
-      const { data: uploadData, error: uploadError } = await supabase.storage.from('floorplans').upload(fileName, file);
-      if (uploadError) throw uploadError;
-      const { data: publicUrlData } = supabase.storage.from('floorplans').getPublicUrl(uploadData.path);
-      if (publicUrlData?.publicUrl) return publicUrlData.publicUrl;
-      throw new Error('Failed to get public URL for uploaded file');
-    } catch (err) {
-      console.warn('uploadToSupabase failed', err?.message || err);
-      throw err;
-    }
+    const buf = await file.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    const base64 = window.btoa(binary);
+    const { data: { session } } = await supabase.auth.getSession();
+    const API_BASE_URL = (import.meta && import.meta.env && import.meta.env.VITE_API_URL) || 'http://localhost:3001/api';
+    const res = await fetch(`${API_BASE_URL}/storage/upload/floorplan`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {})
+      },
+      credentials: 'include',
+      body: JSON.stringify({ filename: fileName, contentType: file.type || 'image/png', base64 })
+    });
+    const json = await res.json();
+    if (!res.ok || !json?.success) throw new Error(json?.message || 'upload failed');
+    if (!json?.url) throw new Error('No URL returned');
+    return json.url;
   };
 
   const handleSelectFloorplan = async (fp) => {
     if (!fp) return;
     setLoading(true);
     try {
-      // fetch related nodes/segments/pois/zones if supabase available
-      const { data: nodesData } = await supabase.from('nodes').select('*').eq('floorplan_id', fp.id);
-      const { data: segData } = await supabase.from('segments').select('*').eq('floorplan_id', fp.id);
-      const { data: poisData } = await supabase.from('pois').select('*').eq('floorplan_id', fp.id);
-      const { data: zonesData } = await supabase.from('zones').select('*').eq('floorplan_id', fp.id);
-      setNodes(nodesData || []);
-      setSegments(segData || []);
-      setPois(poisData || []);
-      setZones(zonesData || []);
+      // fetch navigation points as POIs
+      const { data: poisData } = await supabase.from('navigation_points').select('id, name, point_type, x_coordinate, y_coordinate').eq('floorplan_id', fp.id);
+      const mappedPois = (poisData || []).map(p => ({ id: p.id, name: p.name, type: p.point_type, x: p.x_coordinate, y: p.y_coordinate }));
+      setPois(mappedPois);
+      setNodes([]);
+      setSegments([]);
+      setZones([]);
       setFloorplanUrl(fp.image_url);
+      setCurrentFloorplan(fp);
       setShowSetupModal(false);
       showMessage(`Loaded floorplan: ${fp.name}`);
     } catch (err) {
@@ -149,26 +162,33 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
     showMessage('Node added');
     
     // Save QR node to database if QR ID is provided and event is selected
-    if (currentQrId && currentEventId && supabase) {
+    if (currentQrId && currentEventId) {
       try {
-        const { error } = await supabase
-          .from('map_qr_nodes')
-          .insert({
+        const { data: { session } } = await supabase.auth.getSession();
+        const API_BASE_URL = (import.meta && import.meta.env && import.meta.env.VITE_API_URL) || 'http://localhost:3001/api';
+        const res = await fetch(`${API_BASE_URL}/editor/qr-node`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {})
+          },
+          credentials: 'include',
+          body: JSON.stringify({
             event_id: currentEventId,
             qr_id_text: currentQrId,
             x_coord: Math.round(n.x || 0),
             y_coord: Math.round(n.y || 0)
-          });
-        
-        if (error) {
-          console.warn('Failed to save QR node to database:', error);
-          showMessage('Node added locally (DB save failed)', 3000);
-        } else {
-          showMessage('Node added and QR calibrated!', 2000);
-          setCurrentQrId(''); // Clear QR ID after successful save
+          })
+        });
+        if (!res.ok) {
+          const j = await res.json().catch(()=>({}));
+          throw new Error(j?.message || 'save failed');
         }
+        showMessage('Node added and QR calibrated!', 2000);
+        setCurrentQrId('');
       } catch (err) {
         console.warn('Error saving QR node:', err);
+        showMessage('Node added locally (DB save failed)', 3000);
       }
     }
     
@@ -196,12 +216,44 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
     setShowPoiModal(true);
   };
 
-  const handlePoiModalSave = (formData) => {
+  const handlePoiModalSave = async (formData) => {
     if (!pendingPoiCoords) return;
     const p = { ...pendingPoiCoords, name: formData.name, type: formData.type };
     handleNewPoi(p);
     setShowPoiModal(false);
     setPendingPoiCoords(null);
+    // Persist to navigation_points when a floorplan is selected
+    if (currentFloorplan && supabase) {
+      try {
+        const pointTypeMap = { general: 'amenity' };
+        const point_type = pointTypeMap[p.type] || p.type || 'amenity';
+        const { data: { session } } = await supabase.auth.getSession();
+        const API_BASE_URL = (import.meta && import.meta.env && import.meta.env.VITE_API_URL) || 'http://localhost:3001/api';
+        const res = await fetch(`${API_BASE_URL}/editor/poi`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {})
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            floorplan_id: currentFloorplan.id,
+            name: p.name,
+            point_type,
+            x_coordinate: Math.round(p.x || 0),
+            y_coordinate: Math.round(p.y || 0),
+          })
+        });
+        if (!res.ok) {
+          const j = await res.json().catch(()=>({}));
+          throw new Error(j?.message || 'save failed');
+        }
+        showMessage('POI saved to DB', 2000);
+      } catch (err) {
+        console.warn('Failed to save POI to DB:', err);
+        showMessage('POI added locally (DB save failed)', 3000);
+      }
+    }
   };
 
   const handlePoiModalCancel = () => {
@@ -211,25 +263,30 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
 
   // Simple save function - in a full editor this would call your backend / supabase table
   const handleSaveMap = async () => {
-    if (!floorplanUrl) return showMessage('Upload a floorplan first');
+    if (!floorplanUrl || !currentFloorplan) return showMessage('Upload a floorplan first');
     const payload = {
-      event_id: 1,
-      storage_url: floorplanUrl,
-      image_width: 0,
-      image_height: 0,
-      pois: pois.map(p => ({ name: p.name, type: p.type, x: p.x, y: p.y, metadata: { localId: p.id } })),
-      paths: segments.map(s => ({ start_index: nodes.findIndex(n => n.id === s.start_node_id), end_index: nodes.findIndex(n => n.id === s.end_node_id), distance: s.distance || null }))
+      floorplan_id: currentFloorplan.id,
+      nodes,
+      segments,
+      pois: pois.map(p => ({ id: p.id, name: p.name, type: p.type, x: p.x, y: p.y }))
     };
-
     try {
-      const res = await fetch('http://localhost:3003/save_map', {
+      const { data: { session } } = await supabase.auth.getSession();
+      const API_BASE_URL = (import.meta && import.meta.env && import.meta.env.VITE_API_URL) || 'http://localhost:3001/api';
+      const res = await fetch(`${API_BASE_URL}/editor/map`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {})
+        },
+        credentials: 'include',
         body: JSON.stringify(payload)
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.details || data?.error || 'save failed');
-      showMessage('Map saved to backend');
+      if (!res.ok) {
+        const j = await res.json().catch(()=>({}));
+        throw new Error(j?.message || 'save failed');
+      }
+      showMessage('Map saved');
     } catch (err) {
       console.warn('saveMap failed', err?.message || err);
       showMessage('Save failed: ' + (err?.message || String(err)));

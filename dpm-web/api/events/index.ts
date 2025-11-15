@@ -4,13 +4,14 @@ import { AuthenticatedRequest } from '../middleware/auth'
 import { z } from 'zod'
 
 const createEventSchema = z.object({
-  name: z.string().min(1, 'Event name is required'),
+  name: z.string().min(1),
   description: z.string().optional(),
-  start_date: z.string().datetime('Invalid start date format'),
-  end_date: z.string().datetime('Invalid end date format'),
-  venue_id: z.string().uuid('Invalid venue ID'),
-  max_attendees: z.number().int().positive('Max attendees must be a positive number').optional(),
-  status: z.enum(['draft', 'published', 'cancelled']).default('draft'),
+  start_date: z.string().datetime().optional(),
+  end_date: z.string().datetime().optional(),
+  start_time: z.string().datetime().optional(),
+  end_time: z.string().datetime().optional(),
+  venue_id: z.string().uuid().optional(),
+  max_attendees: z.number().int().positive().optional(),
 })
 
 const updateEventSchema = createEventSchema.partial()
@@ -23,18 +24,7 @@ export const getEvents = async (req: AuthenticatedRequest, res: Response) => {
 
     let query = supabaseAdmin
       .from('events')
-      .select(`
-        *,
-        venues (
-          id,
-          name,
-          address
-        ),
-        users (
-          id,
-          full_name
-        )
-      `)
+      .select('*')
 
     // Filter by organizer for non-admin users (skip for public access)
     if (req.user && req.user.role !== 'admin') {
@@ -47,9 +37,7 @@ export const getEvents = async (req: AuthenticatedRequest, res: Response) => {
     }
 
     // Apply filters
-    if (status) {
-      query = query.eq('status', status)
-    }
+    
 
     if (venue_id) {
       query = query.eq('venue_id', venue_id)
@@ -98,20 +86,7 @@ export const getEvent = async (req: AuthenticatedRequest, res: Response) => {
 
     let query = supabase
       .from('events')
-      .select(`
-        *,
-        venues (
-          id,
-          name,
-          address,
-          capacity
-        ),
-        users (
-          id,
-          full_name,
-          email
-        )
-      `)
+      .select('*')
       .eq('id', id)
 
     // Filter by organizer for non-admin users
@@ -155,38 +130,23 @@ export const createEvent = async (req: AuthenticatedRequest, res: Response) => {
     const validatedData = createEventSchema.parse(req.body)
 
     // Verify venue exists and user has access
-    const { data: venue, error: venueError } = await supabase
-      .from('venues')
-      .select('id, name')
-      .eq('id', validatedData.venue_id)
-      .single()
-
-    if (venueError || !venue) {
-      return res.status(400).json({
-        error: 'Invalid venue',
-        message: 'The specified venue does not exist',
-      })
-    }
+    
 
     // Create event
+    const insertPayload: Record<string, any> = {
+      name: validatedData.name,
+      description: validatedData.description,
+      organizer_id: req.user?.id,
+    }
+    if (validatedData.start_time) insertPayload.start_time = validatedData.start_time
+    if (validatedData.end_time) insertPayload.end_time = validatedData.end_time
+    if (validatedData.start_date) insertPayload.start_time = validatedData.start_date
+    if (validatedData.end_date) insertPayload.end_time = validatedData.end_date
+
     const { data: event, error } = await supabase
       .from('events')
-      .insert({
-        ...validatedData,
-        organizer_id: req.user?.id,
-      })
-      .select(`
-        *,
-        venues (
-          id,
-          name,
-          address
-        ),
-        users (
-          id,
-          full_name
-        )
-      `)
+      .insert(insertPayload)
+      .select('*')
       .single()
 
     if (error) {
@@ -268,22 +228,20 @@ export const updateEvent = async (req: AuthenticatedRequest, res: Response) => {
     }
 
     // Update event
+    const updatePayload: Record<string, any> = {}
+    if (validatedData.name !== undefined) updatePayload.name = validatedData.name
+    if (validatedData.description !== undefined) updatePayload.description = validatedData.description
+    
+    if (validatedData.start_time !== undefined) updatePayload.start_time = validatedData.start_time
+    if (validatedData.end_time !== undefined) updatePayload.end_time = validatedData.end_time
+    if (validatedData.start_date !== undefined) updatePayload.start_time = validatedData.start_date
+    if (validatedData.end_date !== undefined) updatePayload.end_time = validatedData.end_date
+
     const { data: event, error } = await supabase
       .from('events')
-      .update(validatedData)
+      .update(updatePayload)
       .eq('id', id)
-      .select(`
-        *,
-        venues (
-          id,
-          name,
-          address
-        ),
-        users (
-          id,
-          full_name
-        )
-      `)
+      .select('*')
       .single()
 
     if (error) {

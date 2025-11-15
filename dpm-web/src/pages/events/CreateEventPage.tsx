@@ -29,6 +29,10 @@ export const CreateEventPage: React.FC = () => {
   const [venues, setVenues] = useState<Venue[]>([])
   const [loading, setLoading] = useState(false)
   const [venuesLoading, setVenuesLoading] = useState(true)
+  const [showNewVenue, setShowNewVenue] = useState(false)
+  const [newVenueName, setNewVenueName] = useState('')
+  const [newVenueAddress, setNewVenueAddress] = useState('')
+  const [newVenueLoading, setNewVenueLoading] = useState(false)
   const [formData, setFormData] = useState<EventFormData>({
     name: '',
     description: '',
@@ -124,11 +128,15 @@ export const CreateEventPage: React.FC = () => {
       setLoading(true)
       if (!supabase) throw new Error('Supabase not initialized')
       
+      const startISO = new Date(formData.start_date).toISOString()
+      const endISO = new Date(formData.end_date).toISOString()
       const eventData = {
         name: formData.name.trim(),
         description: formData.description.trim() || null,
-        start_date: formData.start_date,
-        end_date: formData.end_date,
+        start_date: startISO,
+        end_date: endISO,
+        start_time: startISO,
+        end_time: endISO,
         venue_id: formData.venue_id,
         organizer_id: user.id,
         max_attendees: formData.max_attendees ? parseInt(formData.max_attendees) : null,
@@ -154,6 +162,28 @@ export const CreateEventPage: React.FC = () => {
       alert('Failed to create event. Please try again.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleQuickAddVenue = async () => {
+    try {
+      setNewVenueLoading(true)
+      if (!supabase) return
+      if (!newVenueName.trim() || !newVenueAddress.trim()) return
+      const { data, error } = await supabase
+        .from('venues')
+        .insert({ name: newVenueName.trim(), address: newVenueAddress.trim(), status: 'active' })
+        .select('id, name, address')
+        .single()
+      if (error) return
+      const v = data as Venue
+      setVenues(prev => [v, ...prev])
+      setFormData(prev => ({ ...prev, venue_id: v.id }))
+      setShowNewVenue(false)
+      setNewVenueName('')
+      setNewVenueAddress('')
+    } finally {
+      setNewVenueLoading(false)
     }
   }
 
@@ -318,6 +348,51 @@ export const CreateEventPage: React.FC = () => {
                 ))}
               </select>
             </div>
+            <div className="mt-2">
+              <button
+                type="button"
+                onClick={() => setShowNewVenue((v) => !v)}
+                className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-700 bg-white hover:bg-gray-50"
+              >
+                {showNewVenue ? 'Cancel' : 'Add Venue'}
+              </button>
+            </div>
+            {showNewVenue && (
+              <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="new_venue_name" className="block text-sm font-medium text-gray-700">Name</label>
+                  <input
+                    id="new_venue_name"
+                    type="text"
+                    value={newVenueName}
+                    onChange={(e) => setNewVenueName(e.target.value)}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    placeholder="Venue name"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="new_venue_address" className="block text-sm font-medium text-gray-700">Address</label>
+                  <input
+                    id="new_venue_address"
+                    type="text"
+                    value={newVenueAddress}
+                    onChange={(e) => setNewVenueAddress(e.target.value)}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    placeholder="Venue address"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <button
+                    type="button"
+                    onClick={handleQuickAddVenue}
+                    disabled={newVenueLoading || !newVenueName.trim() || !newVenueAddress.trim()}
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {newVenueLoading ? 'Saving...' : 'Save Venue'}
+                  </button>
+                </div>
+              </div>
+            )}
             {errors.venue_id && (
               <p className="mt-1 text-sm text-red-600">{errors.venue_id}</p>
             )}

@@ -35,8 +35,8 @@ export const login = async (req: Request, res: Response) => {
 
     // Get user profile
     const profileResult = await supabase
-      .from('users')
-      .select('*')
+      .from('profiles')
+      .select('id, role, first_name, last_name, email, created_at')
       .eq('id', authData.user.id)
       .single()
 
@@ -87,13 +87,9 @@ export const login = async (req: Request, res: Response) => {
       },
       profile: {
         id: profile.id,
-        full_name: profile.full_name,
+        full_name: [profile.first_name, profile.last_name].filter(Boolean).join(' ') || undefined,
         role: profile.role,
-        avatar_url: profile.avatar_url,
-        phone: profile.phone,
-        organization_id: profile.organization_id,
         created_at: profile.created_at,
-        updated_at: profile.updated_at,
       },
       token,
     })

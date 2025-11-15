@@ -43,16 +43,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       const { data } = await supabase
         .from('profiles')
-        .select('role, first_name, last_name')
+        .select('id, role, email')
         .eq('id', authUser.id)
         .single()
-      const profile = (data as { role?: string; first_name?: string; last_name?: string } | null)
+      const profile = (data as { role?: string; email?: string } | null)
 
       if (profile) {
-        const full_name = profile.first_name && profile.last_name 
-          ? `${profile.first_name} ${profile.last_name}`
-          : profile.first_name || profile.last_name || authUser.email?.split('@')[0] || 'User'
-        setUser({ id: authUser.id, email: authUser.email ?? undefined, role: profile.role, full_name })
+        const full_name = authUser.email?.split('@')[0] || 'User'
+        setUser({ id: authUser.id, email: profile.email ?? authUser.email ?? undefined, role: profile.role, full_name })
       } else {
         // No profile, just set the user.
         // The ProtectedRoute will force role selection.
@@ -151,7 +149,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setUser({ ...user, role, full_name })
       return
     }
+    // Prefer backend in development to bypass RLS issues
+    const apiBase = (import.meta as { env: Record<string, string> }).env.VITE_API_URL || '/api'
+    if ((import.meta as { env: Record<string, string> }).env.MODE !== 'production') {
+      const res = await fetch(`${apiBase}/dev/set-role`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, role, email: user.email }),
+      })
+      if (!res.ok) {
+        throw new Error('Failed to set role via backend')
+      }
+      const { data } = await res.json() as { data?: { role?: string } }
+      const full_name = user.full_name || user.email?.split('@')[0] || 'User'
+      setUser({ ...user, role: (data?.role ?? role), full_name })
+      return
+    }
 
+    // Production fallback: upsert via Supabase client (requires proper RLS policies)
     if (!supabase) throw new Error('Supabase not initialized')
     const { data, error } = await supabase
       .from('profiles')

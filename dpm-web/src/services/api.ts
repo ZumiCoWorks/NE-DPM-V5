@@ -34,7 +34,8 @@ const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
     headers: {
       ...headers,
       ...options.headers
-    }
+    },
+    credentials: 'include'
   })
 
   if (!response.ok) {

@@ -41,7 +41,7 @@ export const UnifiedMapEditorPage: React.FC = () => {
       <p style={{ color: '#6b7280' }}>This is the unified editor for building POIs, paths and QR anchors for the NavEaze MVP.</p>
       <div style={{ marginTop: 12 }}>
         <Suspense fallback={<div style={{ padding: 24 }}><LoadingSpinner size="lg" /></div>}>
-          <FloorplanEditor initialFloorplan={initialFloorplanUrl ?? undefined} initialEventId={eventId ?? undefined} />
+          <FloorplanEditor initialFloorplan={initialFloorplanUrl ?? null} initialEventId={eventId ?? null} />
         </Suspense>
       </div>
     </div>

@@ -69,6 +69,26 @@ export const DashboardPage: React.FC = () => {
           )
         }
       }
+      if (user.role === 'staff') {
+        const { data: events } = await supabase
+          .from('events')
+          .select('id, name, description, created_at')
+          .order('created_at', { ascending: false })
+          .limit(3)
+
+        if (events) {
+          type EventRow = { id: string; name: string; description?: string | null; created_at: string }
+          activities.push(
+            ...(events as EventRow[]).map((event) => ({
+              id: event.id,
+              type: 'event' as const,
+              title: event.name,
+              description: event.description || 'No description',
+              created_at: event.created_at,
+            }))
+          )
+        }
+      }
 
       // Sort by creation date and limit to 5 most recent
       activities.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
@@ -94,6 +114,15 @@ export const DashboardPage: React.FC = () => {
           const { data } = await supabase.from('events').select('id')
           const totalEvents = Array.isArray(data) ? data.length : 0
           return { totalEvents }
+        })())
+      }
+      if (user.role === 'staff') {
+        statsPromises.push((async () => {
+          const { data: events } = await supabase.from('events').select('id')
+          const { data: venues } = await supabase.from('venues').select('id')
+          const totalEvents = Array.isArray(events) ? events.length : 0
+          const totalVenues = Array.isArray(venues) ? venues.length : 0
+          return { totalEvents, totalVenues }
         })())
       }
 
@@ -137,6 +166,13 @@ export const DashboardPage: React.FC = () => {
         color: 'bg-blue-500',
       })
       actions.push({
+        title: 'Create Venue',
+        description: 'Add a new venue',
+        href: '/venues/create',
+        icon: MapPin,
+        color: 'bg-teal-500',
+      })
+      actions.push({
         title: 'Map Editor',
         description: 'Edit floorplan and QR codes',
         href: '/admin/map-editor',
@@ -159,6 +195,22 @@ export const DashboardPage: React.FC = () => {
         href: '/ar-campaigns',
         icon: MapPin,
         color: 'bg-orange-500',
+      })
+    }
+    if (user?.role === 'staff') {
+      actions.push({
+        title: 'Profile',
+        description: 'View and update your details',
+        href: '/profile',
+        icon: Users,
+        color: 'bg-blue-500',
+      })
+      actions.push({
+        title: 'Settings',
+        description: 'Configure personal settings',
+        href: '/settings',
+        icon: Megaphone,
+        color: 'bg-green-500',
       })
     }
     
@@ -210,7 +262,7 @@ export const DashboardPage: React.FC = () => {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        {user?.role === 'admin' && (
+        {(user?.role === 'admin' || user?.role === 'staff') && (
           <div className="bg-white overflow-hidden shadow rounded-lg">
             <div className="p-5">
               <div className="flex items-center">
@@ -224,6 +276,27 @@ export const DashboardPage: React.FC = () => {
                     </dt>
                     <dd className="text-lg font-medium text-gray-900">
                       {stats.totalEvents}
+                    </dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        {user?.role === 'staff' && (
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="p-5">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <Users className="h-6 w-6 text-gray-400" />
+                </div>
+                <div className="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt className="text-sm font-medium text-gray-500 truncate">
+                      Total Venues
+                    </dt>
+                    <dd className="text-lg font-medium text-gray-900">
+                      {stats.totalVenues}
                     </dd>
                   </dl>
                 </div>

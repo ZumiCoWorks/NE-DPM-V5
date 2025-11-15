@@ -3,18 +3,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
-import {
-  MapPin,
-  Building,
-  Users,
-  Plus,
-  Edit,
-  Trash2,
-  Search,
-  Filter,
-  Phone,
-  Mail,
-} from 'lucide-react'
+import { MapPin, Building, Users, Plus, Edit, Trash2, Search, Filter, Phone, Mail } from 'lucide-react'
 import { cn } from '../../lib/utils'
 
 interface Venue {
@@ -22,19 +11,12 @@ interface Venue {
   name: string
   description: string | null
   address: string
-  city: string
-  state: string
-  zip_code: string
-  country: string
-  phone: string | null
-  email: string | null
   capacity: number | null
-  status: 'active' | 'inactive' | 'maintenance'
-  manager_id: string
+  venue_type: string | null
+  contact_email: string | null
+  contact_phone: string | null
+  status: 'active' | 'inactive' | 'maintenance' | string
   created_at: string
-  manager?: {
-    full_name: string
-  }
 }
 
 type VenueStatus = 'all' | 'active' | 'inactive' | 'maintenance'
@@ -53,27 +35,17 @@ export const VenuesPage: React.FC = () => {
     try {
       setLoading(true)
       
-      let query = supabase
+      const { data, error } = await supabase
         .from('venues')
-        .select(`
-          *,
-          manager:users(full_name)
-        `)
+        .select('id, name, description, address, capacity, venue_type, contact_email, contact_phone, status, created_at')
         .order('created_at', { ascending: false })
-
-      // Filter by manager if not admin
-      if (user.role !== 'admin') {
-        query = query.eq('manager_id', user.id)
-      }
-
-      const { data, error } = await query
 
       if (error) {
         console.error('Error fetching venues:', error)
         return
       }
 
-      setVenues(data || [])
+      setVenues((data as Venue[]) || [])
     } catch (error) {
       console.error('Error fetching venues:', error)
     } finally {
@@ -129,12 +101,9 @@ export const VenuesPage: React.FC = () => {
 
   const filteredVenues = venues.filter(venue => {
     const matchesSearch = venue.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         venue.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         venue.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         venue.city.toLowerCase().includes(searchTerm.toLowerCase())
-    
+      (venue.description || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      venue.address.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = statusFilter === 'all' || venue.status === statusFilter
-    
     return matchesSearch && matchesStatus
   })
 
@@ -229,9 +198,7 @@ export const VenuesPage: React.FC = () => {
                         </div>
                         <div className="mt-2 flex items-center text-sm text-gray-500">
                           <MapPin className="flex-shrink-0 mr-1.5 h-4 w-4" />
-                          <p className="truncate">
-                            {venue.address}, {venue.city}, {venue.state} {venue.zip_code}
-                          </p>
+                          <p className="truncate">{venue.address}</p>
                         </div>
                         {venue.capacity && (
                           <div className="mt-2 flex items-center text-sm text-gray-500">
@@ -240,24 +207,19 @@ export const VenuesPage: React.FC = () => {
                           </div>
                         )}
                         <div className="mt-2 flex items-center space-x-4 text-sm text-gray-500">
-                          {venue.phone && (
+                          {venue.contact_phone && (
                             <div className="flex items-center">
                               <Phone className="flex-shrink-0 mr-1.5 h-4 w-4" />
-                              <p>{venue.phone}</p>
+                              <p>{venue.contact_phone}</p>
                             </div>
                           )}
-                          {venue.email && (
+                          {venue.contact_email && (
                             <div className="flex items-center">
                               <Mail className="flex-shrink-0 mr-1.5 h-4 w-4" />
-                              <p>{venue.email}</p>
+                              <p>{venue.contact_email}</p>
                             </div>
                           )}
                         </div>
-                        {user?.role === 'admin' && venue.manager && (
-                          <div className="mt-2 text-sm text-gray-500">
-                            Manager: {venue.manager.full_name}
-                          </div>
-                        )}
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
@@ -321,3 +283,4 @@ export const VenuesPage: React.FC = () => {
     </div>
   )
 }
+export default VenuesPage
