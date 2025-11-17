@@ -18,7 +18,7 @@ const FloorplanCanvas = ({
   // optional highlight path: array of {x,y}
   highlightPath = [],
 }) => {
-  const [image] = useImage(floorplanImageUrl);
+  const [image] = useImage(floorplanImageUrl, 'Anonymous');
   const stageRef = useRef(null);
   const [currentSegmentStartNode, setCurrentSegmentStartNode] = useState(null);
   const [currentDrawLastNode, setCurrentDrawLastNode] = useState(null);
@@ -31,14 +31,21 @@ const FloorplanCanvas = ({
 
   const [stageDimensions, setStageDimensions] = useState({ width: 800, height: 600 });
 
-  useEffect(() => {
-    if (image) {
-      setStageDimensions({ width: image.width, height: image.height });
-      setStageScale(1);
-      setStageX(0);
-      setStageY(0);
-    }
-  }, [image, floorplanImageUrl]);
+  const fitToViewport = useCallback(() => {
+    if (!image) return;
+    const viewportW = Math.min(900, Math.max(400, (typeof window !== 'undefined' ? window.innerWidth : 1200) - 320));
+    const viewportH = Math.min(600, Math.max(300, (typeof window !== 'undefined' ? window.innerHeight : 800) - 260));
+    setStageDimensions({ width: viewportW, height: viewportH });
+    const fitScale = Math.min(viewportW / image.width, viewportH / image.height);
+    const scale = Math.max(0.2, Math.min(1, fitScale));
+    setStageScale(scale);
+    const x = (viewportW - image.width * scale) / 2;
+    const y = (viewportH - image.height * scale) / 2;
+    setStageX(x);
+    setStageY(y);
+  }, [image]);
+
+  useEffect(() => { fitToViewport() }, [fitToViewport, image, floorplanImageUrl]);
 
   useEffect(() => {
     // clear any in-progress draw-path state when mode changes away
@@ -152,8 +159,82 @@ const FloorplanCanvas = ({
     return <Line points={pts} stroke="#ef4444" strokeWidth={6} lineCap="round" lineJoin="round" opacity={0.9} />;
   };
 
+  const handleWheel = (e) => {
+    e.evt.preventDefault();
+    if (!stageRef.current) return;
+    const stage = stageRef.current;
+    const oldScale = stage.scaleX();
+    const pointer = stage.getPointerPosition();
+    if (!pointer) return;
+    const scaleBy = 1.05;
+    const mousePointTo = {
+      x: (pointer.x - stage.x()) / oldScale,
+      y: (pointer.y - stage.y()) / oldScale,
+    };
+    const direction = e.evt.deltaY > 0 ? -1 : 1;
+    const newScale = direction > 0 ? oldScale * scaleBy : oldScale / scaleBy;
+    const clamped = Math.max(0.1, Math.min(5, newScale));
+    stage.scale({ x: clamped, y: clamped });
+    const newPos = {
+      x: pointer.x - mousePointTo.x * clamped,
+      y: pointer.y - mousePointTo.y * clamped,
+    };
+    stage.position(newPos);
+    setStageScale(clamped);
+    setStageX(newPos.x);
+    setStageY(newPos.y);
+  };
+
+  const handleMouseDown = (e) => {
+    const evt = e.evt || {};
+    const button = evt.button;
+    if (evt.altKey || button === 1) {
+      isPanning.current = true;
+      lastPointerPosition.current = { x: evt.clientX, y: evt.clientY };
+      return;
+    }
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isPanning.current || !stageRef.current) return;
+    const evt = e.evt || {};
+    const dx = evt.clientX - lastPointerPosition.current.x;
+    const dy = evt.clientY - lastPointerPosition.current.y;
+    lastPointerPosition.current = { x: evt.clientX, y: evt.clientY };
+    const newX = stageRef.current.x() + dx;
+    const newY = stageRef.current.y() + dy;
+    stageRef.current.position({ x: newX, y: newY });
+    setStageX(newX);
+    setStageY(newY);
+  };
+
+  const handleMouseUp = () => {
+    if (isPanning.current) {
+      isPanning.current = false;
+    }
+  };
+
+  const zoomTo = useCallback((nextScale) => {
+    const scale = Math.max(0.1, Math.min(5, nextScale));
+    setStageScale(scale);
+    const iw = image ? image.width : Math.max(400, stageDimensions.width);
+    const ih = image ? image.height : Math.max(300, stageDimensions.height);
+    const x = (Math.max(400, stageDimensions.width) - iw * scale) / 2;
+    const y = (Math.max(300, stageDimensions.height) - ih * scale) / 2;
+    setStageX(x);
+    setStageY(y);
+  }, [image, stageDimensions.width, stageDimensions.height]);
+
+  const handleZoomIn = () => zoomTo(stageScale * 1.2);
+  const handleZoomOut = () => zoomTo(stageScale / 1.2);
+
   return (
-    <div style={{ border: '1px solid #e5e7eb', display: 'inline-block' }}>
+    <div style={{ border: '1px solid #e5e7eb', display: 'inline-block', background: '#fff' }}>
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', padding: 8, borderBottom: '1px solid #e5e7eb' }}>
+        <button onClick={handleZoomOut} style={{ padding: '4px 8px', border: '1px solid #e5e7eb', borderRadius: 6, background: '#fff' }}>–</button>
+        <button onClick={handleZoomIn} style={{ padding: '4px 8px', border: '1px solid #e5e7eb', borderRadius: 6, background: '#fff' }}>+</button>
+        <button onClick={fitToViewport} style={{ padding: '4px 8px', border: '1px solid #e5e7eb', borderRadius: 6, background: '#fff' }}>Reset view</button>
+      </div>
       <Stage
         width={Math.max(400, stageDimensions.width)}
         height={Math.max(300, stageDimensions.height)}
@@ -163,10 +244,20 @@ const FloorplanCanvas = ({
         x={stageX}
         y={stageY}
         onClick={handleStageClick}
+        onWheel={handleWheel}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
         style={{ background: '#fff' }}
       >
         <Layer>
           {image && <Image image={image} x={0} y={0} />}
+          {!image && (
+            <>
+              <Rect x={0} y={0} width={stageDimensions.width} height={stageDimensions.height} fill="#f9fafb" stroke="#e5e7eb" />
+              <Text x={Math.max(0, stageDimensions.width / 2 - 80)} y={Math.max(20, stageDimensions.height / 2)} text={"Floorplan Image"} fontSize={16} fill="#6b7280" />
+            </>
+          )}
           {renderSegments()}
           {renderNodes()}
           {renderPois()}

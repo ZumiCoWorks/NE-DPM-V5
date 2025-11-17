@@ -41,11 +41,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUser({ id: authUser.id, email: authUser.email ?? undefined })
         return
       }
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .select('id, role, email')
         .eq('id', authUser.id)
-        .single()
+        .maybeSingle()
       const profile = (data as { role?: string; email?: string } | null)
 
       if (profile) {
@@ -152,15 +152,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // Prefer backend in development to bypass RLS issues
     const apiBase = (import.meta as { env: Record<string, string> }).env.VITE_API_URL || '/api'
     if ((import.meta as { env: Record<string, string> }).env.MODE !== 'production') {
-      const res = await fetch(`${apiBase}/dev/set-role`, {
+      let accessToken: string | null = null
+      for (let i = 0; i < 3; i++) {
+        const { data: { session } } = await supabase.auth.getSession()
+        accessToken = session?.access_token || null
+        if (accessToken) break
+        await new Promise(resolve => setTimeout(resolve, 400))
+      }
+      const res = await fetch(`${apiBase}/auth/set-role`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id, role, email: user.email }),
+        headers: { 'Content-Type': 'application/json', ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}) },
+        body: JSON.stringify({ role }),
+        credentials: 'include',
       })
       if (!res.ok) {
-        throw new Error('Failed to set role via backend')
+        const j = await res.json().catch(()=>({}))
+        throw new Error(j?.message || 'Failed to set role via backend')
       }
-      const { data } = await res.json() as { data?: { role?: string } }
+      const { data } = await res.json().catch(()=>({})) as { data?: { role?: string } }
       const full_name = user.full_name || user.email?.split('@')[0] || 'User'
       setUser({ ...user, role: (data?.role ?? role), full_name })
       return

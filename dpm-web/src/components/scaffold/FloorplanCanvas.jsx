@@ -118,7 +118,7 @@ const FloorplanCanvas = ({
   pois = [],
   zones = [],
 }) => {
-  const [image] = useImage(floorplanImageUrl);
+  const [image] = useImage(floorplanImageUrl, 'Anonymous');
   const stageRef = useRef(null);
   const [drawingMode, setDrawingMode] = useState(null);
   const [currentSegmentStartNode, setCurrentSegmentStartNode] = useState(null);
@@ -206,14 +206,21 @@ const FloorplanCanvas = ({
     setKonvaTextColor(getThemedTextColor());
   }, [getThemedTextColor]);
 
-  useEffect(() => {
-    if (image) {
-      setStageDimensions({ width: image.width, height: image.height });
-      setStageScale(1);
-      setStageX(0);
-      setStageY(0);
-    }
-  }, [image, currentFloorplan, floorplanImageUrl]);
+  const fitToViewport = useCallback(() => {
+    if (!image) return;
+    const viewportW = Math.min(900, Math.max(400, (typeof window !== 'undefined' ? window.innerWidth : 1200) - 320));
+    const viewportH = Math.min(600, Math.max(300, (typeof window !== 'undefined' ? window.innerHeight : 800) - 260));
+    setStageDimensions({ width: viewportW, height: viewportH });
+    const fitScale = Math.min(viewportW / image.width, viewportH / image.height);
+    const scale = Math.max(0.2, Math.min(1, fitScale));
+    setStageScale(scale);
+    const x = (viewportW - image.width * scale) / 2;
+    const y = (viewportH - image.height * scale) / 2;
+    setStageX(x);
+    setStageY(y);
+  }, [image]);
+
+  useEffect(() => { fitToViewport() }, [fitToViewport, image, currentFloorplan, floorplanImageUrl]);
 
   const calculateSegmentIntersections = useCallback(() => {
     const intersections = [];
@@ -505,8 +512,27 @@ const FloorplanCanvas = ({
     ));
   };
 
+  const zoomTo = useCallback((nextScale) => {
+    const scale = Math.max(0.1, Math.min(5, nextScale));
+    setStageScale(scale);
+    if (image) {
+      const x = (Math.max(400, stageDimensions.width) - image.width * scale) / 2;
+      const y = (Math.max(300, stageDimensions.height) - image.height * scale) / 2;
+      setStageX(x);
+      setStageY(y);
+    }
+  }, [image, stageDimensions.width, stageDimensions.height]);
+
+  const handleZoomIn = () => zoomTo(stageScale * 1.2);
+  const handleZoomOut = () => zoomTo(stageScale / 1.2);
+
   return (
-    <div style={{ border: '1px solid #e5e7eb', display: 'inline-block' }}>
+    <div style={{ border: '1px solid #e5e7eb', display: 'inline-block', position: 'relative', background: '#fff' }}>
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', padding: 8, borderBottom: '1px solid #e5e7eb' }}>
+        <button onClick={handleZoomOut} style={{ padding: '4px 8px', border: '1px solid #e5e7eb', borderRadius: 6, background: '#fff' }}>–</button>
+        <button onClick={handleZoomIn} style={{ padding: '4px 8px', border: '1px solid #e5e7eb', borderRadius: 6, background: '#fff' }}>+</button>
+        <button onClick={fitToViewport} style={{ padding: '4px 8px', border: '1px solid #e5e7eb', borderRadius: 6, background: '#fff' }}>Reset view</button>
+      </div>
       <Stage
         width={Math.max(400, stageDimensions.width)}
         height={Math.max(300, stageDimensions.height)}
@@ -524,6 +550,12 @@ const FloorplanCanvas = ({
       >
         <Layer>
           {image && <Image image={image} x={0} y={0} />}
+          {!image && (
+            <>
+              <Rect x={0} y={0} width={stageDimensions.width} height={stageDimensions.height} fill="#f9fafb" stroke="#e5e7eb" />
+              <Text x={Math.max(0, stageDimensions.width / 2 - 80)} y={Math.max(20, stageDimensions.height / 2)} text={"Floorplan Image"} fontSize={16} fill="#6b7280" />
+            </>
+          )}
           {renderSegments()}
           {renderZones()}
           {renderIntersections()}

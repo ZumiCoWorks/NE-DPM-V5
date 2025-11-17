@@ -29,6 +29,9 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
   // QR Code ID for nodes (Part 2: B2C Admin Function)
   const [currentQrId, setCurrentQrId] = useState('');
   const [currentEventId, setCurrentEventId] = useState(null);
+  const [myEvents, setMyEvents] = useState([]);
+  const [calibrations, setCalibrations] = useState([]);
+  const [lastSavedMapUrl, setLastSavedMapUrl] = useState('');
 
   // Simple message banner
   const [banner, setBanner] = useState(null);
@@ -52,10 +55,16 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       const user = session?.user ?? null;
       setCurrentUser(user);
-      if (user) fetchFloorplans(user.id).catch(() => {});
+      if (user) {
+        fetchFloorplans(user.id).catch(() => {});
+        fetchMyEvents(user.id).catch(() => {});
+      }
     });
     return () => authListener?.subscription?.unsubscribe && authListener.subscription.unsubscribe();
   }, []);
+  useEffect(() => {
+    fetchCalibrations(currentEventId).catch(()=>{});
+  }, [currentEventId]);
 
   const fetchFloorplans = async (userId) => {
     setLoading(true);
@@ -68,6 +77,37 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
       setFloorplansList([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchMyEvents = async (userId) => {
+    try {
+      const { data, error } = await supabase
+        .from('events')
+        .select('id, name')
+        .eq('organizer_id', userId)
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      setMyEvents(data || [])
+    } catch (err) {
+      console.warn('fetchMyEvents failed:', err?.message || err)
+      setMyEvents([])
+    }
+  }
+  const fetchCalibrations = async (eventId) => {
+    try {
+      if (!eventId) { setCalibrations([]); return; }
+      const { data: { session } } = await supabase.auth.getSession();
+      const API_BASE_URL = (import.meta && import.meta.env && import.meta.env.VITE_API_URL) || 'http://localhost:3001/api';
+      const res = await fetch(`${API_BASE_URL}/editor/qr-nodes?event_id=${encodeURIComponent(eventId)}`, {
+        headers: { ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}) },
+        credentials: 'include'
+      });
+      const json = await res.json();
+      if (!res.ok || !json?.success) throw new Error(json?.message || 'fetch failed');
+      setCalibrations(json.data || []);
+    } catch (err) {
+      setCalibrations([]);
     }
   };
 
@@ -85,15 +125,20 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
     if (supabase && currentUser) {
       setLoading(true);
       try {
-        const { data, error } = await supabase
-          .from('floorplans')
-          .insert({ name: `Floorplan ${new Date().toLocaleString()}`, image_url: url, dimensions: dims, user_id: currentUser.id })
-          .select('*')
-          .single();
-        if (error) throw error;
-        // refresh list
-        await fetchFloorplans(currentUser.id);
-        showMessage('Floorplan saved to DB', 2500);
+        if (!currentEventId) {
+          showMessage('Floorplan uploaded (not saved to DB — enter Event ID to save)', 4000);
+        } else {
+          const { data, error } = await supabase
+            .from('floorplans')
+            .insert({ name: `Floorplan ${new Date().toLocaleString()}`, image_url: url, event_id: currentEventId, user_id: currentUser.id })
+            .select('*')
+            .single();
+          if (error) throw error;
+          setCurrentFloorplan(data);
+          await fetchFloorplans(currentUser.id);
+          await fetchCalibrations(currentEventId);
+          showMessage('Floorplan saved to DB', 2500);
+        }
       } catch (err) {
         console.warn('Failed to save floorplan to supabase:', err.message || err);
         showMessage('Floorplan uploaded (not saved to DB)', 3000);
@@ -133,15 +178,24 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
     if (!fp) return;
     setLoading(true);
     try {
-      // fetch navigation points as POIs
-      const { data: poisData } = await supabase.from('navigation_points').select('id, name, point_type, x_coordinate, y_coordinate').eq('floorplan_id', fp.id);
-      const mappedPois = (poisData || []).map(p => ({ id: p.id, name: p.name, type: p.point_type, x: p.x_coordinate, y: p.y_coordinate }));
-      setPois(mappedPois);
+      // fetch navigation points as POIs (non-blocking if table missing)
+      const { data: poisData, error: poisErr } = await supabase
+        .from('navigation_points')
+        .select('id, name, point_type, x_coordinate, y_coordinate')
+        .eq('floorplan_id', fp.id);
+      if (!poisErr) {
+        const mappedPois = (poisData || []).map(p => ({ id: p.id, name: p.name, type: p.point_type, x: p.x_coordinate, y: p.y_coordinate }));
+        setPois(mappedPois);
+      } else {
+        // silently ignore missing table / 404
+        setPois([]);
+      }
       setNodes([]);
       setSegments([]);
       setZones([]);
       setFloorplanUrl(fp.image_url);
       setCurrentFloorplan(fp);
+      if (fp.event_id) setCurrentEventId(fp.event_id);
       setShowSetupModal(false);
       showMessage(`Loaded floorplan: ${fp.name}`);
     } catch (err) {
@@ -186,6 +240,7 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
         }
         showMessage('Node added and QR calibrated!', 2000);
         setCurrentQrId('');
+        await fetchCalibrations(currentEventId);
       } catch (err) {
         console.warn('Error saving QR node:', err);
         showMessage('Node added locally (DB save failed)', 3000);
@@ -286,7 +341,9 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
         const j = await res.json().catch(()=>({}));
         throw new Error(j?.message || 'save failed');
       }
-      showMessage('Map saved');
+      const j = await res.json().catch(()=>({ success:true, url:'' }));
+      setLastSavedMapUrl(j?.url || '');
+      showMessage('Map saved and exported');
     } catch (err) {
       console.warn('saveMap failed', err?.message || err);
       showMessage('Save failed: ' + (err?.message || String(err)));
@@ -366,23 +423,39 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
 
       {/* Right column: editor */}
       <main>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
-          <div style={{ display: 'flex', gap: 6 }}>
-            {MODES.map(m => (
-              <button key={m} onClick={() => setMode(m)} style={{ padding: '6px 10px', background: mode === m ? '#111827' : '#fff', color: mode === m ? '#fff' : '#111827', border: '1px solid #e5e7eb', borderRadius: 6 }}>{m}</button>
-            ))}
-          </div>
-
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
-            <button onClick={() => setShowSetupModal(true)}>Change floorplan</button>
-            <button onClick={handleSaveMap}>Save (server)</button>
-          </div>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {MODES.map(m => (
+            <button key={m} onClick={() => setMode(m)} style={{ padding: '6px 10px', background: mode === m ? '#111827' : '#fff', color: mode === m ? '#fff' : '#111827', border: '1px solid #e5e7eb', borderRadius: 6 }}>{m}</button>
+          ))}
         </div>
+
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button onClick={() => setShowSetupModal(true)}>Change floorplan</button>
+          <button onClick={handleSaveMap}>Save (server)</button>
+          {lastSavedMapUrl && (
+            <span style={{ fontSize: 12, color: '#6b7280' }}>
+              Export URL: <a href={lastSavedMapUrl} target="_blank" rel="noreferrer">{lastSavedMapUrl}</a>
+              <button onClick={async()=>{ try { const r = await fetch(lastSavedMapUrl); const blob = await r.blob(); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'map.json'; a.click(); } catch{} }} style={{ marginLeft: 6, padding: '2px 6px', border: '1px solid #e5e7eb', borderRadius: 4 }}>Download JSON</button>
+            </span>
+          )}
+        </div>
+      </div>
 
         {/* Calibration panel */}
         <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', marginBottom: 12, borderTop: '1px dashed #e5e7eb', paddingTop: 12 }}>
           <div style={{ maxWidth: 360 }}>
-            <label style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 4 }}>Event ID (for QR nodes)</label>
+            <label style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 4 }}>Event (select or paste ID)</label>
+            <select
+              value={currentEventId || ''}
+              onChange={e => setCurrentEventId(e.target.value || null)}
+              style={{ width: '100%', padding: '4px 8px', fontSize: 13, border: '1px solid #e5e7eb', borderRadius: 4, marginBottom: 6 }}
+            >
+              <option value="">Select event...</option>
+              {myEvents.map(ev => (
+                <option key={ev.id} value={ev.id}>{ev.name}</option>
+              ))}
+            </select>
             <input
               type="text"
               placeholder="Event UUID"
@@ -391,21 +464,32 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
               style={{ width: '100%', padding: '4px 8px', fontSize: 13, border: '1px solid #e5e7eb', borderRadius: 4 }}
             />
           </div>
-          {mode === 'node' && (
-            <div style={{ maxWidth: 360 }}>
-              <label style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 4 }}>QR Code ID</label>
-              <input
-                type="text"
-                placeholder="e.g., junction-hall-a"
-                value={currentQrId}
-                onChange={e => setCurrentQrId(e.target.value)}
-                style={{ width: '100%', padding: '4px 8px', fontSize: 13, border: '1px solid #e5e7eb', borderRadius: 4 }}
-              />
-              <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>
-                Enter QR ID before adding node to calibrate location
-              </p>
-            </div>
-          )}
+          <div style={{ maxWidth: 360 }}>
+            <label style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 4 }}>QR Code ID</label>
+            <input
+              type="text"
+              placeholder="e.g., test-qr-1"
+              value={currentQrId}
+              onChange={e => setCurrentQrId(e.target.value)}
+              style={{ width: '100%', padding: '4px 8px', fontSize: 13, border: '1px solid #e5e7eb', borderRadius: 4 }}
+            />
+            <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>
+              {mode==='node' ? 'Enter QR ID before adding node to calibrate location' : 'Use draw-path to connect nodes into segments'}
+            </p>
+            {calibrations?.length>0 && (
+              <div style={{ marginTop: 8, fontSize: 12 }}>
+                <div style={{ color:'#6b7280', marginBottom:4 }}>Existing calibrations for this event:</div>
+                <ul style={{ maxHeight: 160, overflow:'auto', border:'1px solid #e5e7eb', borderRadius:6, padding:8 }}>
+                  {calibrations.map((c, idx)=> (
+                    <li key={idx} style={{ display:'flex', justifyContent:'space-between' }}>
+                      <span>{c.qr_id_text}</span>
+                      <span style={{ color:'#6b7280' }}>({c.x_coord}, {c.y_coord})</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
           {/* Templates removed for MVP */}
         </div>
 
@@ -437,6 +521,26 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 12 }}>
               <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: 12 }}>
                 <h4 style={{ marginTop: 0 }}>Upload New Floorplan</h4>
+                <div style={{ marginBottom: 8 }}>
+                  <label style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 4 }}>Event (select or paste ID)</label>
+                  <select
+                    value={currentEventId || ''}
+                    onChange={e => setCurrentEventId(e.target.value || null)}
+                    style={{ width: '100%', padding: '4px 8px', fontSize: 13, border: '1px solid #e5e7eb', borderRadius: 4, marginBottom: 6 }}
+                  >
+                    <option value="">Select event...</option>
+                    {myEvents.map(ev => (
+                      <option key={ev.id} value={ev.id}>{ev.name}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="text"
+                    placeholder="Event UUID"
+                    value={currentEventId || ''}
+                    onChange={e => setCurrentEventId(e.target.value)}
+                    style={{ width: '100%', padding: '4px 8px', fontSize: 13, border: '1px solid #e5e7eb', borderRadius: 4 }}
+                  />
+                </div>
                 <ImageUploader onUploadSuccess={handleUploadSuccess} uploadFn={uploadToSupabase} />
               </div>
               <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: 12 }}>

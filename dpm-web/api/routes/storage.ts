@@ -12,8 +12,11 @@ router.post('/upload/floorplan', authenticateToken, async (req: any, res: Respon
     }
 
     try {
-      await supabaseAdmin.storage.createBucket('floorplans', { public: true })
-    } catch {}
+      // Ensure bucket exists and is public
+      await supabaseAdmin.storage.updateBucket('floorplans', { public: true })
+    } catch {
+      try { await supabaseAdmin.storage.createBucket('floorplans', { public: true }) } catch {}
+    }
 
     const buffer = Buffer.from(base64, 'base64')
     const { data, error } = await supabaseAdmin.storage

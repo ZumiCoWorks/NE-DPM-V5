@@ -9,6 +9,7 @@ import { RegisterPage } from './pages/auth/RegisterPage'
 import RoleSelectorPage from './pages/RoleSelectorPage'
 import { DashboardPage } from './pages/DashboardPage'
 import SponsorDashboardPage from './pages/SponsorDashboardPage'
+import StaffScannerPage from './pages/staff/StaffScannerPage'
 import MapEditorPage from './pages/admin/MapEditor'
 import UnifiedMapEditorPage from './pages/admin/UnifiedMapEditorPage'
 import ROIDashboardPage from './pages/ROIDashboardPage'
@@ -153,8 +154,14 @@ function App() {
                       </Layout>
                     </ProtectedRoute>
                   } />
-
-                  {/* Removed non-MVP route: Staff Scanner (handled in staff-mobile) */}
+                  {/* Staff Scanner (web-based MVP) */}
+                  <Route path="/staff/scanner" element={
+                    <ProtectedRoute roles={["staff"]}>
+                      <Layout>
+                        <StaffScannerPage />
+                      </Layout>
+                    </ProtectedRoute>
+                  } />
             
             {/* Catch all */}
             <Route path="*" element={<NotFoundPage />} />

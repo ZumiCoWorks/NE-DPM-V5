@@ -20,6 +20,7 @@ import { authenticateToken, requireEventOrganizer, requireVenueManager, Authenti
 import { login, register, logout } from './auth/index'
 import storageRoutes from './routes/storage.js'
 import editorRoutes from './routes/editor.js'
+import authRoutes from './routes/auth.js'
 import { getEvents, getEvent, createEvent, updateEvent, deleteEvent } from './events/index'
 import { getVenues, getVenue, createVenue, updateVenue, deleteVenue } from './venues/index'
 
@@ -64,6 +65,9 @@ app.get('/api/health', (req, res) => {
 app.post('/api/auth/login', login)
 app.post('/api/auth/register', register)
 app.post('/api/auth/logout', logout)
+
+// Auth utility routes (service-role backed)
+app.use('/api/auth', authRoutes)
 
 // Storage routes
 app.use('/api/storage', authenticateToken, storageRoutes)

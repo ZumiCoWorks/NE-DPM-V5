@@ -82,3 +82,20 @@ router.post('/map', authenticateToken, async (req: any, res: Response) => {
     return res.status(500).json({ success: false, message: msg })
   }
 })
+
+router.get('/qr-nodes', authenticateToken, async (req: any, res: Response) => {
+  try {
+    const event_id = (req.query?.event_id as string) || ''
+    if (!event_id) return res.status(400).json({ success: false, message: 'event_id required' })
+    const { data, error } = await supabaseAdmin
+      .from('map_qr_nodes')
+      .select('qr_id_text, x_coord, y_coord, created_at')
+      .eq('event_id', event_id)
+      .order('created_at', { ascending: false })
+    if (error) return res.status(400).json({ success: false, message: error.message })
+    return res.status(200).json({ success: true, data: data || [] })
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err)
+    return res.status(500).json({ success: false, message: msg })
+  }
+})
