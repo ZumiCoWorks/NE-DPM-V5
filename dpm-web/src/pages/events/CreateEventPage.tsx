@@ -26,6 +26,7 @@ interface EventFormData {
 export const CreateEventPage: React.FC = () => {
   const navigate = useNavigate()
   const { user } = useAuth()
+  const demoMode = (import.meta as { env: Record<string, string> }).env.VITE_DEMO_MODE === 'true'
   const [venues, setVenues] = useState<Venue[]>([])
   const [loading, setLoading] = useState(false)
   const [venuesLoading, setVenuesLoading] = useState(true)
@@ -52,7 +53,7 @@ export const CreateEventPage: React.FC = () => {
   const fetchVenues = async () => {
     try {
       setVenuesLoading(true)
-      if (!supabase) {
+      if (demoMode || !supabase) {
         console.warn('Supabase client not initialized when fetching venues')
         setVenues([])
         return
@@ -126,7 +127,10 @@ export const CreateEventPage: React.FC = () => {
 
     try {
       setLoading(true)
-      if (!supabase) throw new Error('Supabase not initialized')
+      if (demoMode || !supabase) {
+        navigate('/events')
+        return
+      }
       
       const startISO = new Date(formData.start_date).toISOString()
       const endISO = new Date(formData.end_date).toISOString()
@@ -168,17 +172,22 @@ export const CreateEventPage: React.FC = () => {
   const handleQuickAddVenue = async () => {
     try {
       setNewVenueLoading(true)
-      if (!supabase) return
       if (!newVenueName.trim() || !newVenueAddress.trim()) return
-      const { data, error } = await supabase
-        .from('venues')
-        .insert({ name: newVenueName.trim(), address: newVenueAddress.trim(), status: 'active' })
-        .select('id, name, address')
-        .single()
-      if (error) return
-      const v = data as Venue
-      setVenues(prev => [v, ...prev])
-      setFormData(prev => ({ ...prev, venue_id: v.id }))
+      if (demoMode || !supabase) {
+        const v: Venue = { id: `demo-venue-${Date.now()}`, name: newVenueName.trim(), address: newVenueAddress.trim() }
+        setVenues(prev => [v, ...prev])
+        setFormData(prev => ({ ...prev, venue_id: v.id }))
+      } else {
+        const { data, error } = await supabase
+          .from('venues')
+          .insert({ name: newVenueName.trim(), address: newVenueAddress.trim(), status: 'active' })
+          .select('id, name, address')
+          .single()
+        if (error) return
+        const v = data as Venue
+        setVenues(prev => [v, ...prev])
+        setFormData(prev => ({ ...prev, venue_id: v.id }))
+      }
       setShowNewVenue(false)
       setNewVenueName('')
       setNewVenueAddress('')

@@ -11,6 +11,7 @@ import { supabase } from '../lib/supabase';
 const MODES = ['poi', 'node', 'draw-path'];
 
 const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = null, initialNodes = [], initialSegments = [], initialPois = [], initialZones = [] }) => {
+  const demoMode = (import.meta && import.meta.env && import.meta.env.VITE_DEMO_MODE) === 'true'
   const [floorplanUrl, setFloorplanUrl] = useState(initialFloorplan);
   const [nodes, setNodes] = useState(initialNodes);
   const [segments, setSegments] = useState(initialSegments);
@@ -96,6 +97,7 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
   }
   const fetchCalibrations = async (eventId) => {
     try {
+      if (demoMode) { setCalibrations([]); return; }
       if (!eventId) { setCalibrations([]); return; }
       const { data: { session } } = await supabase.auth.getSession();
       const API_BASE_URL = (import.meta && import.meta.env && import.meta.env.VITE_API_URL) || 'http://localhost:3001/api';
@@ -125,6 +127,11 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
     if (supabase && currentUser) {
       setLoading(true);
       try {
+        if (demoMode) {
+          showMessage('Demo mode: not saving to DB', 3000);
+          setLoading(false);
+          return;
+        }
         if (!currentEventId) {
           showMessage('Floorplan uploaded (not saved to DB — enter Event ID to save)', 4000);
         } else {
@@ -159,6 +166,7 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
     const base64 = window.btoa(binary);
     const { data: { session } } = await supabase.auth.getSession();
     const API_BASE_URL = (import.meta && import.meta.env && import.meta.env.VITE_API_URL) || 'http://localhost:3001/api';
+    if (demoMode) throw new Error('Demo mode: server upload disabled. Paste a hosted URL instead.')
     const res = await fetch(`${API_BASE_URL}/storage/upload/floorplan`, {
       method: 'POST',
       headers: {
@@ -220,27 +228,31 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
       try {
         const { data: { session } } = await supabase.auth.getSession();
         const API_BASE_URL = (import.meta && import.meta.env && import.meta.env.VITE_API_URL) || 'http://localhost:3001/api';
-        const res = await fetch(`${API_BASE_URL}/editor/qr-node`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {})
-          },
-          credentials: 'include',
-          body: JSON.stringify({
-            event_id: currentEventId,
-            qr_id_text: currentQrId,
-            x_coord: Math.round(n.x || 0),
-            y_coord: Math.round(n.y || 0)
-          })
-        });
-        if (!res.ok) {
-          const j = await res.json().catch(()=>({}));
-          throw new Error(j?.message || 'save failed');
+        if (demoMode) {
+          showMessage('Demo mode: QR calibration stored locally', 2000);
+        } else {
+          const res = await fetch(`${API_BASE_URL}/editor/qr-node`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {})
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+              event_id: currentEventId,
+              qr_id_text: currentQrId,
+              x_coord: Math.round(n.x || 0),
+              y_coord: Math.round(n.y || 0)
+            })
+          });
+          if (!res.ok) {
+            const j = await res.json().catch(()=>({}));
+            throw new Error(j?.message || 'save failed');
+          }
+          showMessage('Node added and QR calibrated!', 2000);
+          setCurrentQrId('');
+          await fetchCalibrations(currentEventId);
         }
-        showMessage('Node added and QR calibrated!', 2000);
-        setCurrentQrId('');
-        await fetchCalibrations(currentEventId);
       } catch (err) {
         console.warn('Error saving QR node:', err);
         showMessage('Node added locally (DB save failed)', 3000);
@@ -284,6 +296,10 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
         const point_type = pointTypeMap[p.type] || p.type || 'amenity';
         const { data: { session } } = await supabase.auth.getSession();
         const API_BASE_URL = (import.meta && import.meta.env && import.meta.env.VITE_API_URL) || 'http://localhost:3001/api';
+        if (demoMode) {
+          showMessage('Demo mode: POI stored locally', 2000);
+          return;
+        }
         const res = await fetch(`${API_BASE_URL}/editor/poi`, {
           method: 'POST',
           headers: {
@@ -328,6 +344,13 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const API_BASE_URL = (import.meta && import.meta.env && import.meta.env.VITE_API_URL) || 'http://localhost:3001/api';
+      if (demoMode) {
+        const blob = new Blob([JSON.stringify({ nodes, segments, pois }, null, 2)], { type: 'application/json' })
+        const url = URL.createObjectURL(blob)
+        setLastSavedMapUrl(url)
+        showMessage('Demo mode: map exported locally')
+        return
+      }
       const res = await fetch(`${API_BASE_URL}/editor/map`, {
         method: 'POST',
         headers: {
@@ -541,7 +564,7 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
                     style={{ width: '100%', padding: '4px 8px', fontSize: 13, border: '1px solid #e5e7eb', borderRadius: 4 }}
                   />
                 </div>
-                <ImageUploader onUploadSuccess={handleUploadSuccess} uploadFn={uploadToSupabase} />
+                <ImageUploader onUploadSuccess={handleUploadSuccess} uploadFn={demoMode ? undefined : uploadToSupabase} />
               </div>
               <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: 12 }}>
                 <h4 style={{ marginTop: 0 }}>Saved Floorplans</h4>
