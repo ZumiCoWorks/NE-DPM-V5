@@ -108,10 +108,16 @@ export function CreateVenuePage() {
         venue_type: formData.venue_type,
   amenities: formData.amenities as unknown as Database['public']['Tables']['venues']['Insert']['amenities'],
   contact_info: formData.contact_info as unknown as Database['public']['Tables']['venues']['Insert']['contact_info'],
-        organization_id: user?.organization_id || '',
+        organization_id: (user?.organization_id as string) || '',
         is_active: formData.is_active,
       }
 
+      if (!supabase) {
+        console.error('Supabase client not initialized')
+        toast.error('Database connection not available')
+        return
+      }
+      
       const { error } = await supabase
         .from('venues')
         .insert(venueData)

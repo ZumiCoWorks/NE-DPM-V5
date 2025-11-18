@@ -30,12 +30,12 @@ export const ProfilePage: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false)
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState<ProfileFormData>({
-    full_name: (user?.full_name as string) || '',
-    email: (user?.email as string) || '',
-    phone: (user?.phone as string) || '',
-    company: (user?.company as string) || '',
-    address: (user?.address as string) || '',
-    bio: (user?.bio as string) || '',
+    full_name: user?.full_name as string || '',
+    email: user?.email as string || '',
+    phone: (user?.phone as string | null) || null,
+    company: (user?.company as string | null) || null,
+    address: (user?.address as string | null) || null,
+    bio: (user?.bio as string | null) || null,
   })
   const [errors, setErrors] = useState<Partial<ProfileFormData>>({})
 
@@ -69,7 +69,14 @@ export const ProfilePage: React.FC = () => {
 
     try {
       setLoading(true)
-      await updateProfile(formData)
+      await updateProfile({
+        full_name: formData.full_name,
+        email: formData.email,
+        phone: formData.phone,
+        company: formData.company,
+        address: formData.address,
+        bio: formData.bio
+      })
       setIsEditing(false)
       alert('Profile updated successfully!')
     } catch (error) {
@@ -82,12 +89,12 @@ export const ProfilePage: React.FC = () => {
 
   const handleCancel = () => {
     setFormData({
-      full_name: user?.full_name || '',
-      email: user?.email || '',
-      phone: user?.phone || '',
-      company: user?.company || '',
-      address: user?.address || '',
-      bio: user?.bio || '',
+      full_name: user?.full_name as string || '',
+      email: user?.email as string || '',
+      phone: (user?.phone as string | null) || null,
+      company: (user?.company as string | null) || null,
+      address: (user?.address as string | null) || null,
+      bio: (user?.bio as string | null) || null,
     })
     setErrors({})
     setIsEditing(false)
@@ -162,7 +169,7 @@ export const ProfilePage: React.FC = () => {
               <div className="h-24 w-24 rounded-full bg-gray-200 flex items-center justify-center">
                 {user?.avatar_url ? (
                   <img
-                    src={user.avatar_url}
+                    src={user.avatar_url as string}
                     alt={user.full_name || 'Profile picture'}
                     className="h-24 w-24 rounded-full object-cover"
                   />

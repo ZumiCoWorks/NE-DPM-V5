@@ -34,12 +34,21 @@ const PORT = process.env.PORT || 3001
 // CORS configuration
 app.use(cors({
   origin: (origin, callback) => {
-    const allowed = [
+    const baseAllowed = [
       process.env.FRONTEND_URL || 'http://localhost:5173',
       'http://localhost:5173',
       'http://localhost:5174',
     ]
-    if (!origin || allowed.includes(origin)) return callback(null, true)
+    const extra = (process.env.ALLOWED_ORIGINS || '')
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean)
+    const allowed = new Set([...baseAllowed, ...extra])
+    const ok = !origin
+      || allowed.has(origin)
+      || /https?:\/\/.*ngrok.*\.app$/i.test(origin)
+      || /https?:\/\/.*\.trae\.dev$/i.test(origin)
+    if (ok) return callback(null, true)
     return callback(new Error('Not allowed by CORS'))
   },
   credentials: true,
@@ -73,7 +82,7 @@ app.use('/api/auth', authRoutes)
 app.use('/api/storage', authenticateToken, storageRoutes)
 
 // Editor routes
-app.use('/api/editor', authenticateToken, editorRoutes)
+app.use('/api/editor', editorRoutes)
 
 // Protected routes - Events
 app.get('/api/events', authenticateToken, requireEventOrganizer, getEvents)

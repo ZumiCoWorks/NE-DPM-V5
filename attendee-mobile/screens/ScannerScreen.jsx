@@ -3,10 +3,12 @@ import { View, Text, Button, StyleSheet, ActivityIndicator } from 'react-native'
 import { BarCodeScanner } from 'expo-barcode-scanner'
 import { useLocationState } from '../contexts/LocationContext'
 
+const API_BASE = 'http://localhost:3001/api'
+
 export default function ScannerScreen({ navigation }) {
   const [hasPermission, setHasPermission] = useState(null)
   const [scanned, setScanned] = useState(false)
-  const { setUserLocation, setPath } = useLocationState()
+  const { setUserLocation, setPath, eventId, setEventId } = useLocationState()
 
   useEffect(() => {
     (async () => {
@@ -15,30 +17,32 @@ export default function ScannerScreen({ navigation }) {
     })()
   }, [])
 
-  const handleBarCodeScanned = ({ type, data }) => {
+  const handleBarCodeScanned = async ({ type, data }) => {
     setScanned(true)
-    // Simple parsing: accept data like 'type:localization;id:p1;x:30;y:40' or 'type:ar;id:reward1'
     try {
-      if (typeof data === 'string' && data.includes('type:localization')) {
-        // extract x,y
-        const parts = Object.fromEntries(data.split(';').map(p => p.split(':')))
-        const x = parseFloat(parts.x) || 50
-        const y = parseFloat(parts.y) || 50
-        setUserLocation({ x, y })
-        // mock path from userLocation to some destination
-        setPath([{ x, y }, { x: 70, y: 30 }])
-        navigation.navigate('Map')
+      // Treat QR content as qr_id_text; eventId should be selected or preset
+      const qrIdText = String(data).trim()
+      const eid = eventId || process.env.EXPO_PUBLIC_EVENT_ID || null
+      if (!eid) {
+        alert('Select an event in app settings first')
+        setScanned(false)
         return
       }
-
-      if (typeof data === 'string' && data.includes('type:ar')) {
-        navigation.navigate('AR Reward')
+      // Fetch calibrations for event and locate the scanned QR
+      const res = await fetch(`${API_BASE}/editor/qr-nodes?event_id=${encodeURIComponent(eid)}`)
+      const json = await res.json()
+      if (!res.ok || !json?.success) throw new Error(json?.message || 'Calibration fetch failed')
+      const match = (json.data || []).find((c) => String(c.qr_id_text).trim() === qrIdText)
+      if (!match) {
+        alert('QR not calibrated for this event')
+        setScanned(false)
         return
       }
-
-      // fallback: treat as localization
-      setUserLocation({ x: 50, y: 50 })
-      setPath([{ x: 50, y: 50 }, { x: 70, y: 30 }])
+      // Coordinates are absolute in a 100x100 space for MVP visualization
+      const x = Number(match.x_coord) || 50
+      const y = Number(match.y_coord) || 50
+      setUserLocation({ x, y })
+      setPath([])
       navigation.navigate('Map')
     } catch (err) {
       console.warn('scan parse failed', err)

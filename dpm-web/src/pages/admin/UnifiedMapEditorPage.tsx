@@ -3,14 +3,20 @@ import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
 import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 
+// Type definition for the FloorplanEditor component
+interface FloorplanEditorProps {
+  initialFloorplan?: string | null
+  initialEventId?: string | null
+}
+
 // Lazy-load the unified FloorplanEditor merged into src/components
-const FloorplanEditor = React.lazy(() => import('../../components/FloorplanEditor'))
+const FloorplanEditor = React.lazy(() => import('../../components/FloorplanEditor')) as React.FC<FloorplanEditorProps>
 
 export const UnifiedMapEditorPage: React.FC = () => {
   const [searchParams] = useSearchParams()
   const floorplanId = searchParams.get('floorplanId')
   const eventId = searchParams.get('eventId')
-  const [initialFloorplanUrl, setInitialFloorplanUrl] = useState<string | null>(null)
+  const [initialFloorplanUrl, setInitialFloorplanUrl] = useState<string | undefined>(undefined)
 
   useEffect(() => {
     if (!floorplanId) return
@@ -27,7 +33,7 @@ export const UnifiedMapEditorPage: React.FC = () => {
           return
         }
         const row = (data as { image_url?: string } | null)
-        if (mounted) setInitialFloorplanUrl(row?.image_url ?? null)
+        if (mounted) setInitialFloorplanUrl(row?.image_url ?? undefined)
       } catch (err) {
         console.warn('UnifiedMapEditor fetch failed', err)
       }

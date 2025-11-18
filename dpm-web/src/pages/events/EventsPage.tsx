@@ -51,6 +51,11 @@ export const EventsPage: React.FC = () => {
     try {
       setLoading(true)
       
+      if (!supabase) {
+        console.error('Supabase client not initialized')
+        return
+      }
+      
       // Fetch raw events without embedded relations to avoid schema/relationship mismatch
       let query = supabase
         .from('events')
@@ -79,7 +84,7 @@ export const EventsPage: React.FC = () => {
           .from('venues')
           .select('id, name, address')
           .in('id', venueIds)
-        venuesMap = Object.fromEntries((venues || []).map(v => [v.id as string, { name: v.name as string, address: (v.address as string) || '' }]))
+        venuesMap = Object.fromEntries((venues as any[] || []).map((v: any) => [v.id as string, { name: v.name as string, address: (v.address as string) || '' }]))
       }
 
       // Optional: hydrate organizer (profiles) for admin view
@@ -91,7 +96,7 @@ export const EventsPage: React.FC = () => {
             .from('profiles')
             .select('id, email')
             .in('id', organizerIds)
-          profilesMap = Object.fromEntries((profiles || []).map(p => {
+          profilesMap = Object.fromEntries((profiles as any[] || []).map((p: any) => {
             const email = (p.email as string) || ''
             const name = email ? (email.split('@')[0] || email) : 'Organizer'
             return [p.id as string, { full_name: name }]
@@ -124,6 +129,12 @@ export const EventsPage: React.FC = () => {
 
     try {
       setDeleteLoading(eventId)
+      
+      if (!supabase) {
+        console.error('Supabase client not initialized')
+        alert('Database connection not available')
+        return
+      }
       
       const { error } = await supabase
         .from('events')

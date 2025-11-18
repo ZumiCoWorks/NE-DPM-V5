@@ -1,15 +1,16 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native'
 import { useLocationState } from '../contexts/LocationContext'
 
-const POIS = [
+const FALLBACK_POIS = [
   { id: 'p1', name: 'BCom Project 1', x: 30, y: 40 },
   { id: 'p2', name: 'Main Stage', x: 70, y: 30 },
   { id: 'p3', name: 'Bathrooms', x: 10, y: 80 },
 ]
 
 export default function DirectoryScreen({ navigation }) {
-  const { setDestination, setPath } = useLocationState()
+  const { setDestination, setPath, graph } = useLocationState()
+  const pois = useMemo(() => (graph?.pois?.length ? graph.pois : FALLBACK_POIS), [graph])
 
   const handleSelect = (poi) => {
     setDestination(poi)
@@ -21,7 +22,7 @@ export default function DirectoryScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <FlatList
-        data={POIS}
+        data={pois}
         keyExtractor={(i) => i.id}
         renderItem={({ item }) => (
           <TouchableOpacity style={styles.item} onPress={() => handleSelect(item)}>

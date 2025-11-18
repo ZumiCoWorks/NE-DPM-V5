@@ -5,13 +5,15 @@ import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Card } from '../components/ui/Card'
 import { LoadingSpinner } from '../components/ui/LoadingSpinner'
-import { Settings, Key, Save } from 'lucide-react'
+import { Settings, Key, Save, TestTube } from 'lucide-react'
+import { toast } from 'sonner'
 
 export const SettingsPage = () => {
   const { user } = useAuth()
   const [quicketApiKey, setQuicketApiKey] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [testing, setTesting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
 
@@ -57,6 +59,28 @@ export const SettingsPage = () => {
       setError(err.message || 'Failed to save settings')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleTestQuicket = async () => {
+    if (!quicketApiKey.trim()) {
+      toast.error('Enter your Quicket API key first')
+      return
+    }
+    setTesting(true)
+    try {
+      const res = await fetch((import.meta as any).env.VITE_API_URL + '/functions/v1/get-quicket-lead', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticketId: 'DEMO123' })
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json?.message || 'Test failed')
+      toast.success(`Test OK: ${json.name} <${json.email}>`)
+    } catch (err: any) {
+      toast.error(err.message || 'Test failed')
+    } finally {
+      setTesting(false)
     }
   }
 
@@ -133,7 +157,7 @@ export const SettingsPage = () => {
               </p>
             </div>
 
-            <div className="pt-4">
+            <div className="pt-4 flex gap-3">
               <Button
                 onClick={handleSaveSettings}
                 disabled={saving || !quicketApiKey.trim()}
@@ -141,6 +165,15 @@ export const SettingsPage = () => {
               >
                 <Save className="mr-2 h-4 w-4" />
                 {saving ? 'Saving...' : 'Save Settings'}
+              </Button>
+              <Button
+                onClick={handleTestQuicket}
+                disabled={testing || !quicketApiKey.trim()}
+                variant="outline"
+                className="inline-flex items-center"
+              >
+                <TestTube className="mr-2 h-4 w-4" />
+                {testing ? 'Testing...' : 'Test Connection'}
               </Button>
             </div>
           </div>

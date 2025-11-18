@@ -11,6 +11,7 @@ const demoMode = env.VITE_DEMO_MODE === 'true'
 interface QueryBuilder extends PromiseLike<{ data: unknown; error: null }> {
   select(columns?: string): QueryBuilder
   eq(column: string, value: unknown): QueryBuilder
+  in(column: string, values: unknown[]): QueryBuilder
   order(column: string, opts?: { ascending?: boolean; nullsFirst?: boolean }): QueryBuilder
   limit(n: number): QueryBuilder
   single(): QueryBuilder
@@ -18,6 +19,10 @@ interface QueryBuilder extends PromiseLike<{ data: unknown; error: null }> {
   insert(rows?: unknown): QueryBuilder
   update(values?: unknown): QueryBuilder
   upsert(values?: unknown): QueryBuilder
+  then<TResult1 = { data: unknown; error: null }, TResult2 = never>(
+    onfulfilled?: ((value: { data: unknown; error: null }) => TResult1 | PromiseLike<TResult1>) | null | undefined,
+    onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null | undefined
+  ): PromiseLike<TResult1 | TResult2>
 }
 
 interface SupabaseAuthLike {
@@ -45,6 +50,7 @@ if (demoMode) {
     const builder: QueryBuilder = {
       select: (_columns?: string) => { void _columns; return builder },
       eq: (_column: string, _value: unknown) => { void _column; void _value; return builder },
+      in: (_column: string, _values: unknown[]) => { void _column; void _values; return builder },
       order: (_column: string, _opts?: { ascending?: boolean; nullsFirst?: boolean }) => { void _column; void _opts; return builder },
       limit: (n: number) => { void n; return builder },
       single: () => { data = null; return builder },
@@ -53,10 +59,13 @@ if (demoMode) {
       update: (_values?: unknown) => { void _values; data = null; return builder },
       upsert: (_values?: unknown) => { void _values; data = { role: 'admin' }; return builder },
       // Provide a PromiseLike-compliant `then` signature to satisfy TypeScript
-      then: (onfulfilled?: (value: { data: unknown; error: null }) => unknown, _onrejected?: (reason: unknown) => unknown) => {
-        void _onrejected
+      then: <TResult1 = { data: unknown; error: null }, TResult2 = never>(
+        onfulfilled?: ((value: { data: unknown; error: null }) => TResult1 | PromiseLike<TResult1>) | null | undefined,
+        onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null | undefined
+      ) => {
+        void onrejected
         const payload = { data, error: null as null }
-        return Promise.resolve(onfulfilled ? onfulfilled(payload) : payload)
+        return Promise.resolve(onfulfilled ? onfulfilled(payload) : payload) as PromiseLike<TResult1 | TResult2>
       }
     }
     return builder

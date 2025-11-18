@@ -308,6 +308,12 @@ export const FloorplanEditorPage: React.FC = () => {
       }))
 
       // Delete existing points and insert new ones
+      if (!supabase) {
+        console.error('Supabase client not initialized')
+        alert('Database connection not available')
+        return
+      }
+      
       await supabase
         .from('navigation_points')
         .delete()

@@ -19,6 +19,9 @@ const StaffScannerPage: React.FC = () => {
     setLead(null)
     try {
       setLoading(true)
+      if (!supabase) {
+        throw new Error('Database connection not available')
+      }
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) throw new Error('Not authenticated')
 
@@ -65,10 +68,13 @@ const StaffScannerPage: React.FC = () => {
         lead_email: lead.email,
         scanned_at: new Date().toISOString(),
       }
+      if (!supabase) {
+        throw new Error('Database connection not available')
+      }
       const { error } = await supabase
-        ?.from('qualified_leads')
+        .from('qualified_leads')
         .insert(payload)
-      if (error) throw new Error(error.message || 'Failed to save lead')
+      if (error) throw new Error((error as any).message || 'Failed to save lead')
       setMessage('Lead saved successfully')
     } catch (e: any) {
       setError(e?.message || 'Save failed')

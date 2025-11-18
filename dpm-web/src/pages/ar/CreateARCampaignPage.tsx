@@ -82,6 +82,11 @@ export const CreateARCampaignPage: React.FC = () => {
 
   const fetchVenues = async () => {
     try {
+      if (!supabase) {
+        console.error('Supabase client not initialized')
+        toast.error('Database connection not available')
+        return
+      }
       const { data, error } = await supabase
         .from('venues')
         .select('id, name')
@@ -89,7 +94,7 @@ export const CreateARCampaignPage: React.FC = () => {
         .order('name')
 
       if (error) throw error
-      setVenues(data || [])
+      setVenues((data as Venue[]) || [])
     } catch (error) {
       console.error('Error fetching venues:', error)
       toast.error('Failed to load venues')
@@ -98,6 +103,11 @@ export const CreateARCampaignPage: React.FC = () => {
 
   const fetchEvents = async (venueId: string) => {
     try {
+      if (!supabase) {
+        console.error('Supabase client not initialized')
+        toast.error('Database connection not available')
+        return
+      }
       const { data, error } = await supabase
         .from('events')
         .select('id, name, venue_id')
@@ -106,7 +116,7 @@ export const CreateARCampaignPage: React.FC = () => {
         .order('name')
 
       if (error) throw error
-      setEvents(data || [])
+      setEvents((data as Event[]) || [])
     } catch (error) {
       console.error('Error fetching events:', error)
       toast.error('Failed to load events')
@@ -172,6 +182,12 @@ export const CreateARCampaignPage: React.FC = () => {
     
     try {
       setLoading(true)
+      
+      if (!supabase) {
+        console.error('Supabase client not initialized')
+        toast.error('Database connection not available')
+        return
+      }
       
       const campaignData = {
         ...formData,

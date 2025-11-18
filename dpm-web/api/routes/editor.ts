@@ -35,22 +35,25 @@ router.post('/qr-node', authenticateToken, async (req: any, res: Response) => {
 // Persist POI to navigation_points
 router.post('/poi', authenticateToken, async (req: any, res: Response) => {
   try {
-    const { floorplan_id, name, point_type, x_coordinate, y_coordinate, description } = req.body as {
-      floorplan_id?: string
+    const { name, x_coordinate, y_coordinate, description, event_id } = req.body as {
       name?: string
-      point_type?: string
       x_coordinate?: number
       y_coordinate?: number
       description?: string
+      event_id?: string
     }
 
-    if (!floorplan_id || !name || !point_type || typeof x_coordinate !== 'number' || typeof y_coordinate !== 'number') {
-      return res.status(400).json({ success: false, message: 'floorplan_id, name, point_type, x_coordinate, y_coordinate required' })
+    if (!name || typeof x_coordinate !== 'number' || typeof y_coordinate !== 'number') {
+      return res.status(400).json({ success: false, message: 'name, x_coordinate, y_coordinate required' })
     }
+
+    const payload: Record<string, unknown> = { name, x: x_coordinate, y: y_coordinate }
+    if (description) payload.description = description
+    if (event_id) payload.event_id = event_id
 
     const { data, error } = await supabaseAdmin
-      .from('navigation_points')
-      .insert({ floorplan_id, name, point_type, x_coordinate, y_coordinate, description: description || null })
+      .from('pois')
+      .insert(payload)
       .select('*')
       .single()
 
@@ -83,7 +86,8 @@ router.post('/map', authenticateToken, async (req: any, res: Response) => {
   }
 })
 
-router.get('/qr-nodes', authenticateToken, async (req: any, res: Response) => {
+// GET /qr-nodes - Public endpoint for mobile app (no auth required)
+router.get('/qr-nodes', async (req: any, res: Response) => {
   try {
     const event_id = (req.query?.event_id as string) || ''
     if (!event_id) return res.status(400).json({ success: false, message: 'event_id required' })

@@ -41,12 +41,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUser({ id: authUser.id, email: authUser.email ?? undefined })
         return
       }
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('profiles')
         .select('id, role, email')
         .eq('id', authUser.id)
-        .maybeSingle()
-      const profile = (data as { role?: string; email?: string } | null)
+        .limit(1)
+      const profile = (Array.isArray(data) && data.length
+        ? (data[0] as { role?: string; email?: string })
+        : null)
 
       if (profile) {
         const full_name = authUser.email?.split('@')[0] || 'User'
@@ -78,7 +80,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setLoading(false)
       return
     }
-    supabase.auth.getSession().then(({ data }: { data: { session: Session | null } }) => {
+    const client = supabase
+    client.auth.getSession().then(({ data }: { data: { session: Session | null } }) => {
       const session = data.session
       setSession(session)
       const currentUser = session?.user ?? null
@@ -88,7 +91,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setLoading(false)
       }
 
-      const { data: authListener } = supabase.auth.onAuthStateChange(
+      const { data: authListener } = client.auth.onAuthStateChange(
         async (_event: string, session: Session | null) => {
           setLoading(true)
           setSession(session)
@@ -152,31 +155,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // Prefer backend in development to bypass RLS issues
     const apiBase = (import.meta as { env: Record<string, string> }).env.VITE_API_URL || '/api'
     if ((import.meta as { env: Record<string, string> }).env.MODE !== 'production') {
+      const client = supabase
+      if (!client) throw new Error('Supabase not initialized')
       let accessToken: string | null = null
-      for (let i = 0; i < 3; i++) {
-        const { data: { session } } = await supabase.auth.getSession()
+      for (let i = 0; i < 6; i++) {
+        const { data: { session } } = await client.auth.getSession()
         accessToken = session?.access_token || null
         if (accessToken) break
-        await new Promise(resolve => setTimeout(resolve, 400))
+        await new Promise(resolve => setTimeout(resolve, 500))
       }
-      let res = await fetch(`${apiBase}/auth/set-role`, {
+      const body: Record<string, unknown> = { role }
+      if (!accessToken) {
+        const { data: { user: authUser } } = await client.auth.getUser()
+        body.userId = authUser?.id || user.id
+        body.email = authUser?.email || user.email
+      }
+      const res = await fetch(`${apiBase}/auth/set-role`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}) },
-        body: JSON.stringify({ role }),
+        body: JSON.stringify(body),
         credentials: 'include',
       })
-      if (!res.ok && res.status === 401) {
-        const { data: { user: authUser } } = await supabase.auth.getUser()
-        res = await fetch(`${apiBase}/dev/set-role`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: authUser.id, role, email: authUser.email }),
-        })
-        if (!res.ok) {
-          const j = await res.json().catch(()=>({}))
-          throw new Error(j?.message || 'Failed to set role via backend')
-        }
-      } else if (!res.ok) {
+      if (!res.ok) {
         const j = await res.json().catch(()=>({}))
         throw new Error(j?.message || 'Failed to set role via backend')
       }

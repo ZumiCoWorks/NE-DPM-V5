@@ -3,6 +3,7 @@ import ImageUploader from './scaffold/ImageUploader';
 import POIForm from './scaffold/POIForm';
 import FloorplanCanvas from './FloorplanCanvas';
 import { supabase } from '../lib/supabase';
+import { toast } from 'sonner';
 
 // Adapted dev copy of the scaffold FloorplanEditor. This file lives inside `src/` so Vite can resolve it.
 // It imports some scaffold components directly (ImageUploader/POIForm/FloorplanCanvas) from scaffold/ but
@@ -348,7 +349,7 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
         const blob = new Blob([JSON.stringify({ nodes, segments, pois }, null, 2)], { type: 'application/json' })
         const url = URL.createObjectURL(blob)
         setLastSavedMapUrl(url)
-        showMessage('Demo mode: map exported locally')
+        toast.success('Demo mode: map exported locally')
         return
       }
       const res = await fetch(`${API_BASE_URL}/editor/map`, {
@@ -366,10 +367,11 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
       }
       const j = await res.json().catch(()=>({ success:true, url:'' }));
       setLastSavedMapUrl(j?.url || '');
-      showMessage('Map saved and exported');
+      toast.success('Map saved and exported');
+      toast.success(`Public graph URL: ${j?.url || ''}`, { duration: 6000 });
     } catch (err) {
       console.warn('saveMap failed', err?.message || err);
-      showMessage('Save failed: ' + (err?.message || String(err)));
+      toast.error('Save failed: ' + (err?.message || String(err)));
     }
   };
 

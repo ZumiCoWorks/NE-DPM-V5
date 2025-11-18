@@ -6,6 +6,11 @@ const USE_MOCK_DATA = false // Set to false to use real API
 
 // Helper function to get auth headers
 const getAuthHeaders = async () => {
+  if (!supabase) {
+    return {
+      'Content-Type': 'application/json',
+    }
+  }
   const { data: { session } } = await supabase.auth.getSession()
   return {
     'Content-Type': 'application/json',

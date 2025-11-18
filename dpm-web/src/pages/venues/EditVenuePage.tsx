@@ -52,6 +52,13 @@ export function EditVenuePage() {
 
   const fetchVenue = useCallback(async () => {
     try {
+      if (!supabase) {
+        console.error('Supabase client not initialized')
+        toast.error('Database connection not available')
+        navigate('/venues')
+        return
+      }
+      
       const { data, error } = await supabase
         .from('venues')
         .select('*')
@@ -65,20 +72,21 @@ export function EditVenuePage() {
         return
       }
 
+      const venueData = data as any
       setFormData({
-        name: data.name || '',
-        description: data.description || '',
-        address: data.address || '',
-        city: data.city || '',
-        state: data.state || '',
-        country: data.country || '',
-        postal_code: data.postal_code || '',
-        capacity: data.capacity || 0,
-        venue_type: data.venue_type || '',
-        amenities: data.amenities || [],
-        contact_info: data.contact_info || {},
-        is_active: data.is_active !== undefined ? data.is_active : true,
-        organization_id: data.organization_id || ''
+        name: venueData.name || '',
+        description: venueData.description || '',
+        address: venueData.address || '',
+        city: venueData.city || '',
+        state: venueData.state || '',
+        country: venueData.country || '',
+        postal_code: venueData.postal_code || '',
+        capacity: venueData.capacity || 0,
+        venue_type: venueData.venue_type || '',
+        amenities: venueData.amenities || [],
+        contact_info: venueData.contact_info || {},
+        is_active: venueData.is_active !== undefined ? venueData.is_active : true,
+        organization_id: venueData.organization_id || ''
       })
     } catch (error) {
       console.error('Error fetching venue:', error)
@@ -157,9 +165,15 @@ export function EditVenuePage() {
   amenities: formData.amenities as unknown as Database['public']['Tables']['venues']['Update']['amenities'],
   contact_info: formData.contact_info as unknown as Database['public']['Tables']['venues']['Update']['contact_info'],
         is_active: formData.is_active,
-        organization_id: user?.organization_id || formData.organization_id,
+        organization_id: (user?.organization_id as string) || formData.organization_id,
       }
 
+      if (!supabase) {
+        console.error('Supabase client not initialized')
+        toast.error('Database connection not available')
+        return
+      }
+      
       const { error } = await supabase
         .from('venues')
         .update(updateData)

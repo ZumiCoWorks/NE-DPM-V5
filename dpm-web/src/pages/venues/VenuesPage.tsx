@@ -35,6 +35,11 @@ export const VenuesPage: React.FC = () => {
     try {
       setLoading(true)
       
+      if (!supabase) {
+        console.error('Supabase client not initialized')
+        return
+      }
+      
       const { data, error } = await supabase
         .from('venues')
         .select('id, name, description, address, capacity, venue_type, contact_email, contact_phone, status, created_at')
@@ -64,6 +69,12 @@ export const VenuesPage: React.FC = () => {
 
     try {
       setDeleteLoading(venueId)
+      
+      if (!supabase) {
+        console.error('Supabase client not initialized')
+        alert('Database connection not available')
+        return
+      }
       
       const { error } = await supabase
         .from('venues')
