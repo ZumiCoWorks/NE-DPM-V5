@@ -102,8 +102,11 @@ if (demoMode) {
       _supabase = null
     }
   } else {
-    // eslint-disable-next-line no-console
-    console.warn('Supabase environment variables are not set (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).')
+    // In demo mode, we don't need real Supabase credentials, so don't warn
+    if (!demoMode) {
+      // eslint-disable-next-line no-console
+      console.warn('Supabase environment variables are not set (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).')
+    }
   }
 }
 
@@ -135,8 +138,10 @@ export const signOut = async () => {
 
 // Log the supabase URL so we can quickly validate runtime env at startup
 /* eslint-disable no-console */
-if (!demoMode) {
-  console.log('LOG: Supabase client created. URL:', env.VITE_SUPABASE_URL)
+if (demoMode) {
+  console.log('LOG: Demo mode enabled — using mock Supabase client')
+} else if (supabaseUrl) {
+  console.log('LOG: Supabase client created. URL:', supabaseUrl)
 }
 /* eslint-enable no-console */
 
