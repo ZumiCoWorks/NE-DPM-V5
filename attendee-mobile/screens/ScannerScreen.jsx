@@ -3,7 +3,7 @@ import { View, Text, Button, StyleSheet, ActivityIndicator } from 'react-native'
 import { BarCodeScanner } from 'expo-barcode-scanner'
 import { useLocationState } from '../contexts/LocationContext'
 
-const API_BASE = 'http://localhost:3001/api'
+const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3001/api'
 
 export default function ScannerScreen({ navigation }) {
   const [hasPermission, setHasPermission] = useState(null)
@@ -32,15 +32,15 @@ export default function ScannerScreen({ navigation }) {
       const res = await fetch(`${API_BASE}/editor/qr-nodes?event_id=${encodeURIComponent(eid)}`)
       const json = await res.json()
       if (!res.ok || !json?.success) throw new Error(json?.message || 'Calibration fetch failed')
-      const match = (json.data || []).find((c) => String(c.qr_id_text).trim() === qrIdText)
+      const match = (json.data || []).find((c) => String(c.qr_code_id).trim() === qrIdText)
       if (!match) {
         alert('QR not calibrated for this event')
         setScanned(false)
         return
       }
       // Coordinates are absolute in a 100x100 space for MVP visualization
-      const x = Number(match.x_coord) || 50
-      const y = Number(match.y_coord) || 50
+      const x = Number(match.x) || 50
+      const y = Number(match.y) || 50
       setUserLocation({ x, y })
       setPath([])
       navigation.navigate('Map')

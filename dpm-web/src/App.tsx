@@ -16,6 +16,9 @@ import ROIDashboardPage from './pages/ROIDashboardPage'
 import { ProfilePage } from "./pages/profile/ProfilePage"
 import { SettingsPage } from './pages/SettingsPage'
 import { NotFoundPage } from './pages/NotFoundPage'
+// PWA Mobile Apps
+import AttendeePWA from './pages/mobile/AttendeePWA'
+import StaffPWA from './pages/mobile/StaffPWA'
 // Core CRUD pages
 import { EventsPage } from './pages/events/EventsPage'
 import { CreateEventPage } from './pages/events/CreateEventPage'
@@ -162,6 +165,10 @@ function App() {
                       </Layout>
                     </ProtectedRoute>
                   } />
+
+                  {/* PWA Mobile Apps - Public access for presentation */}
+                  <Route path="/mobile/attendee" element={<AttendeePWA />} />
+                  <Route path="/mobile/staff" element={<StaffPWA />} />
             
             {/* Catch all */}
             <Route path="*" element={<NotFoundPage />} />

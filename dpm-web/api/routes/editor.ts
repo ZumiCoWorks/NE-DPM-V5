@@ -20,7 +20,7 @@ router.post('/qr-node', authenticateToken, async (req: any, res: Response) => {
 
     const { data, error } = await supabaseAdmin
       .from('map_qr_nodes')
-      .insert({ event_id, qr_id_text, x_coord, y_coord })
+      .insert({ event_id, qr_code_id: qr_id_text, x: x_coord, y: y_coord })
       .select('*')
       .single()
 
@@ -93,7 +93,7 @@ router.get('/qr-nodes', async (req: any, res: Response) => {
     if (!event_id) return res.status(400).json({ success: false, message: 'event_id required' })
     const { data, error } = await supabaseAdmin
       .from('map_qr_nodes')
-      .select('qr_id_text, x_coord, y_coord, created_at')
+      .select('qr_code_id, x, y, created_at')
       .eq('event_id', event_id)
       .order('created_at', { ascending: false })
     if (error) return res.status(400).json({ success: false, message: error.message })

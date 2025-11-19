@@ -1,9 +1,33 @@
 {
   "expo": {
-    "name": "Staff Mobile",
+    "name": "staff-mobile",
     "slug": "staff-mobile",
     "version": "1.0.0",
-    "sdkVersion": "48.0.0",
-    "platforms": ["ios", "android", "web"]
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FFFFFF"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "API_URL": "https://naveaze.co.za/api"
+    }
   }
 }

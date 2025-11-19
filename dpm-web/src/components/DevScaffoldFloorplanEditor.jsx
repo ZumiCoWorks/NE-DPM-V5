@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 const MODES = ['poi', 'node', 'draw-path'];
 
 const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = null, initialNodes = [], initialSegments = [], initialPois = [], initialZones = [] }) => {
-  const demoMode = (import.meta && import.meta.env && import.meta.env.VITE_DEMO_MODE) === 'true'
+  const demoMode = false // Disabled demo mode for production testing
   const [floorplanUrl, setFloorplanUrl] = useState(initialFloorplan);
   const [nodes, setNodes] = useState(initialNodes);
   const [segments, setSegments] = useState(initialSegments);

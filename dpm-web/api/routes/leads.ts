@@ -7,24 +7,25 @@ const router = Router()
 /**
  * Save a qualified lead
  * POST /api/leads
- * Body: { sponsor_id, staff_id, attendee_id, event_id, rating, note, timestamp }
+ * Body: { sponsor_id, attendee_id, event_id, full_name, email, company, job_title, notes }
  */
-router.post('/', authenticateToken, async (req: any, res: Response) => {
+router.post('/', async (req: any, res: Response) => {
   try {
-    const { sponsor_id, staff_id, attendee_id, event_id, rating, note, timestamp } = req.body
+    const { sponsor_id, attendee_id, event_id, full_name, email, company, job_title, notes } = req.body
 
-    if (!sponsor_id || !staff_id || !attendee_id) {
-      return res.status(400).json({ success: false, message: 'sponsor_id, staff_id and attendee_id are required' })
+    if (!full_name || !email) {
+      return res.status(400).json({ success: false, message: 'full_name and email are required' })
     }
 
     const insertRow = {
-      sponsor_id,
-      staff_id,
-      attendee_id,
+      sponsor_id: sponsor_id || null,
+      attendee_id: attendee_id || null,
       event_id: event_id || null,
-      rating: typeof rating === 'number' ? rating : (parseInt(rating, 10) || null),
-      note: note || null,
-      timestamp: timestamp || new Date().toISOString()
+      full_name: full_name.trim(),
+      email: email.trim(),
+      company: company || null,
+      job_title: job_title || null,
+      notes: notes || null
     }
 
     const { data, error } = await supabaseAdmin
@@ -34,8 +35,8 @@ router.post('/', authenticateToken, async (req: any, res: Response) => {
       .single()
 
     if (error) {
-      console.error('Failed to save lead:', String(error))
-      return res.status(500).json({ success: false, message: 'Failed to save lead', error: String(error) })
+      console.error('Failed to save lead:', error)
+      return res.status(500).json({ success: false, message: 'Failed to save lead', error: error.message || String(error) })
     }
 
     res.status(201).json({ success: true, lead: data })

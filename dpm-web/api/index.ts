@@ -84,6 +84,10 @@ app.use('/api/storage', authenticateToken, storageRoutes)
 // Editor routes
 app.use('/api/editor', editorRoutes)
 
+// Leads routes (for staff mobile app)
+import leadsRoutes from './routes/leads.js'
+app.use('/api/leads', leadsRoutes)
+
 // Protected routes - Events
 app.get('/api/events', authenticateToken, requireEventOrganizer, getEvents)
 app.get('/api/events/:id', authenticateToken, requireEventOrganizer, getEvent)

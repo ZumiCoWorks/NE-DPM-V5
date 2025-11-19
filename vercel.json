@@ -8,7 +8,6 @@
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "env": {
-    "NODE_ENV": "production",
-    "VITE_DEMO_MODE": "true"
+    "NODE_ENV": "production"
   }
 }
