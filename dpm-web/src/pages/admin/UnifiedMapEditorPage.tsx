@@ -1,5 +1,5 @@
 import React, { Suspense, useEffect, useState } from 'react'
-import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
+import { LoadingSpinner } from '../../components/ui/loadingSpinner'
 import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 
@@ -10,7 +10,8 @@ interface FloorplanEditorProps {
 }
 
 // Lazy-load the unified FloorplanEditor merged into src/components
-const FloorplanEditor = React.lazy(() => import('../../components/FloorplanEditor')) as React.FC<FloorplanEditorProps>
+// @ts-ignore - JSX module type declaration
+const FloorplanEditor = React.lazy(() => import('../../components/FloorplanEditor')) as unknown as React.FC<FloorplanEditorProps>
 
 export const UnifiedMapEditorPage: React.FC = () => {
   const [searchParams] = useSearchParams()

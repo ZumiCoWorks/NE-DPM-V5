@@ -1,202 +1,101 @@
-import { useState, useEffect } from 'react'
-import { useAuth } from '../contexts/AuthContext'
-import { supabase } from '../lib/supabase'
-import { Button } from '../components/ui/Button'
-import { Input } from '../components/ui/Input'
-import { Card } from '../components/ui/Card'
-import { LoadingSpinner } from '../components/ui/LoadingSpinner'
-import { Settings, Key, Save, TestTube } from 'lucide-react'
-import { toast } from 'sonner'
+import React, { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { toast } from 'sonner';
 
-export const SettingsPage = () => {
-  const { user } = useAuth()
-  const [quicketApiKey, setQuicketApiKey] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [testing, setTesting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState(false)
+const SettingsPage = () => {
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [quicketApiKey, setQuicketApiKey] = useState('');
 
   useEffect(() => {
-    loadSettings()
-  }, [user])
+    const fetchUserSettings = async () => {
+      if (!user || !supabase) return;
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('user_profiles')
+          .select('quicket_api_key')
+          .eq('user_id', (user as any).id)
+          .single();
 
-  const loadSettings = async () => {
-    if (!user) return
+        if (error && (error as any).code !== 'PGRST116') { // Ignore "No rows found" style error
+          throw error;
+        }
+
+        if (data) {
+          setQuicketApiKey((data as any).quicket_api_key || '');
+        }
+      } catch (error: any) {
+        toast.error('Failed to fetch settings.', { description: error.message });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserSettings();
+  }, [user]);
+
+  const handleSaveSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !supabase) return;
+    setLoading(true);
+
     try {
-      setLoading(true)
-      const res = await fetch((import.meta as any).env.VITE_API_URL + '/settings/quicket-key', { credentials: 'include' })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json?.message || json?.error || 'Failed to load settings')
-      setQuicketApiKey(json?.data?.quicket_api_key || '')
-    } catch (err: any) {
-      console.error('Error loading settings:', err)
-      setError('Failed to load settings')
+      const { error } = await supabase
+        .from('user_profiles')
+        .upsert({ user_id: (user as any).id, quicket_api_key: quicketApiKey });
+
+      if (error) throw error;
+      toast.success('Settings saved successfully!');
+    } catch (error: any) {
+      toast.error('Failed to save settings.', { description: error.message });
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
-
-  const handleSaveSettings = async () => {
-    if (!user) return
-
-    try {
-      setSaving(true)
-      setError(null)
-      setSuccess(false)
-
-      const res = await fetch((import.meta as any).env.VITE_API_URL + '/settings/quicket-key', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ quicket_api_key: quicketApiKey })
-      })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json?.message || json?.error || 'Failed to save settings')
-      setSuccess(true)
-      setTimeout(() => setSuccess(false), 3000)
-    } catch (err: any) {
-      setError(err.message || 'Failed to save settings')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const handleTestQuicket = async () => {
-    if (!quicketApiKey.trim()) {
-      toast.error('Enter your Quicket API key first')
-      return
-    }
-    setTesting(true)
-    try {
-      const res = await fetch((import.meta as any).env.VITE_API_URL + '/functions/v1/get-quicket-lead', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ticketId: 'DEMO123' })
-      })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json?.message || 'Test failed')
-      toast.success(`Test OK: ${json.name} <${json.email}>`)
-    } catch (err: any) {
-      toast.error(err.message || 'Test failed')
-    } finally {
-      setTesting(false)
-    }
-  }
-
-  useEffect(() => {
-    setLoading(false)
-  }, [])
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <LoadingSpinner size="lg" />
-      </div>
-    )
-  }
+  };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center">
-          <Settings className="mr-2 h-6 w-6" />
-          Settings
-        </h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Manage your API integrations and preferences
-        </p>
-      </div>
-
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-          <span className="block sm:inline">{error}</span>
-        </div>
-      )}
-
-      {success && (
-        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative" role="alert">
-          <span className="block sm:inline">Settings saved successfully!</span>
-        </div>
-      )}
-
-      <Card>
-        <div className="p-6">
-          <div className="mb-6">
-            <h2 className="text-lg font-medium text-gray-900 flex items-center">
-              <Key className="mr-2 h-5 w-5" />
-              Quicket API Integration
-            </h2>
-            <p className="mt-1 text-sm text-gray-500">
-              Configure your Quicket API key to enable event synchronization
-            </p>
-          </div>
-
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="quicket-api-key" className="block text-sm font-medium text-gray-700 mb-1">
+    <div className="container mx-auto py-10 px-4 sm:px-6 lg:px-8">
+      <Card className="max-w-2xl mx-auto">
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold">Settings</CardTitle>
+          <CardDescription>Manage your application settings and integrations.</CardDescription>
+        </CardHeader>
+        <form onSubmit={handleSaveSettings}>
+          <CardContent className="space-y-6">
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold">Quicket Integration</h3>
+              <p className="text-sm text-muted-foreground">
+                Enter your Quicket API key to automatically import event and ticket data.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="quicket-api-key" className="text-sm font-medium">
                 Quicket API Key
               </label>
               <Input
                 id="quicket-api-key"
                 type="password"
                 value={quicketApiKey}
-                onChange={(e) => setQuicketApiKey(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuicketApiKey(e.target.value)}
                 placeholder="Enter your Quicket API key"
+                disabled={loading}
               />
-              <p className="mt-2 text-sm text-gray-500">
-                Find your API key in your{' '}
-                <a 
-                  href="https://developer.quicket.co.za" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:text-blue-500 underline"
-                >
-                  Quicket Developer Portal
-                </a>
-              </p>
             </div>
-
-            <div className="pt-4 flex gap-3">
-              <Button
-                onClick={handleSaveSettings}
-                disabled={saving || !quicketApiKey.trim()}
-                className="inline-flex items-center"
-              >
-                <Save className="mr-2 h-4 w-4" />
-                {saving ? 'Saving...' : 'Save Settings'}
-              </Button>
-              <Button
-                onClick={handleTestQuicket}
-                disabled={testing || !quicketApiKey.trim()}
-                variant="outline"
-                className="inline-flex items-center"
-              >
-                <TestTube className="mr-2 h-4 w-4" />
-                {testing ? 'Testing...' : 'Test Connection'}
-              </Button>
-            </div>
-          </div>
-
-          <div className="mt-6 pt-6 border-t border-gray-200">
-            <h3 className="text-sm font-medium text-gray-900 mb-2">Important Notes:</h3>
-            <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
-              <li>Your API key is stored in session storage (cleared when browser closes)</li>
-              <li>For production use, implement server-side encrypted storage for API keys</li>
-              <li>Don't have a Quicket API key? Contact Quicket support to request one</li>
-              <li>You can update your API key at any time from this page</li>
-            </ul>
-            <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
-              <p className="text-xs text-yellow-800">
-                <strong>Security Note:</strong> This MVP implementation stores API keys in browser session storage. 
-                For production deployment, migrate to server-side encrypted storage or a secrets management service.
-              </p>
-            </div>
-          </div>
-        </div>
+          </CardContent>
+          <CardFooter className="flex justify-end">
+            <Button type="submit" disabled={loading}>
+              {loading ? 'Saving...' : 'Save Settings'}
+            </Button>
+          </CardFooter>
+        </form>
       </Card>
     </div>
-  )
-}
+  );
+};
 
-export default SettingsPage
+export default SettingsPage;

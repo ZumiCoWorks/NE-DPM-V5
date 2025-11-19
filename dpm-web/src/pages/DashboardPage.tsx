@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
-import { LoadingSpinner } from '../components/ui/LoadingSpinner'
+import { LoadingSpinner } from '../components/ui/loadingSpinner'
 import {
   Calendar,
   MapPin,

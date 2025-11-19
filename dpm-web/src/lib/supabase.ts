@@ -31,8 +31,8 @@ interface SupabaseAuthLike {
     callback: (event: string, session: Session | null) => void
   ): { data: { subscription: { unsubscribe(): void } } }
   getUser(): Promise<{ data: { user: { id: string; email: string } }; error: null }>
-  signInWithPassword(_opts?: unknown): Promise<{ error: null }>
-  signUp(_opts?: unknown): Promise<{ error: null }>
+  signInWithPassword(_opts?: unknown): Promise<{ data: { user: any; session: any }; error: null }>
+  signUp(_opts?: unknown): Promise<{ data: { user: any; session: any }; error: null }>
   signOut(): Promise<{ error: null }>
 }
 
@@ -74,8 +74,8 @@ if (demoMode) {
     getSession: async () => ({ data: { session: null } }),
     onAuthStateChange: (callback: (event: string, session: Session | null) => void) => { void callback; return { data: { subscription: { unsubscribe() {} } } } },
     getUser: async () => ({ data: { user: { id: 'demo-user', email: 'demo@example.com' } }, error: null }),
-    signInWithPassword: async (_opts?: unknown) => { void _opts; return { error: null } },
-    signUp: async (_opts?: unknown) => { void _opts; return { error: null } },
+    signInWithPassword: async (_opts?: unknown) => { void _opts; return { data: { user: null, session: null }, error: null } },
+    signUp: async (_opts?: unknown) => { void _opts; return { data: { user: null, session: null }, error: null } },
     signOut: async () => ({ error: null }),
   }
   _supabase = {

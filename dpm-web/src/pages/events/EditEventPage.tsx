@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 // import { useAuth } from '../../contexts/AuthContext'
-import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
+import { LoadingSpinner } from '../../components/ui/loadingSpinner'
 import { ArrowLeft, Calendar, MapPin, Users, FileText } from 'lucide-react'
 import { Link } from 'react-router-dom'
 

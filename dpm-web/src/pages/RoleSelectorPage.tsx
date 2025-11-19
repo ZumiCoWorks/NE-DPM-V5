@@ -1,106 +1,96 @@
-import { useEffect, useState } from 'react'
-import { useAuth } from '../contexts/AuthContext'
-import { useNavigate } from 'react-router-dom'
-import { Button } from '../components/ui/Button'
-import { Card } from '../components/ui/Card'
-import { LoadingSpinner } from '../components/ui/LoadingSpinner'
-
-type Role = 'admin' | 'staff' | 'sponsor'
+import { Link } from 'react-router-dom';
+import { MapPin, DollarSign, Settings } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 
 export const RoleSelectorPage = () => {
-  const { user, updateUserRole } = useAuth()
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const navigate = useNavigate()
-
-  useEffect(() => {
-    if (!user) {
-      navigate('/login')
+  const roles = [
+    {
+      title: 'For Attendees',
+      description: 'Download our mobile app to navigate events',
+      icon: MapPin,
+      link: 'https://apps.apple.com',
+      external: true,
+      color: 'bg-blue-500'
+    },
+    {
+      title: 'For Sponsors',
+      description: 'Access your sponsor dashboard and leads',
+      icon: DollarSign,
+      link: '/login',
+      external: false,
+      color: 'bg-green-500'
+    },
+    {
+      title: 'For Event Admins',
+      description: 'Manage events, maps, and sponsors',
+      icon: Settings,
+      link: '/login',
+      external: false,
+      color: 'bg-purple-500'
     }
-  }, [user, navigate])
-
-  const handleRoleSelect = async (role: Role) => {
-    setLoading(true)
-    setError(null)
-    try {
-      await updateUserRole(role)
-      navigate('/dashboard') // Role is set, now go to dashboard
-    } catch (err: any) {
-      setError(err.message || 'Failed to update role')
-      setLoading(false)
-    }
-  }
-
-  if (!user) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <Card className="w-full max-w-md">
-          <div className="p-6">
-            <div className="mb-4">
-              <h1 className="text-2xl font-bold text-gray-900">No user logged in</h1>
-              <p className="mt-1 text-sm text-gray-600">Please log in or register to select a role.</p>
-            </div>
-            <div className="flex gap-3">
-              <Button onClick={() => navigate('/login')} className="w-1/2">Login</Button>
-              <Button variant="outline" onClick={() => navigate('/register')} className="w-1/2">Register</Button>
-            </div>
-          </div>
-        </Card>
-      </div>
-    )
-  }
+  ];
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50">
-      <Card className="w-full max-w-md">
-        <div className="p-6">
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-gray-900">Select Your Role</h1>
-            <p className="mt-1 text-sm text-gray-600">
-              Choose your role for the DPM platform. This determines your access level.
-            </p>
-          </div>
-          <div className="space-y-4">
-            {error && (
-              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-                <span className="block sm:inline">{error}</span>
-              </div>
-            )}
-            <Button
-              size="lg"
-              variant="outline"
-              onClick={() => handleRoleSelect('admin')}
-              disabled={loading}
-              className="w-full"
-            >
-              {loading ? <LoadingSpinner size="sm" className="mr-2" /> : null}
-              Event Admin
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              onClick={() => handleRoleSelect('staff')}
-              disabled={loading}
-              className="w-full"
-            >
-              {loading ? <LoadingSpinner size="sm" className="mr-2" /> : null}
-              Staff
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              onClick={() => handleRoleSelect('sponsor')}
-              disabled={loading}
-              className="w-full"
-            >
-              {loading ? <LoadingSpinner size="sm" className="mr-2" /> : null}
-              Sponsor
-            </Button>
-          </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-8">
+      <div className="max-w-6xl w-full">
+        <div className="text-center mb-12">
+          <h1 className="text-5xl text-white mb-4">NavEaze</h1>
+          <p className="text-xl text-slate-300">Digital Platform Manager</p>
         </div>
-      </Card>
-    </div>
-  )
-}
 
-export default RoleSelectorPage
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {roles.map((role) => {
+            const Icon = role.icon;
+            if (role.external) {
+              return (
+                <a
+                  key={role.title}
+                  href={role.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block transition-transform hover:scale-105"
+                >
+                  <Card className="h-full cursor-pointer hover:shadow-xl transition-shadow">
+                    <CardHeader>
+                      <div className={`w-16 h-16 ${role.color} rounded-lg flex items-center justify-center mb-4`}>
+                        <Icon className="w-8 h-8 text-white" />
+                      </div>
+                      <CardTitle>{role.title}</CardTitle>
+                      <CardDescription>{role.description}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <span className="text-sm text-blue-600">Open App Store →</span>
+                    </CardContent>
+                  </Card>
+                </a>
+              );
+            }
+
+            return (
+              <Link key={role.title} to={role.link} className="block transition-transform hover:scale-105">
+                <Card className="h-full cursor-pointer hover:shadow-xl transition-shadow">
+                  <CardHeader>
+                    <div className={`w-16 h-16 ${role.color} rounded-lg flex items-center justify-center mb-4`}>
+                      <Icon className="w-8 h-8 text-white" />
+                    </div>
+                    <CardTitle>{role.title}</CardTitle>
+                    <CardDescription>{role.description}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <span className="text-sm text-blue-600">Sign In →</span>
+                  </CardContent>
+                </Card>
+              </Link>
+            );
+          })}
+        </div>
+
+        <div className="text-center mt-8">
+          <Link to="/register" className="text-slate-300 hover:text-white transition-colors">
+            Don't have an account? <span className="underline">Sign up here</span>
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+};

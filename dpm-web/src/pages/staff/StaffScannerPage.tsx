@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
-import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
+import { LoadingSpinner } from '../../components/ui/loadingSpinner'
 
 const StaffScannerPage: React.FC = () => {
   const { user } = useAuth()

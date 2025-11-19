@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
-import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
+import { LoadingSpinner } from '../../components/ui/loadingSpinner'
 import { MapPin, Building, Users, Plus, Edit, Trash2, Search, Filter, Phone, Mail } from 'lucide-react'
 import { cn } from '../../lib/utils'
 

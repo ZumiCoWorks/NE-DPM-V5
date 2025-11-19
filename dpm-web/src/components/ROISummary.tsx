@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { LoadingSpinner } from './ui/LoadingSpinner'
+import { LoadingSpinner } from './ui/loadingSpinner'
 
 interface LeadRow {
   id: string

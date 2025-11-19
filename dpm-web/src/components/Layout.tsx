@@ -41,13 +41,13 @@ const navigation: NavItem[] = [
   },
   {
     name: 'Map Editor',
-    href: '/admin/map-editor',
+    href: '/map-editor',
     icon: MapPin,
     roles: ['admin'],
   },
   {
     name: 'ROI Reports',
-    href: '/roi',
+    href: '/roi-reports',
     icon: Megaphone,
     roles: ['admin'],
   },

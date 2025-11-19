@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
-import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
+import { LoadingSpinner } from '../../components/ui/loadingSpinner'
 import { Eye, EyeOff, UserPlus } from 'lucide-react'
 import type { Database } from '../../types/database'
 
@@ -74,8 +74,8 @@ export const RegisterPage: React.FC = () => {
 
     try {
       await register(formData.email, formData.password, formData.fullName)
-      // After successful registration, user will be redirected to role selector
-      navigate('/role-selector')
+      // After successful registration, redirect to dashboard
+      navigate('/dashboard')
     } catch (err: any) {
       setError(err?.message || 'An unexpected error occurred')
     } finally {

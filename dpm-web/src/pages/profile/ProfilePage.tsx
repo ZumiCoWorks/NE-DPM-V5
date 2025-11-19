@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
-import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
+import { LoadingSpinner } from '../../components/ui/loadingSpinner'
 import {
   User,
   Mail,
@@ -72,10 +72,10 @@ export const ProfilePage: React.FC = () => {
       await updateProfile({
         full_name: formData.full_name,
         email: formData.email,
-        phone: formData.phone,
-        company: formData.company,
-        address: formData.address,
-        bio: formData.bio
+        phone: formData.phone || undefined,
+        company: formData.company || undefined,
+        address: formData.address || undefined,
+        bio: formData.bio || undefined
       })
       setIsEditing(false)
       alert('Profile updated successfully!')

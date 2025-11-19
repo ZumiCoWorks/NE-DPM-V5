@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { List, Map, Scan } from "lucide-react";
-import { Button } from "../components/ui/button";
+import { Button } from '../ui/button';
 import jsQR from "jsqr";
 
 interface ScannerScreenProps {

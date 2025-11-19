@@ -385,6 +385,11 @@ const AttendeePWA: React.FC = () => {
     setShowInstallPrompt(false);
   };
 
+  const handleQRCodeDetected = (data: string) => {
+    console.log('QR Code Detected:', data);
+    // Handle the detected QR code data
+  };
+
   // AR Reward Screen
   if (currentScreen === 'ar-reward') {
     return (

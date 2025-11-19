@@ -22,7 +22,7 @@ interface CardFooterProps {
   className?: string
 }
 
-export const Card: React.FC<CardProps> = ({
+const Card: React.FC<CardProps> = ({
   children,
   className,
   padding = 'md',
@@ -47,7 +47,7 @@ export const Card: React.FC<CardProps> = ({
   )
 }
 
-export const CardHeader: React.FC<CardHeaderProps> = ({
+const CardHeader: React.FC<CardHeaderProps> = ({
   children,
   className,
 }) => {
@@ -58,7 +58,7 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
   )
 }
 
-export const CardContent: React.FC<CardContentProps> = ({
+const CardContent: React.FC<CardContentProps> = ({
   children,
   className,
 }) => {
@@ -69,7 +69,7 @@ export const CardContent: React.FC<CardContentProps> = ({
   )
 }
 
-export const CardFooter: React.FC<CardFooterProps> = ({
+const CardFooter: React.FC<CardFooterProps> = ({
   children,
   className,
 }) => {
@@ -78,4 +78,40 @@ export const CardFooter: React.FC<CardFooterProps> = ({
       {children}
     </div>
   )
+}
+
+const CardTitle = React.forwardRef<
+  HTMLParagraphElement,
+  React.HTMLAttributes<HTMLHeadingElement>
+>(({ className, ...props }, ref) => (
+  <h3
+    ref={ref}
+    className={cn(
+      'text-lg font-semibold leading-none tracking-tight',
+      className
+    )}
+    {...props}
+  />
+))
+CardTitle.displayName = 'CardTitle'
+
+const CardDescription = React.forwardRef<
+  HTMLParagraphElement,
+  React.HTMLAttributes<HTMLParagraphElement>
+>(({ className, ...props }, ref) => (
+  <p
+    ref={ref}
+    className={cn('text-sm text-muted-foreground', className)}
+    {...props}
+  />
+))
+CardDescription.displayName = 'CardDescription'
+
+export {
+  Card,
+  CardHeader,
+  CardFooter,
+  CardTitle,
+  CardDescription,
+  CardContent,
 }

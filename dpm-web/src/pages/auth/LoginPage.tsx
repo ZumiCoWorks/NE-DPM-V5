@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useNavigate, Link } from 'react-router-dom'
-import { Button } from '../../components/ui/Button'
-import { Input } from '../../components/ui/Input'
-import { Card } from '../../components/ui/Card'
-import { LoadingSpinner } from '../../components/ui/LoadingSpinner'
+import { Button } from '../../components/ui/button'
+import { Input } from '../../components/ui/input'
+import { Card } from '../../components/ui/card'
+import { LoadingSpinner } from '../../components/ui/loadingSpinner'
 
 export const LoginPage = () => {
   const [email, setEmail] = useState('')

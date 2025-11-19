@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { List, Map, Scan } from "lucide-react";
 import { ScannerScreen } from "../../components/mobile/ScannerScreen";
-import { Button } from "../../components/ui/button";
+import { Button } from '../../components/ui/button';
 
 interface POI {
   id: string;
