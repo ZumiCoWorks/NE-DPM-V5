@@ -97,7 +97,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         <div className="fixed inset-0 bg-gray-600 bg-opacity-75" />
         <div className="fixed inset-y-0 left-0 flex w-64 flex-col bg-white">
           <div className="flex h-16 items-center justify-between px-4">
-            <h1 className="text-xl font-bold text-gray-900">NavEaze B2B</h1>
+            <div className="flex items-center gap-2">
+              <img src="/nav-eaze-logo.svg" alt="NavEaze" className="h-8 w-auto" />
+              <span className="text-xl font-bold text-gray-900">NavEaze</span>
+            </div>
             <button
               onClick={() => setSidebarOpen(false)}
               className="text-gray-400 hover:text-gray-600"
@@ -116,14 +119,14 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   className={cn(
                     'group flex items-center px-2 py-2 text-sm font-medium rounded-md',
                     isActive
-                      ? 'bg-blue-100 text-blue-900'
+                      ? 'bg-[#ed1c24]/10 text-[#ed1c24]'
                       : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                   )}
                 >
                   <item.icon
                     className={cn(
                       'mr-3 h-5 w-5',
-                      isActive ? 'text-blue-500' : 'text-gray-400'
+                      isActive ? 'text-[#ed1c24]' : 'text-gray-400'
                     )}
                   />
                   {item.name}
@@ -134,7 +137,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div className="border-t border-gray-200 p-4">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <div className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center">
+                <div className="h-8 w-8 rounded-full bg-[#ed1c24] flex items-center justify-center">
                   <span className="text-sm font-medium text-white">
                     {user?.full_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
                   </span>
@@ -184,7 +187,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       <div className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0">
         <div className="flex flex-col flex-grow bg-white border-r border-gray-200">
           <div className="flex items-center h-16 px-4 border-b border-gray-200">
-            <h1 className="text-xl font-bold text-gray-900">NavEaze B2B</h1>
+            <div className="flex items-center gap-2">
+              <img src="/nav-eaze-logo.svg" alt="NavEaze" className="h-8 w-auto" />
+              <span className="text-xl font-bold text-gray-900">NavEaze</span>
+            </div>
           </div>
           <nav className="flex-1 space-y-1 px-2 py-4">
             {filteredNavigation.map((item) => {
@@ -196,14 +202,14 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   className={cn(
                     'group flex items-center px-2 py-2 text-sm font-medium rounded-md',
                     isActive
-                      ? 'bg-blue-100 text-blue-900'
+                      ? 'bg-[#ed1c24]/10 text-[#ed1c24]'
                       : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                   )}
                 >
                   <item.icon
                     className={cn(
                       'mr-3 h-5 w-5',
-                      isActive ? 'text-blue-500' : 'text-gray-400'
+                      isActive ? 'text-[#ed1c24]' : 'text-gray-400'
                     )}
                   />
                   {item.name}
@@ -214,7 +220,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div className="border-t border-gray-200 p-4">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <div className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center">
+                <div className="h-8 w-8 rounded-full bg-[#ed1c24] flex items-center justify-center">
                   <span className="text-sm font-medium text-white">
                     {user?.full_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
                   </span>

@@ -232,6 +232,36 @@ const StaffPWA: React.FC = () => {
     }
   };
 
+  const fetchAttendeeInfo = async (attendeeId: string): Promise<AttendeeInfo> => {
+    try {
+      // Try to fetch from API first
+      const response = await fetch(`${API_BASE_URL}/attendees/${attendeeId}`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        return {
+          id: data.id,
+          name: data.name,
+          email: data.email,
+          company: data.company,
+          ticket_type: data.ticket_type,
+          phone: data.phone
+        };
+      }
+    } catch (error) {
+      console.error('Failed to fetch attendee info:', error);
+    }
+
+    // Fallback: return basic info for real attendee (no demo data)
+    return {
+      id: attendeeId,
+      name: 'Unknown Attendee',
+      email: 'unknown@event.com',
+      company: 'Not Available',
+      ticket_type: 'Standard'
+    };
+  };
+
   const handleQRScan = async () => {
     setIsScanning(true);
     await startCamera();
