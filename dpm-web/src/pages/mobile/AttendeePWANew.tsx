@@ -199,7 +199,11 @@ const AttendeePWANew: React.FC = () => {
         y: p.y_coord,
         name: p.name,
         type: p.point_type as 'node' | 'poi' | 'entrance' | 'exit',
-        metadata: p.metadata || {}
+        metadata: {
+          gps_lat: p.gps_lat,
+          gps_lng: p.gps_lng,
+          ...p.metadata
+        }
       }));
 
       const segs: GraphSegment[] = (segments || []).map((s: any) => ({
@@ -309,14 +313,37 @@ const AttendeePWANew: React.FC = () => {
   const handleGetDirections = async (poi: POIData) => {
     setSelectedPOI(poi);
 
+    console.log('🧭 Get directions clicked:', { 
+      poi: poi.name, 
+      hasGPS: !!currentGPS, 
+      poiHasGPS: !!(poi.metadata?.gps_lat && poi.metadata?.gps_lng),
+      eventMode: selectedEvent?.navigation_mode 
+    });
+
     // For outdoor events with GPS, use precision finding mode (AirTag style)
-    if (selectedEvent?.navigation_mode === 'outdoor' && currentGPS && poi.metadata?.gps_lat && poi.metadata?.gps_lng) {
+    if (poi.metadata?.gps_lat && poi.metadata?.gps_lng) {
+      // Check if we have user's current GPS
+      if (!currentGPS) {
+        // Try to get GPS now
+        displayMessage('Getting your location...', 2000);
+        try {
+          const gps = await getCurrentGPSPosition();
+          setCurrentGPS(gps);
+          console.log('✅ Got GPS:', gps);
+        } catch (err) {
+          displayMessage('Please enable location services', 3000);
+          console.error('GPS error:', err);
+          return;
+        }
+      }
+
       console.log('🎯 Starting precision finding mode');
       
       // Calculate initial distance and bearing
       const poiGPS = { lat: poi.metadata.gps_lat, lng: poi.metadata.gps_lng };
-      const distance = calculateDistance(currentGPS, poiGPS);
-      const bearing = calculateBearing(currentGPS, poiGPS);
+      const userGPS = currentGPS || await getCurrentGPSPosition();
+      const distance = calculateDistance(userGPS, poiGPS);
+      const bearing = calculateBearing(userGPS, poiGPS);
       
       setDistanceToTarget(distance);
       setBearingToTarget(bearing);
@@ -748,6 +775,29 @@ const AttendeePWANew: React.FC = () => {
                 </div>
               </div>
             </div>
+            
+            {/* GPS Status Banner */}
+            {selectedEvent && (selectedEvent.navigation_mode === 'outdoor' || selectedEvent.navigation_mode === 'hybrid') && (
+              <div className={`px-4 py-2 ${gpsEnabled ? 'bg-green-50 border-b border-green-200' : 'bg-orange-50 border-b border-orange-200'}`}>
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2">
+                    <Satellite className={`w-4 h-4 ${gpsEnabled ? 'text-green-600' : 'text-orange-600'}`} />
+                    <span className={gpsEnabled ? 'text-green-700' : 'text-orange-700'}>
+                      {gpsEnabled ? (
+                        <>GPS Active • ±{gpsAccuracy.toFixed(0)}m</>
+                      ) : (
+                        <>Waiting for GPS...</>
+                      )}
+                    </span>
+                  </div>
+                  {currentGPS && (
+                    <span className="text-xs text-gray-500">
+                      {currentGPS.lat.toFixed(6)}, {currentGPS.lng.toFixed(6)}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
             
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {pois.length > 0 ? (
