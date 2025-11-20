@@ -41,6 +41,11 @@ interface EventData {
 
 interface POIData extends GraphNode {
   distance?: number;
+  metadata?: {
+    gps_lat?: number;
+    gps_lng?: number;
+    [key: string]: any;
+  };
 }
 
 interface LocationData {
