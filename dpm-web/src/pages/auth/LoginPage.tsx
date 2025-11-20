@@ -40,7 +40,7 @@ export const LoginPage = () => {
           </p>
           <div className="mt-8 space-y-4">
             <div className="flex items-center space-x-4">
-              <div className="h-12 w-12 rounded-full" style={{ backgroundColor: '#E63946' }} className="flex items-center justify-center">
+              <div className="h-12 w-12 rounded-full flex items-center justify-center" style={{ backgroundColor: '#E63946' }}>
                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
                 </svg>
@@ -51,7 +51,7 @@ export const LoginPage = () => {
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <div className="h-12 w-12 rounded-full" style={{ backgroundColor: '#FFD700' }} className="flex items-center justify-center">
+              <div className="h-12 w-12 rounded-full flex items-center justify-center" style={{ backgroundColor: '#FFD700' }}>
                 <svg className="w-6 h-6 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
