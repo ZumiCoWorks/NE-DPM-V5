@@ -119,6 +119,19 @@ const AttendeePWANew: React.FC = () => {
     };
   }, [gpsWatchId, cameraStream, headingWatchCleanup]);
 
+  // Update relative bearing when device heading or target bearing changes
+  useEffect(() => {
+    if (currentScreen === 'precision-finding') {
+      const relative = calculateRelativeBearing(deviceHeading, bearingToTarget);
+      setRelativeBearing(relative);
+      
+      // Haptic feedback when pointing in right direction (±15°)
+      if (Math.abs(relative) < 15 && distanceToTarget > 3) {
+        triggerHaptic('light');
+      }
+    }
+  }, [deviceHeading, bearingToTarget, currentScreen, distanceToTarget]);
+
   // Check offline status
   useEffect(() => {
     const handleOffline = () => setOfflineMode(true);
@@ -243,21 +256,24 @@ const AttendeePWANew: React.FC = () => {
     try {
       const watchId = watchGPSPosition(
         (gps, accuracy) => {
+          console.log('📍 GPS Update:', gps, 'accuracy:', accuracy);
           setCurrentGPS(gps);
           setGpsAccuracy(accuracy);
           setGpsEnabled(true);
           
-          // Update precision finding calculations if active
+          // Update precision finding calculations if active and we have a target
           if (selectedPOI?.metadata?.gps_lat && selectedPOI?.metadata?.gps_lng) {
             const poiGPS = { lat: selectedPOI.metadata.gps_lat, lng: selectedPOI.metadata.gps_lng };
-            const distance = calculateDistance(gps, poiGPS);
-            const bearing = calculateBearing(gps, poiGPS);
+            const newDistance = calculateDistance(gps, poiGPS);
+            const newBearing = calculateBearing(gps, poiGPS);
             
-            setDistanceToTarget(distance);
-            setBearingToTarget(bearing);
+            console.log('📏 Distance to target:', newDistance.toFixed(1) + 'm', 'Bearing:', newBearing.toFixed(0) + '°');
             
-            // Trigger arrival haptic when very close
-            if (distance < 5 && distanceToTarget > 5) {
+            setDistanceToTarget(newDistance);
+            setBearingToTarget(newBearing);
+            
+            // Trigger arrival haptic when very close (first time only)
+            if (newDistance < 3 && distanceToTarget >= 3) {
               triggerHaptic('heavy');
               displayMessage('🎯 You have arrived!', 3000);
             }
@@ -345,20 +361,18 @@ const AttendeePWANew: React.FC = () => {
       const distance = calculateDistance(userGPS, poiGPS);
       const bearing = calculateBearing(userGPS, poiGPS);
       
+      console.log('📊 Initial - Distance:', distance.toFixed(1) + 'm', 'Bearing:', bearing.toFixed(0) + '°');
+      
       setDistanceToTarget(distance);
       setBearingToTarget(bearing);
       
       // Start watching device compass heading
+      // Note: bearing gets updated via watchGPSPosition callback above
       const cleanup = watchHeading(
         (heading) => {
           setDeviceHeading(heading);
-          const relative = calculateRelativeBearing(heading, bearing);
-          setRelativeBearing(relative);
-          
-          // Haptic feedback when pointing in right direction (±15°)
-          if (Math.abs(relative) < 15 && distance > 5) {
-            triggerHaptic('light');
-          }
+          // Recalculate relative bearing using current target bearing from state
+          // The actual bearing to target is updated by GPS watch callback
         },
         (error) => {
           console.warn('Compass error:', error);
@@ -639,6 +653,13 @@ const AttendeePWANew: React.FC = () => {
             ) : (
               <p className="text-lg">Turn left and walk forward</p>
             )}
+            
+            {/* Direct path note */}
+            {!isVeryClose && (
+              <p className="text-xs text-gray-500 mt-4 px-4">
+                ℹ️ This shows the direct path. View the map below for pathways around buildings.
+              </p>
+            )}
           </div>
 
           {/* GPS accuracy indicator */}
@@ -660,7 +681,7 @@ const AttendeePWANew: React.FC = () => {
             className="w-full bg-brand-yellow text-brand-black py-4 rounded-xl font-semibold flex items-center justify-center gap-2"
           >
             <Map className="w-5 h-5" />
-            View on Map
+            View Navigation on Map
           </button>
         </div>
       </div>

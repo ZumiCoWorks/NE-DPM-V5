@@ -75,12 +75,15 @@ export function formatDistance(meters: number): string {
 /**
  * Get device heading (compass direction)
  * Requires device orientation permission
+ * Includes smoothing to reduce jitter
  */
 export function watchHeading(
   onHeading: (heading: number) => void,
   onError?: (error: string) => void
 ): () => void {
   let handler: ((event: DeviceOrientationEvent) => void) | null = null;
+  let previousHeading: number | null = null;
+  const smoothingFactor = 0.3; // Lower = more smoothing (0-1)
 
   if ('DeviceOrientationEvent' in window) {
     // Request permission on iOS 13+
@@ -112,9 +115,22 @@ export function watchHeading(
       if (event.alpha !== null) {
         // alpha is compass heading (0-360)
         // webkitCompassHeading is more accurate on iOS
-        const heading =
+        let rawHeading =
           (event as any).webkitCompassHeading ?? 360 - event.alpha;
-        onHeading(heading);
+        
+        // Apply exponential smoothing to reduce jitter
+        if (previousHeading !== null) {
+          // Handle wraparound at 0/360 degrees
+          let diff = rawHeading - previousHeading;
+          if (diff > 180) diff -= 360;
+          if (diff < -180) diff += 360;
+          
+          const smoothedHeading = previousHeading + diff * smoothingFactor;
+          rawHeading = (smoothedHeading + 360) % 360;
+        }
+        
+        previousHeading = rawHeading;
+        onHeading(rawHeading);
       }
     };
     window.addEventListener('deviceorientation', handler);
