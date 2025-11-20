@@ -24,6 +24,7 @@ const SponsorManagementPage = SponsorLeadsPage;
 import { ProfilePage } from './pages/profile/ProfilePage';
 import { RegisterPage as VendorSignupPage } from './pages/auth/RegisterPage';
 import { AttendeePWA } from './pages/mobile/AttendeePWA';
+import AttendeePWANew from './pages/mobile/AttendeePWANew';
 
 
 export default function App() {
@@ -214,7 +215,8 @@ export default function App() {
           />
 
           {/* Attendee Mobile PWA - No auth required */}
-          <Route path="/attendee" element={<AttendeePWA />} />
+          <Route path="/attendee" element={<AttendeePWANew />} />
+          <Route path="/attendee-old" element={<AttendeePWA />} />
           
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
