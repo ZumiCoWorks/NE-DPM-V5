@@ -21,6 +21,9 @@ interface EventFormData {
   max_attendees: string
   status: 'draft' | 'published'
   quicket_event_id?: string
+  navigation_mode: 'indoor' | 'outdoor' | 'hybrid'
+  gps_center_lat?: string
+  gps_center_lng?: string
 }
 
 interface FormErrors {
@@ -33,6 +36,9 @@ interface FormErrors {
   status?: string
   general?: string
   quicket_event_id?: string
+  navigation_mode?: string
+  gps_center_lat?: string
+  gps_center_lng?: string
 }
 
 export const EditEventPage: React.FC = () => {
@@ -51,6 +57,9 @@ export const EditEventPage: React.FC = () => {
     max_attendees: '',
     status: 'draft',
     quicket_event_id: '',
+    navigation_mode: 'hybrid',
+    gps_center_lat: '',
+    gps_center_lng: '',
   })
   const [errors, setErrors] = useState<FormErrors>({})
 
@@ -85,6 +94,9 @@ export const EditEventPage: React.FC = () => {
           max_attendees?: number | null
           status?: 'draft' | 'published'
           quicket_event_id?: string | null
+          navigation_mode?: 'indoor' | 'outdoor' | 'hybrid'
+          gps_center_lat?: number
+          gps_center_lng?: number
         }
         setFormData({
           name: e.name || '',
@@ -95,6 +107,9 @@ export const EditEventPage: React.FC = () => {
           max_attendees: e.max_attendees ? String(e.max_attendees) : '',
           status: e.status || 'draft',
           quicket_event_id: e.quicket_event_id || '',
+          navigation_mode: e.navigation_mode || 'hybrid',
+          gps_center_lat: e.gps_center_lat ? String(e.gps_center_lat) : '',
+          gps_center_lng: e.gps_center_lng ? String(e.gps_center_lng) : '',
         })
       }
     } catch (error) {
@@ -200,6 +215,9 @@ export const EditEventPage: React.FC = () => {
         status: formData.status,
         updated_at: new Date().toISOString(),
         quicket_event_id: formData.quicket_event_id?.trim() || null,
+        navigation_mode: formData.navigation_mode,
+        gps_center_lat: formData.gps_center_lat ? parseFloat(formData.gps_center_lat) : null,
+        gps_center_lng: formData.gps_center_lng ? parseFloat(formData.gps_center_lng) : null,
       }
 
       const { error } = await supabase
@@ -469,6 +487,104 @@ export const EditEventPage: React.FC = () => {
               Draft events are not visible to attendees. Published events are live and accepting registrations.
             </p>
           </div>
+
+          {/* Navigation Mode */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              Navigation Mode *
+            </label>
+            <div className="space-y-2">
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="navigation_mode"
+                  value="indoor"
+                  checked={formData.navigation_mode === 'indoor'}
+                  onChange={(e) => handleInputChange('navigation_mode', e.target.value)}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                />
+                <span className="ml-2 text-sm text-gray-700">Indoor Only (QR Codes)</span>
+              </label>
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="navigation_mode"
+                  value="outdoor"
+                  checked={formData.navigation_mode === 'outdoor'}
+                  onChange={(e) => handleInputChange('navigation_mode', e.target.value)}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                />
+                <span className="ml-2 text-sm text-gray-700">Outdoor Only (GPS)</span>
+              </label>
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="navigation_mode"
+                  value="hybrid"
+                  checked={formData.navigation_mode === 'hybrid'}
+                  onChange={(e) => handleInputChange('navigation_mode', e.target.value)}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                />
+                <span className="ml-2 text-sm text-gray-700">Hybrid (GPS + QR Codes)</span>
+              </label>
+            </div>
+            <p className="mt-2 text-sm text-gray-500">
+              Hybrid mode uses GPS outdoors and allows QR code calibration for indoor accuracy.
+            </p>
+          </div>
+
+          {/* GPS Center Coordinates - Show if outdoor or hybrid */}
+          {(formData.navigation_mode === 'outdoor' || formData.navigation_mode === 'hybrid') && (
+            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
+              <h3 className="text-sm font-medium text-gray-900 mb-3">GPS Event Center</h3>
+              <p className="text-sm text-gray-600 mb-3">
+                Set the center point for your outdoor event venue. Attendees will use GPS for navigation.
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="gps_center_lat" className="block text-sm font-medium text-gray-700">
+                    Latitude
+                  </label>
+                  <input
+                    type="number"
+                    id="gps_center_lat"
+                    step="0.000001"
+                    value={formData.gps_center_lat}
+                    onChange={(e) => handleInputChange('gps_center_lat', e.target.value)}
+                    className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
+                      errors.gps_center_lat ? 'border-red-300' : 'border-gray-300'
+                    }`}
+                    placeholder="-25.7461"
+                  />
+                  {errors.gps_center_lat && (
+                    <p className="mt-1 text-sm text-red-600">{errors.gps_center_lat}</p>
+                  )}
+                </div>
+                <div>
+                  <label htmlFor="gps_center_lng" className="block text-sm font-medium text-gray-700">
+                    Longitude
+                  </label>
+                  <input
+                    type="number"
+                    id="gps_center_lng"
+                    step="0.000001"
+                    value={formData.gps_center_lng}
+                    onChange={(e) => handleInputChange('gps_center_lng', e.target.value)}
+                    className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
+                      errors.gps_center_lng ? 'border-red-300' : 'border-gray-300'
+                    }`}
+                    placeholder="28.1881"
+                  />
+                  {errors.gps_center_lng && (
+                    <p className="mt-1 text-sm text-red-600">{errors.gps_center_lng}</p>
+                  )}
+                </div>
+              </div>
+              <p className="mt-2 text-xs text-gray-500">
+                💡 Tip: Right-click on Google Maps and copy the coordinates, or use your phone's GPS app.
+              </p>
+            </div>
+          )}
 
           {/* Form Actions */}
           <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">

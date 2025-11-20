@@ -87,3 +87,102 @@ export function nodePathToCoords(nodes: GraphNode[], nodePath: string[]) {
     })
     .filter(Boolean) as Array<{ x: number; y: number }>;
 }
+
+/**
+ * Generate turn-by-turn directions from a node path
+ */
+export function generateTurnByTurnDirections(nodes: GraphNode[], nodePath: string[]): string[] {
+  const directions: string[] = [];
+  
+  if (nodePath.length === 0) return directions;
+  if (nodePath.length === 1) return ['You have arrived'];
+
+  const pathNodes = nodePath.map(id => nodes.find(n => n.id === id)).filter(Boolean) as GraphNode[];
+
+  // Start
+  const startNode = pathNodes[0];
+  directions.push(`📍 Start at ${startNode.name || 'starting point'}`);
+
+  // Middle waypoints
+  for (let i = 1; i < pathNodes.length - 1; i++) {
+    const prevNode = pathNodes[i - 1];
+    const node = pathNodes[i];
+    const nextNode = pathNodes[i + 1];
+
+    const distance = Math.round(getNodeDistance(node, nextNode));
+    
+    // Calculate turn direction
+    const turn = calculateTurnDirection(prevNode, node, nextNode);
+    
+    let instruction = '';
+    if (turn === 'straight') {
+      instruction = `➡️ Continue straight`;
+    } else if (turn === 'left') {
+      instruction = `↰ Turn left`;
+    } else if (turn === 'right') {
+      instruction = `↱ Turn right`;
+    } else if (turn === 'u-turn') {
+      instruction = `↶ Turn around`;
+    }
+
+    if (node.name) {
+      instruction += ` at ${node.name}`;
+    }
+
+    if (distance > 5) {
+      instruction += ` (${distance}m)`;
+    }
+
+    directions.push(instruction);
+  }
+
+  // End
+  const endNode = pathNodes[pathNodes.length - 1];
+  directions.push(`🎯 Arrive at ${endNode.name || 'destination'}`);
+
+  return directions;
+}
+
+/**
+ * Calculate distance between two nodes
+ */
+function getNodeDistance(node1: GraphNode, node2: GraphNode): number {
+  const dx = node2.x - node1.x;
+  const dy = node2.y - node1.y;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+/**
+ * Calculate turn direction
+ */
+function calculateTurnDirection(from: GraphNode, via: GraphNode, to: GraphNode): 'straight' | 'left' | 'right' | 'u-turn' {
+  const angle1 = Math.atan2(via.y - from.y, via.x - from.x);
+  const angle2 = Math.atan2(to.y - via.y, to.x - via.x);
+  
+  let diff = angle2 - angle1;
+  
+  // Normalize to -PI to PI
+  while (diff > Math.PI) diff -= 2 * Math.PI;
+  while (diff < -Math.PI) diff += 2 * Math.PI;
+  
+  const degrees = diff * (180 / Math.PI);
+  
+  if (Math.abs(degrees) < 30) return 'straight';
+  if (degrees > 150 || degrees < -150) return 'u-turn';
+  if (degrees > 0) return 'right';
+  return 'left';
+}
+
+/**
+ * Calculate total path distance in meters/pixels
+ */
+export function calculatePathDistance(nodes: GraphNode[], nodePath: string[]): number {
+  const pathNodes = nodePath.map(id => nodes.find(n => n.id === id)).filter(Boolean) as GraphNode[];
+  
+  let totalDistance = 0;
+  for (let i = 0; i < pathNodes.length - 1; i++) {
+    totalDistance += getNodeDistance(pathNodes[i], pathNodes[i + 1]);
+  }
+  
+  return Math.round(totalDistance);
+}

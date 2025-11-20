@@ -35,19 +35,25 @@ router.post('/qr-node', authenticateToken, async (req: any, res: Response) => {
 // Persist POI to navigation_points
 router.post('/poi', authenticateToken, async (req: any, res: Response) => {
   try {
-    const { name, x_coordinate, y_coordinate, description, event_id } = req.body as {
+    const { name, x_coord, y_coord, x_coordinate, y_coordinate, description, event_id } = req.body as {
       name?: string
+      x_coord?: number
+      y_coord?: number
       x_coordinate?: number
       y_coordinate?: number
       description?: string
       event_id?: string
     }
 
-    if (!name || typeof x_coordinate !== 'number' || typeof y_coordinate !== 'number') {
-      return res.status(400).json({ success: false, message: 'name, x_coordinate, y_coordinate required' })
+    // Support both x_coord/y_coord (new) and x_coordinate/y_coordinate (legacy)
+    const x = x_coord ?? x_coordinate;
+    const y = y_coord ?? y_coordinate;
+
+    if (!name || typeof x !== 'number' || typeof y !== 'number') {
+      return res.status(400).json({ success: false, message: 'name, x_coord, y_coord required' })
     }
 
-    const payload: Record<string, unknown> = { name, x: x_coordinate, y: y_coordinate }
+    const payload: Record<string, unknown> = { name, x, y }
     if (description) payload.description = description
     if (event_id) payload.event_id = event_id
 

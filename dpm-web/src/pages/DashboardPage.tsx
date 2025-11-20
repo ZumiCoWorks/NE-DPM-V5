@@ -50,11 +50,15 @@ export const DashboardPage: React.FC = () => {
     try {
       // Fetch recent events (admin only)
       if (user.role === 'admin') {
-        const { data: events } = await supabase
+        const { data: events, error } = await supabase
           .from('events')
           .select('id, name, description, created_at')
           .order('created_at', { ascending: false })
           .limit(3)
+
+        if (error) {
+          console.error('Error fetching events:', error);
+        }
 
         if (events) {
           type EventRow = { id: string; name: string; description?: string | null; created_at: string }
@@ -70,11 +74,15 @@ export const DashboardPage: React.FC = () => {
         }
       }
       if (user.role === 'staff') {
-        const { data: events } = await supabase
+        const { data: events, error } = await supabase
           .from('events')
           .select('id, name, description, created_at')
           .order('created_at', { ascending: false })
           .limit(3)
+
+        if (error) {
+          console.error('Error fetching events:', error);
+        }
 
         if (events) {
           type EventRow = { id: string; name: string; description?: string | null; created_at: string }
@@ -103,30 +111,48 @@ export const DashboardPage: React.FC = () => {
     if (!user) return
     if (!supabase) return
 
+    console.log('📊 Starting dashboard data fetch for user:', user.email);
+    
     try {
       setLoading(true)
+      console.log('⏳ Dashboard loading set to true');
+      
+      // Set a timeout to prevent indefinite loading
+      const timeout = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Request timeout')), 5000)
+      );
       
       // Fetch stats based on user role
       const statsPromises: Promise<Partial<DashboardStats>>[] = []
       
       if (user.role === 'admin') {
+        console.log('👑 Fetching admin stats...');
         statsPromises.push((async () => {
-          const { data } = await supabase.from('events').select('id')
+          const { data, error } = await supabase.from('events').select('id')
+          if (error) console.error('Error fetching events:', error);
           const totalEvents = Array.isArray(data) ? data.length : 0
+          console.log('📅 Events fetched:', totalEvents);
           return { totalEvents }
         })())
       }
       if (user.role === 'staff') {
+        console.log('👤 Fetching staff stats...');
         statsPromises.push((async () => {
-          const { data: events } = await supabase.from('events').select('id')
-          const { data: venues } = await supabase.from('venues').select('id')
+          const { data: events, error: eventsError } = await supabase.from('events').select('id')
+          const { data: venues, error: venuesError } = await supabase.from('venues').select('id')
+          if (eventsError) console.error('Error fetching events:', eventsError);
+          if (venuesError) console.error('Error fetching venues:', venuesError);
           const totalEvents = Array.isArray(events) ? events.length : 0
           const totalVenues = Array.isArray(venues) ? venues.length : 0
           return { totalEvents, totalVenues }
         })())
       }
 
-      const results = await Promise.all(statsPromises)
+      const results = await Promise.race([
+        Promise.all(statsPromises),
+        timeout
+      ]) as Partial<DashboardStats>[];
+      
       let newStats: DashboardStats = {
         totalEvents: 0,
         totalVenues: 0,
@@ -137,22 +163,37 @@ export const DashboardPage: React.FC = () => {
         newStats = { ...newStats, ...r }
       }
       setStats(newStats)
+      console.log('📈 Stats updated:', newStats);
 
       // Fetch recent activity
+      console.log('🔄 Fetching recent activity...');
       await fetchRecentActivity()
+      console.log('✅ Recent activity fetched');
       
     } catch (error) {
-      console.error('Error fetching dashboard data:', error)
+      console.error('❌ Error fetching dashboard data:', error)
+      // Set loading to false even on error
     } finally {
+      console.log('✅ Dashboard loading complete, setting loading to false');
       setLoading(false)
     }
   }, [user, fetchRecentActivity])
 
   useEffect(() => {
     if (user) {
-      fetchDashboardData()
+      // Set a maximum timeout for the entire loading process
+      const maxLoadTimeout = setTimeout(() => {
+        console.warn('Dashboard loading timeout - forcing completion');
+        setLoading(false);
+      }, 3000);
+
+      fetchDashboardData().finally(() => {
+        clearTimeout(maxLoadTimeout);
+      });
+
+      return () => clearTimeout(maxLoadTimeout);
     }
-  }, [user, fetchDashboardData])
+  }, [user]) // Removed fetchDashboardData from dependencies to prevent double-fetch
 
   const getQuickActions = () => {
     const actions = []
@@ -175,7 +216,7 @@ export const DashboardPage: React.FC = () => {
       actions.push({
         title: 'Map Editor',
         description: 'Edit floorplan and QR codes',
-        href: '/admin/map-editor',
+        href: '/map-editor',
         icon: MapPin,
         color: 'bg-green-500',
       })

@@ -22,6 +22,9 @@ import ticketsRoutes from './routes/tickets.js'
 import attendeesRoutes from './routes/attendees.js'
 import leadsRoutes from './routes/leads.js'
 import sponsorsRoutes from './routes/sponsors.js'
+import storageRoutes from './routes/storage.js'
+import editorRoutes from './routes/editor.js'
+import { authenticateToken } from './middleware/auth.js'
 
 // for esm mode
 // const __filename = fileURLToPath(import.meta.url)
@@ -31,7 +34,29 @@ dotenv.config()
 
 const app: express.Application = express()
 
-app.use(cors())
+// CORS configuration
+app.use(cors({
+  origin: (origin, callback) => {
+    const allowed = [
+      'http://localhost:5173',
+      'http://localhost:5174',
+      process.env.FRONTEND_URL,
+    ].filter(Boolean);
+    
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowed.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+}));
+
 app.use(cookieParser())
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true, limit: '10mb' }))
@@ -51,6 +76,8 @@ app.use('/api/tickets', ticketsRoutes)
 app.use('/api/attendees', attendeesRoutes)
 app.use('/api/leads', leadsRoutes)
 app.use('/api/sponsors', sponsorsRoutes)
+app.use('/api/storage', authenticateToken, storageRoutes)
+app.use('/api/editor', editorRoutes)
 
 /**
  * health
@@ -68,7 +95,7 @@ app.use(
 /**
  * error handler middleware
  */
-app.use((error: Error, req: Request, res: Response, _next) => {
+app.use((error: Error, req: Request, res: Response, _next: express.NextFunction) => {
   res.status(500).json({
     success: false,
     error: 'Server internal error',

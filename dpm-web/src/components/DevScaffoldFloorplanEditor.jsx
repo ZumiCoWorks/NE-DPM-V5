@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ImageUploader from './scaffold/ImageUploader';
 import POIForm from './scaffold/POIForm';
-import FloorplanCanvas from './FloorplanCanvas';
+import FloorplanCanvas from './scaffold/FloorplanCanvas';
+import CalibrationWizard from './CalibrationWizard';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
 
@@ -27,6 +28,7 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
 
   const [showPoiModal, setShowPoiModal] = useState(false);
   const [pendingPoiCoords, setPendingPoiCoords] = useState(null);
+  const [showCalibrationWizard, setShowCalibrationWizard] = useState(false);
 
   // QR Code ID for nodes (Part 2: B2C Admin Function)
   const [currentQrId, setCurrentQrId] = useState('');
@@ -34,6 +36,7 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
   const [myEvents, setMyEvents] = useState([]);
   const [calibrations, setCalibrations] = useState([]);
   const [lastSavedMapUrl, setLastSavedMapUrl] = useState('');
+  const [eventNavigationMode, setEventNavigationMode] = useState('hybrid');
 
   // Simple message banner
   const [banner, setBanner] = useState(null);
@@ -66,7 +69,15 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
   }, []);
   useEffect(() => {
     fetchCalibrations(currentEventId).catch(()=>{});
-  }, [currentEventId]);
+    fetchNavigationData(currentEventId).catch(()=>{}); // Load POIs and nodes
+    // Fetch event navigation mode when event changes
+    if (currentEventId && myEvents.length > 0) {
+      const selectedEvent = myEvents.find(e => e.id === currentEventId);
+      if (selectedEvent?.navigation_mode) {
+        setEventNavigationMode(selectedEvent.navigation_mode);
+      }
+    }
+  }, [currentEventId, myEvents, currentFloorplan]);
 
   const fetchFloorplans = async (userId) => {
     setLoading(true);
@@ -86,7 +97,7 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
     try {
       const { data, error } = await supabase
         .from('events')
-        .select('id, name')
+        .select('id, name, navigation_mode')
         .eq('organizer_id', userId)
         .order('created_at', { ascending: false })
       if (error) throw error
@@ -96,6 +107,87 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
       setMyEvents([])
     }
   }
+
+  const fetchNavigationData = async (eventId) => {
+    try {
+      if (!eventId || !currentFloorplan) return;
+      console.log('📍 Fetching navigation data for event:', eventId, 'floorplan:', currentFloorplan.id);
+      
+      // Fetch all navigation_points for this event and floorplan
+      const { data, error } = await supabase
+        .from('navigation_points')
+        .select('*')
+        .eq('event_id', eventId)
+        .eq('floorplan_id', currentFloorplan.id);
+      
+      if (error) throw error;
+      
+      if (!data || data.length === 0) {
+        console.log('ℹ️ No existing navigation data found');
+        return;
+      }
+
+      console.log(`✅ Loaded ${data.length} navigation points from database`);
+
+      // Separate POIs (destinations) from nodes (waypoints)
+      const loadedPois = [];
+      const loadedNodes = [];
+
+      data.forEach(point => {
+        // POIs have poi_name or are marked as destinations
+        if (point.poi_name || point.is_destination) {
+          loadedPois.push({
+            id: point.id,
+            name: point.poi_name || point.name || 'POI',
+            type: point.point_type || 'general',
+            x: point.x_coord,
+            y: point.y_coord,
+            x_pct: point.x_pct,
+            y_pct: point.y_pct,
+            gps_lat: point.gps_lat,
+            gps_lng: point.gps_lng
+          });
+        } else {
+          // Regular navigation nodes
+          loadedNodes.push({
+            id: point.id,
+            name: point.name || `Node ${loadedNodes.length + 1}`,
+            x: point.x_coord,
+            y: point.y_coord,
+            qr_id: point.qr_code_data
+          });
+        }
+      });
+
+      setPois(loadedPois);
+      setNodes(loadedNodes);
+      console.log(`✅ Loaded ${loadedPois.length} POIs and ${loadedNodes.length} nodes`);
+      
+      // Fetch segments
+      const { data: segmentsData, error: segmentsError } = await supabase
+        .from('navigation_segments')
+        .select('*')
+        .eq('event_id', eventId)
+        .eq('floorplan_id', currentFloorplan.id);
+      
+      if (segmentsError) {
+        console.warn('⚠️ Error fetching segments:', segmentsError);
+      } else if (segmentsData && segmentsData.length > 0) {
+        const loadedSegments = segmentsData.map(seg => ({
+          id: seg.id,
+          start_node_id: seg.start_node_id,
+          end_node_id: seg.end_node_id,
+          is_bidirectional: seg.is_bidirectional
+        }));
+        setSegments(loadedSegments);
+        console.log(`✅ Loaded ${loadedSegments.length} segments`);
+      }
+      
+    } catch (err) {
+      console.error('❌ Error fetching navigation data:', err);
+    }
+  };
+
   const fetchCalibrations = async (eventId) => {
     try {
       if (demoMode) { setCalibrations([]); return; }
@@ -190,10 +282,10 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
       // fetch navigation points as POIs (non-blocking if table missing)
       const { data: poisData, error: poisErr } = await supabase
         .from('navigation_points')
-        .select('id, name, point_type, x_coordinate, y_coordinate')
+        .select('id, name, point_type, x_coord, y_coord')
         .eq('floorplan_id', fp.id);
       if (!poisErr) {
-        const mappedPois = (poisData || []).map(p => ({ id: p.id, name: p.name, type: p.point_type, x: p.x_coordinate, y: p.y_coordinate }));
+        const mappedPois = (poisData || []).map(p => ({ id: p.id, name: p.name, type: p.point_type, x: p.x_coord, y: p.y_coord }));
         setPois(mappedPois);
       } else {
         // silently ignore missing table / 404
@@ -219,56 +311,82 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
   // Removed template creation, QR preview, and auth helpers for MVP simplification
 
   const handleNewNode = useCallback(async (n) => {
-    const id = `n_${Date.now()}_${Math.floor(Math.random()*1000)}`;
-    const node = { id, name: `Node ${nodes.length+1}`, qr_id: currentQrId || null, ...n };
-    setNodes(prev => [...prev, node]);
-    showMessage('Node added');
+    const tempId = `n_${Date.now()}_${Math.floor(Math.random()*1000)}`;
+    const nodeName = `Node ${nodes.length+1}`;
+    let node;
     
-    // Save QR node to database if QR ID is provided and event is selected
-    if (currentQrId && currentEventId) {
+    // Save node to database if event and floorplan are selected
+    if (currentEventId && currentFloorplan) {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const API_BASE_URL = (import.meta && import.meta.env && import.meta.env.VITE_API_URL) || 'http://localhost:3001/api';
-        if (demoMode) {
-          showMessage('Demo mode: QR calibration stored locally', 2000);
-        } else {
-          const res = await fetch(`${API_BASE_URL}/editor/qr-node`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {})
-            },
-            credentials: 'include',
-            body: JSON.stringify({
-              event_id: currentEventId,
-              qr_id_text: currentQrId,
-              x_coord: Math.round(n.x || 0),
-              y_coord: Math.round(n.y || 0)
-            })
-          });
-          if (!res.ok) {
-            const j = await res.json().catch(()=>({}));
-            throw new Error(j?.message || 'save failed');
-          }
-          showMessage('Node added and QR calibrated!', 2000);
+        // Insert into navigation_points table and get the UUID back
+        const { data, error } = await supabase
+          .from('navigation_points')
+          .insert({
+            event_id: currentEventId,
+            floorplan_id: currentFloorplan.id,
+            name: nodeName,
+            x_coord: Math.round(n.x || 0),
+            y_coord: Math.round(n.y || 0),
+            qr_code_data: currentQrId || null,
+            point_type: 'node'
+          })
+          .select()
+          .single();
+        
+        if (error) throw error;
+        
+        // Use the real UUID from database
+        node = { id: data.id, name: nodeName, qr_id: currentQrId || null, ...n };
+        setNodes(prev => [...prev, node]);
+        showMessage('✅ Node saved!', 2000);
+        
+        if (currentQrId) {
           setCurrentQrId('');
-          await fetchCalibrations(currentEventId);
         }
       } catch (err) {
-        console.warn('Error saving QR node:', err);
-        showMessage('Node added locally (DB save failed)', 3000);
+        console.error('Error saving node to database:', err);
+        // Fallback to temp ID if save fails
+        node = { id: tempId, name: nodeName, qr_id: currentQrId || null, ...n };
+        setNodes(prev => [...prev, node]);
+        showMessage('❌ Node not saved - will be lost on reload', 3000);
       }
+    } else {
+      // No event/floorplan selected - use temp ID
+      node = { id: tempId, name: nodeName, qr_id: currentQrId || null, ...n };
+      setNodes(prev => [...prev, node]);
+      showMessage('Node added (select event to save)', 3000);
     }
     
     return node;
-  }, [nodes.length, currentQrId, currentEventId]);
+  }, [nodes.length, currentQrId, currentEventId, currentFloorplan]);
 
-  const handleNewSegment = useCallback((s) => {
+  const handleNewSegment = useCallback(async (s) => {
     const id = `s_${Date.now()}_${Math.floor(Math.random()*1000)}`;
     const seg = { id, ...s };
     setSegments(prev => [...prev, seg]);
     showMessage('Segment added');
-  }, []);
+    
+    // Save segment to database if event and floorplan are selected
+    if (currentEventId && currentFloorplan) {
+      try {
+        const { error } = await supabase
+          .from('navigation_segments')
+          .insert({
+            event_id: currentEventId,
+            floorplan_id: currentFloorplan.id,
+            start_node_id: s.start_node_id,
+            end_node_id: s.end_node_id,
+            is_bidirectional: true
+          });
+        
+        if (error) throw error;
+        showMessage('Segment saved to database!', 2000);
+      } catch (err) {
+        console.warn('Error saving segment to database:', err);
+        showMessage('Segment added locally (will save when you click Save)', 3000);
+      }
+    }
+  }, [currentEventId, currentFloorplan]);
 
   const handleNewPoi = useCallback((p) => {
     // p may contain x,y coords
@@ -290,37 +408,63 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
     handleNewPoi(p);
     setShowPoiModal(false);
     setPendingPoiCoords(null);
-    // Persist to navigation_points when a floorplan is selected
-    if (currentFloorplan && supabase) {
+    
+    // Persist to navigation_points directly via Supabase
+    if (currentFloorplan && supabase && currentEventId) {
       try {
-        const pointTypeMap = { general: 'amenity' };
-        const point_type = pointTypeMap[p.type] || p.type || 'amenity';
-        const { data: { session } } = await supabase.auth.getSession();
-        const API_BASE_URL = (import.meta && import.meta.env && import.meta.env.VITE_API_URL) || 'http://localhost:3001/api';
         if (demoMode) {
           showMessage('Demo mode: POI stored locally', 2000);
           return;
         }
-        const res = await fetch(`${API_BASE_URL}/editor/poi`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {})
-          },
-          credentials: 'include',
-          body: JSON.stringify({
+
+        // Find nearest node to link POI for navigation
+        let nearestNodeId = null;
+        if (nodes.length > 0) {
+          const poiX = Math.round(p.x || 0);
+          const poiY = Math.round(p.y || 0);
+          let minDist = Infinity;
+          
+          for (const node of nodes) {
+            const dx = node.x - poiX;
+            const dy = node.y - poiY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < minDist) {
+              minDist = dist;
+              nearestNodeId = node.id;
+            }
+          }
+          console.log(`🔗 Linking POI "${p.name}" to nearest node (distance: ${minDist.toFixed(0)}px)`);
+        }
+
+        const pointTypeMap = { general: 'poi', amenity: 'poi' };
+        const point_type = pointTypeMap[p.type] || 'poi';
+        
+        const { data, error } = await supabase
+          .from('navigation_points')
+          .insert({
+            event_id: currentEventId,
             floorplan_id: currentFloorplan.id,
             name: p.name,
             point_type,
-            x_coordinate: Math.round(p.x || 0),
-            y_coordinate: Math.round(p.y || 0),
+            x_coord: Math.round(p.x || 0),
+            y_coord: Math.round(p.y || 0),
+            is_destination: true,
+            linked_node_id: nearestNodeId,
+            ...(formData.gps_lat && formData.gps_lng ? {
+              gps_lat: formData.gps_lat,
+              gps_lng: formData.gps_lng
+            } : {})
           })
-        });
-        if (!res.ok) {
-          const j = await res.json().catch(()=>({}));
-          throw new Error(j?.message || 'save failed');
-        }
-        showMessage('POI saved to DB', 2000);
+          .select()
+          .single();
+
+        if (error) throw error;
+        
+        console.log('✅ POI saved to database:', data);
+        showMessage(`✅ POI "${p.name}" saved!`, 2000);
+        
+        // Refresh navigation data to show new POI
+        fetchNavigationData();
       } catch (err) {
         console.warn('Failed to save POI to DB:', err);
         showMessage('POI added locally (DB save failed)', 3000);
@@ -441,6 +585,74 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
     }).filter(Boolean);
   };
 
+  const handleCalibrationComplete = async (calibrationData) => {
+    if (!currentFloorplan) return;
+    
+    try {
+      setLoading(true);
+      
+      // If auto method, calculate corners from event bounds
+      let finalCalibration = { ...calibrationData };
+      if (calibrationData.method === 'auto' && currentEventId) {
+        const selectedEvent = myEvents.find(e => e.id === currentEventId);
+        if (selectedEvent && selectedEvent.gps_bounds_ne_lat && selectedEvent.gps_bounds_sw_lat) {
+          finalCalibration = {
+            ...calibrationData,
+            gps_top_left_lat: selectedEvent.gps_bounds_ne_lat,
+            gps_top_left_lng: selectedEvent.gps_bounds_sw_lng,
+            gps_top_right_lat: selectedEvent.gps_bounds_ne_lat,
+            gps_top_right_lng: selectedEvent.gps_bounds_ne_lng,
+            gps_bottom_left_lat: selectedEvent.gps_bounds_sw_lat,
+            gps_bottom_left_lng: selectedEvent.gps_bounds_sw_lng,
+            gps_bottom_right_lat: selectedEvent.gps_bounds_sw_lat,
+            gps_bottom_right_lng: selectedEvent.gps_bounds_ne_lng
+          };
+        }
+      }
+      
+      // Update floorplan in database
+      const { error } = await supabase
+        .from('floorplans')
+        .update({
+          calibration_method: finalCalibration.method,
+          north_bearing_degrees: finalCalibration.north_bearing_degrees,
+          rotation_degrees: finalCalibration.rotation_degrees,
+          gps_top_left_lat: finalCalibration.gps_top_left_lat,
+          gps_top_left_lng: finalCalibration.gps_top_left_lng,
+          gps_top_right_lat: finalCalibration.gps_top_right_lat,
+          gps_top_right_lng: finalCalibration.gps_top_right_lng,
+          gps_bottom_left_lat: finalCalibration.gps_bottom_left_lat,
+          gps_bottom_left_lng: finalCalibration.gps_bottom_left_lng,
+          gps_bottom_right_lat: finalCalibration.gps_bottom_right_lat,
+          gps_bottom_right_lng: finalCalibration.gps_bottom_right_lng,
+          is_calibrated: true
+        })
+        .eq('id', currentFloorplan.id);
+      
+      if (error) throw error;
+      
+      // Refresh floorplan data
+      const { data: updated } = await supabase
+        .from('floorplans')
+        .select('*')
+        .eq('id', currentFloorplan.id)
+        .single();
+      
+      if (updated) {
+        setCurrentFloorplan(updated);
+      }
+      
+      setShowCalibrationWizard(false);
+      showMessage('✓ Floorplan calibrated successfully!', 3000);
+      
+    } catch (err) {
+      console.error('Calibration error:', err);
+      showMessage('Failed to save calibration', 3000);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Removed attendee preview and bulk QR generation for MVP simplification
 
   return (
@@ -457,6 +669,23 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
 
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
           <button onClick={() => setShowSetupModal(true)}>Change floorplan</button>
+          {floorplanUrl && currentFloorplan && (
+            <button 
+              onClick={() => setShowCalibrationWizard(true)}
+              style={{ 
+                background: currentFloorplan?.is_calibrated ? '#10b981' : '#f59e0b', 
+                color: 'white', 
+                border: 'none',
+                padding: '6px 12px',
+                borderRadius: 6,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4
+              }}
+            >
+              {currentFloorplan?.is_calibrated ? '✓ Calibrated' : '⚠️ Calibrate GPS'}
+            </button>
+          )}
           <button onClick={handleSaveMap}>Save (server)</button>
           {lastSavedMapUrl && (
             <span style={{ fontSize: 12, color: '#6b7280' }}>
@@ -597,6 +826,15 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
           onSave={(data) => handlePoiModalSave(data)}
           initialName=""
           initialType="general"
+          eventNavigationMode={eventNavigationMode}
+        />
+      )}
+
+      {showCalibrationWizard && floorplanUrl && (
+        <CalibrationWizard
+          floorplanImageUrl={floorplanUrl}
+          onComplete={handleCalibrationComplete}
+          onCancel={() => setShowCalibrationWizard(false)}
         />
       )}
     </div>

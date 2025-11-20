@@ -117,10 +117,11 @@ const FloorplanCanvas = ({
   segments = [],
   pois = [],
   zones = [],
+  mode, // Accept mode prop from parent
 }) => {
   const [image] = useImage(floorplanImageUrl, 'Anonymous');
   const stageRef = useRef(null);
-  const [drawingMode, setDrawingMode] = useState(null);
+  const drawingMode = mode; // Use mode prop instead of internal state
   const [currentSegmentStartNode, setCurrentSegmentStartNode] = useState(null);
 
   const [calibrationPoints, setCalibrationPoints] = useState([]);
@@ -436,7 +437,7 @@ const FloorplanCanvas = ({
       setNewPoiType('');
       return;
     }
-    if (drawingMode === 'segment') {
+    if (drawingMode === 'segment' || drawingMode === 'draw-path') {
       const clickedNode = findNearestNode(x, y);
       if (!clickedNode) {
         showCanvasMessage('Click near an existing node to create a segment endpoint', 'warning');

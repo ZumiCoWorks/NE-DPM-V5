@@ -23,6 +23,7 @@ import SponsorLeadsPage from './pages/sponsor/SponsorLeadsPage';
 const SponsorManagementPage = SponsorLeadsPage;
 import { ProfilePage } from './pages/profile/ProfilePage';
 import { RegisterPage as VendorSignupPage } from './pages/auth/RegisterPage';
+import { AttendeePWA } from './pages/mobile/AttendeePWA';
 
 
 export default function App() {
@@ -212,7 +213,8 @@ export default function App() {
             }
           />
 
-
+          {/* Attendee Mobile PWA - No auth required */}
+          <Route path="/attendee" element={<AttendeePWA />} />
           
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
