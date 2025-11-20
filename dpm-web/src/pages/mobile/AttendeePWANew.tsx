@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { List, Map, Scan, Navigation, MapPin, Camera, WifiOff, ArrowRight, Trophy, CheckCircle, Satellite, ChevronRight } from 'lucide-react';
+import { List, Map, Scan, Navigation, MapPin, Camera, WifiOff, ArrowRight, Trophy, CheckCircle, Satellite, ChevronRight, Compass } from 'lucide-react';
 import jsQR from 'jsqr';
 import FloorplanCanvas from '../../components/FloorplanCanvas.jsx';
 import { findShortestNodePath, nearestNodeToPoint, nodePathToCoords, GraphNode, GraphSegment } from '../../lib/pathfinding';
@@ -13,6 +13,16 @@ import {
   type GPSBounds,
   type FloorplanDimensions
 } from '../../lib/gpsNavigation';
+import {
+  calculateDistance,
+  calculateBearing,
+  bearingToCardinal,
+  bearingToArrow,
+  formatDistance,
+  watchHeading,
+  triggerHaptic,
+  calculateRelativeBearing
+} from '../../lib/gpsUtils';
 
 interface EventData {
   id: string;
@@ -40,13 +50,20 @@ interface LocationData {
   accuracy?: number;
 }
 
-type Screen = 'splash' | 'event-select' | 'main';
+type Screen = 'splash' | 'event-select' | 'main' | 'precision-finding';
 type Tab = 'directory' | 'map' | 'scanner';
 
 const AttendeePWANew: React.FC = () => {
   // Screen flow state
   const [currentScreen, setCurrentScreen] = useState<Screen>('splash');
   const [activeTab, setActiveTab] = useState<Tab>('directory');
+  
+  // Precision finding state (AirTag-style navigation)
+  const [deviceHeading, setDeviceHeading] = useState<number>(0);
+  const [distanceToTarget, setDistanceToTarget] = useState<number>(0);
+  const [bearingToTarget, setBearingToTarget] = useState<number>(0);
+  const [relativeBearing, setRelativeBearing] = useState<number>(0);
+  const [headingWatchCleanup, setHeadingWatchCleanup] = useState<(() => void) | null>(null);
   
   // Event state
   const [events, setEvents] = useState<EventData[]>([]);
@@ -82,7 +99,7 @@ const AttendeePWANew: React.FC = () => {
 
   const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
-  // Cleanup GPS on unmount
+  // Cleanup GPS and heading watch on unmount
   useEffect(() => {
     return () => {
       if (gpsWatchId !== null) {
@@ -91,8 +108,11 @@ const AttendeePWANew: React.FC = () => {
       if (cameraStream) {
         cameraStream.getTracks().forEach(track => track.stop());
       }
+      if (headingWatchCleanup) {
+        headingWatchCleanup();
+      }
     };
-  }, [gpsWatchId, cameraStream]);
+  }, [gpsWatchId, cameraStream, headingWatchCleanup]);
 
   // Check offline status
   useEffect(() => {
@@ -218,6 +238,22 @@ const AttendeePWANew: React.FC = () => {
           setGpsAccuracy(accuracy);
           setGpsEnabled(true);
           
+          // Update precision finding calculations if active
+          if (selectedPOI?.metadata?.gps_lat && selectedPOI?.metadata?.gps_lng) {
+            const poiGPS = { lat: selectedPOI.metadata.gps_lat, lng: selectedPOI.metadata.gps_lng };
+            const distance = calculateDistance(gps, poiGPS);
+            const bearing = calculateBearing(gps, poiGPS);
+            
+            setDistanceToTarget(distance);
+            setBearingToTarget(bearing);
+            
+            // Trigger arrival haptic when very close
+            if (distance < 5 && distanceToTarget > 5) {
+              triggerHaptic('heavy');
+              displayMessage('🎯 You have arrived!', 3000);
+            }
+          }
+          
           // Convert GPS to floorplan coordinates if we have event bounds
           if (event.gps_bounds_ne_lat && event.gps_bounds_sw_lat) {
             const gpsBounds: GPSBounds = {
@@ -265,8 +301,45 @@ const AttendeePWANew: React.FC = () => {
   };
 
   // Calculate route to POI
-  const handleGetDirections = (poi: POIData) => {
+  const handleGetDirections = async (poi: POIData) => {
     setSelectedPOI(poi);
+
+    // For outdoor events with GPS, use precision finding mode (AirTag style)
+    if (selectedEvent?.navigation_mode === 'outdoor' && currentGPS && poi.metadata?.gps_lat && poi.metadata?.gps_lng) {
+      console.log('🎯 Starting precision finding mode');
+      
+      // Calculate initial distance and bearing
+      const poiGPS = { lat: poi.metadata.gps_lat, lng: poi.metadata.gps_lng };
+      const distance = calculateDistance(currentGPS, poiGPS);
+      const bearing = calculateBearing(currentGPS, poiGPS);
+      
+      setDistanceToTarget(distance);
+      setBearingToTarget(bearing);
+      
+      // Start watching device compass heading
+      const cleanup = watchHeading(
+        (heading) => {
+          setDeviceHeading(heading);
+          const relative = calculateRelativeBearing(heading, bearing);
+          setRelativeBearing(relative);
+          
+          // Haptic feedback when pointing in right direction (±15°)
+          if (Math.abs(relative) < 15 && distance > 5) {
+            triggerHaptic('light');
+          }
+        },
+        (error) => {
+          console.warn('Compass error:', error);
+        }
+      );
+      setHeadingWatchCleanup(() => cleanup);
+      
+      // Switch to precision finding screen
+      setCurrentScreen('precision-finding');
+      return;
+    }
+
+    // For indoor events or no GPS, use map-based pathfinding
     setActiveTab('map');
 
     if (!currentLocation) {
@@ -453,6 +526,110 @@ const AttendeePWANew: React.FC = () => {
         {/* Footer */}
         <div className="p-6 text-center">
           <p className="text-gray-400 text-sm">Powered by NavEaze</p>
+        </div>
+      </div>
+    );
+  }
+
+  // PRECISION FINDING SCREEN (AirTag-style navigation)
+  if (currentScreen === 'precision-finding') {
+    const isClose = distanceToTarget < 10;
+    const isVeryClose = distanceToTarget < 3;
+    const isPointingCorrect = Math.abs(relativeBearing) < 30;
+
+    return (
+      <div className="flex flex-col h-screen bg-gradient-to-br from-brand-black to-brand-gray-dark text-white">
+        {/* Header */}
+        <div className="p-6 bg-brand-black/50 backdrop-blur-sm">
+          <button
+            onClick={() => {
+              setCurrentScreen('main');
+              setActiveTab('directory');
+              if (headingWatchCleanup) {
+                headingWatchCleanup();
+                setHeadingWatchCleanup(null);
+              }
+            }}
+            className="text-brand-yellow text-sm mb-2"
+          >
+            ← Back
+          </button>
+          <h1 className="text-2xl font-bold">{selectedPOI?.name}</h1>
+          <p className="text-gray-400 text-sm mt-1">Finding your way...</p>
+        </div>
+
+        {/* Main compass/direction area */}
+        <div className="flex-1 flex flex-col items-center justify-center p-8">
+          {/* Distance indicator */}
+          <div className="mb-12 text-center">
+            <div className={`text-6xl font-bold mb-2 ${isVeryClose ? 'text-green-400 animate-pulse' : 'text-white'}`}>
+              {formatDistance(distanceToTarget)}
+            </div>
+            <div className="text-gray-400">
+              {isVeryClose ? '🎯 You\'re here!' : `${bearingToCardinal(bearingToTarget)} ${bearingToArrow(bearingToTarget)}`}
+            </div>
+          </div>
+
+          {/* Directional arrow/compass */}
+          <div className="relative w-64 h-64 mb-12">
+            {/* Compass ring */}
+            <div className="absolute inset-0 rounded-full border-4 border-brand-yellow/30"></div>
+            
+            {/* Direction indicator (rotates based on relative bearing) */}
+            <div 
+              className="absolute inset-0 flex items-center justify-center transition-transform duration-300"
+              style={{ transform: `rotate(${relativeBearing}deg)` }}
+            >
+              <div className={`w-0 h-0 border-l-[40px] border-l-transparent border-r-[40px] border-r-transparent border-b-[80px] ${
+                isPointingCorrect ? 'border-b-green-400' : 'border-b-brand-red'
+              } transition-colors duration-300`}>
+              </div>
+            </div>
+
+            {/* Center dot */}
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-brand-yellow rounded-full"></div>
+            
+            {/* Cardinal directions */}
+            <div className="absolute top-2 left-1/2 transform -translate-x-1/2 text-xs text-gray-400">N</div>
+            <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 text-xs text-gray-400">S</div>
+            <div className="absolute left-2 top-1/2 transform -translate-y-1/2 text-xs text-gray-400">W</div>
+            <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-gray-400">E</div>
+          </div>
+
+          {/* Instruction text */}
+          <div className="text-center max-w-sm">
+            {isVeryClose ? (
+              <p className="text-xl text-green-400 font-semibold">You have arrived!</p>
+            ) : isPointingCorrect ? (
+              <p className="text-lg text-green-400">Keep going straight</p>
+            ) : relativeBearing > 0 ? (
+              <p className="text-lg">Turn right and walk forward</p>
+            ) : (
+              <p className="text-lg">Turn left and walk forward</p>
+            )}
+          </div>
+
+          {/* GPS accuracy indicator */}
+          <div className="mt-8 text-center text-sm text-gray-400">
+            <div className="flex items-center justify-center gap-2">
+              <Satellite className="w-4 h-4" />
+              <span>GPS Accuracy: ±{gpsAccuracy.toFixed(0)}m</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom action */}
+        <div className="p-6 bg-brand-black/50 backdrop-blur-sm">
+          <button
+            onClick={() => {
+              setCurrentScreen('main');
+              setActiveTab('map');
+            }}
+            className="w-full bg-brand-yellow text-brand-black py-4 rounded-xl font-semibold flex items-center justify-center gap-2"
+          >
+            <Map className="w-5 h-5" />
+            View on Map
+          </button>
         </div>
       </div>
     );

@@ -44,27 +44,59 @@ const FloorplanCanvas = ({
       const availableWidth = containerWidth || window.innerWidth - 32; // padding
       const availableHeight = containerHeight || window.innerHeight * 0.5; // half screen
       
-      const scaleX = availableWidth / image.width;
-      const scaleY = availableHeight / image.height;
-      const initialScale = Math.min(scaleX, scaleY, 1); // Don't scale up, only down
-      
-      setStageScale(initialScale);
-      setStageDimensions({ width: availableWidth, height: availableHeight });
-      
-      // Center the image
-      const scaledWidth = image.width * initialScale;
-      const scaledHeight = image.height * initialScale;
-      setStageX((availableWidth - scaledWidth) / 2);
-      setStageY((availableHeight - scaledHeight) / 2);
-      
-      console.log('🔍 Fit to container:', { imageWidth: image.width, imageHeight: image.height, scale: initialScale, containerWidth: availableWidth });
+      // If we have a highlighted path, zoom to show it
+      if (highlightPath && highlightPath.length > 1) {
+        const padding = 100; // pixels of padding around the path
+        
+        // Find bounding box of path
+        const xs = highlightPath.map(p => p.x);
+        const ys = highlightPath.map(p => p.y);
+        const minX = Math.min(...xs) - padding;
+        const maxX = Math.max(...xs) + padding;
+        const minY = Math.min(...ys) - padding;
+        const maxY = Math.max(...ys) + padding;
+        const pathWidth = maxX - minX;
+        const pathHeight = maxY - minY;
+        
+        // Calculate scale to fit path in view
+        const scaleX = availableWidth / pathWidth;
+        const scaleY = availableHeight / pathHeight;
+        const pathScale = Math.min(scaleX, scaleY, 2); // Max 2x zoom
+        
+        setStageScale(pathScale);
+        setStageDimensions({ width: availableWidth, height: availableHeight });
+        
+        // Center on path
+        const centerX = (minX + maxX) / 2;
+        const centerY = (minY + maxY) / 2;
+        setStageX(availableWidth / 2 - centerX * pathScale);
+        setStageY(availableHeight / 2 - centerY * pathScale);
+        
+        console.log('🔍 Zoomed to path:', { pathWidth, pathHeight, scale: pathScale, center: { centerX, centerY } });
+      } else {
+        // No path, just fit the whole image
+        const scaleX = availableWidth / image.width;
+        const scaleY = availableHeight / image.height;
+        const initialScale = Math.min(scaleX, scaleY, 1); // Don't scale up, only down
+        
+        setStageScale(initialScale);
+        setStageDimensions({ width: availableWidth, height: availableHeight });
+        
+        // Center the image
+        const scaledWidth = image.width * initialScale;
+        const scaledHeight = image.height * initialScale;
+        setStageX((availableWidth - scaledWidth) / 2);
+        setStageY((availableHeight - scaledHeight) / 2);
+        
+        console.log('🔍 Fit to container:', { imageWidth: image.width, imageHeight: image.height, scale: initialScale, containerWidth: availableWidth });
+      }
     } else if (image) {
       setStageDimensions({ width: image.width, height: image.height });
       setStageScale(1);
       setStageX(0);
       setStageY(0);
     }
-  }, [image, floorplanImageUrl, fitToContainer, containerWidth, containerHeight]);
+  }, [image, floorplanImageUrl, fitToContainer, containerWidth, containerHeight, highlightPath]);
 
   useEffect(() => {
     // clear any in-progress draw-path state when mode changes away

@@ -480,6 +480,12 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
   // Simple save function - in a full editor this would call your backend / supabase table
   const handleSaveMap = async () => {
     if (!floorplanUrl || !currentFloorplan) return showMessage('Upload a floorplan first');
+    
+    // This component is deprecated - use UnifiedMapEditorPage instead
+    toast.info('Please use the Unified Map Editor from the Events page');
+    console.warn('DevScaffoldFloorplanEditor is deprecated. Use UnifiedMapEditorPage instead.');
+    return;
+    
     const payload = {
       floorplan_id: currentFloorplan.id,
       nodes,

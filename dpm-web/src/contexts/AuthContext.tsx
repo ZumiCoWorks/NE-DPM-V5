@@ -99,11 +99,29 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     if (!supabase) return;
 
-    // Listen for auth changes
+    // Listen for auth changes (but ignore repeated SIGNED_IN events to prevent loops)
+    let lastEvent = '';
+    let lastEventTime = 0;
+    
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      // Prevent duplicate events within 1 second
+      const now = Date.now();
+      if (event === lastEvent && event === 'SIGNED_IN' && now - lastEventTime < 1000) {
+        console.log('⏭️ Skipping duplicate SIGNED_IN event');
+        return;
+      }
+      lastEvent = event;
+      lastEventTime = now;
+      
       console.log('Auth state changed:', event);
       
-      if (session?.user && supabase) {
+      // Only fetch profile on specific events
+      if (event === 'INITIAL_SESSION' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
+        // Let the initial session logic handle this
+        if (event === 'INITIAL_SESSION') return;
+      }
+      
+      if (session?.user && supabase && (event === 'SIGNED_IN' || event === 'USER_UPDATED')) {
         console.log('🔄 Fetching profile for user:', session.user.email);
         
         try {
