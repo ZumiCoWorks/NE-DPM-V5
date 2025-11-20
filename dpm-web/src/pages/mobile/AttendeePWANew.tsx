@@ -168,7 +168,7 @@ const AttendeePWANew: React.FC = () => {
       if (floorplanErr) throw floorplanErr;
 
       // Convert to graph format
-      const nodes: GraphNode[] = (points || []).map(p => ({
+      const nodes: GraphNode[] = (points || []).map((p: any) => ({
         id: p.id,
         x: p.x_coord,
         y: p.y_coord,
@@ -177,7 +177,7 @@ const AttendeePWANew: React.FC = () => {
         metadata: p.metadata || {}
       }));
 
-      const segs: GraphSegment[] = (segments || []).map(s => ({
+      const segs: GraphSegment[] = (segments || []).map((s: any) => ({
         id: s.id,
         from_node_id: s.from_node_id,
         to_node_id: s.to_node_id,
