@@ -1,4 +1,15 @@
-export type GraphNode = { id: string; x: number; y: number; name?: string; type?: string };
+export type GraphNode = { 
+  id: string; 
+  x: number; 
+  y: number; 
+  name?: string; 
+  type?: string;
+  metadata?: {
+    gps_lat?: number;
+    gps_lng?: number;
+    [key: string]: any;
+  };
+};
 export type GraphSegment = { id: string; start_node_id: string; end_node_id: string };
 
 export function buildAdjacency(nodes: GraphNode[], segments: GraphSegment[]) {
