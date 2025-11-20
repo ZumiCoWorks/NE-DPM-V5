@@ -1,5 +1,6 @@
 api/
 api/**/*
-*.md
-.env*
-!.env.production
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx

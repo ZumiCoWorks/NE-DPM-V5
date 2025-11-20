@@ -718,16 +718,19 @@ const AttendeePWA: React.FC = () => {
         {/* Directory Tab */}
         {activeTab === 'directory' && (
           <div className="flex flex-col h-full bg-gray-50">
-            <div className="p-4 bg-white border-b border-gray-200">
+            <div className="p-4 bg-brand-black border-b-4 border-brand-yellow">
               <div className="flex items-center justify-between">
-                <h1 className="text-gray-900 text-lg font-semibold">Points of Interest</h1>
+                <div>
+                  <h1 className="text-white text-xl font-bold tracking-tight">NavEaze</h1>
+                  <p className="text-gray-300 text-xs mt-0.5">Points of Interest</p>
+                </div>
                 <div className="flex items-center space-x-2">
                   {offlineMode ? (
-                    <WifiOff className="w-5 h-5 text-red-500" />
+                    <WifiOff className="w-5 h-5 text-brand-red" />
                   ) : (
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <div className="w-2 h-2 bg-brand-yellow rounded-full"></div>
                   )}
-                  <span className="text-sm text-gray-600">
+                  <span className="text-sm text-gray-300">
                     {offlineMode ? 'Offline' : 'Online'}
                   </span>
                 </div>
