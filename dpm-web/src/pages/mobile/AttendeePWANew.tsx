@@ -82,6 +82,8 @@ const AttendeePWANew: React.FC = () => {
   const [graphSegments, setGraphSegments] = useState<GraphSegment[]>([]);
   const [floorplanImageUrl, setFloorplanImageUrl] = useState<string | null>(null);
   const [highlightPath, setHighlightPath] = useState<Array<{ x: number; y: number }>>([]);
+  const [navigationPath, setNavigationPath] = useState<GraphNode[]>([]); // Turn-by-turn waypoints
+  const [currentWaypointIndex, setCurrentWaypointIndex] = useState<number>(0);
   
   // Location state
   const [currentLocation, setCurrentLocation] = useState<LocationData | null>(null);
@@ -131,6 +133,28 @@ const AttendeePWANew: React.FC = () => {
       }
     }
   }, [deviceHeading, bearingToTarget, currentScreen, distanceToTarget]);
+
+  // Update distance/bearing continuously when GPS or target changes
+  useEffect(() => {
+    if (!currentGPS || !selectedPOI?.metadata?.gps_lat || !selectedPOI?.metadata?.gps_lng) {
+      return;
+    }
+
+    const poiGPS = { lat: selectedPOI.metadata.gps_lat, lng: selectedPOI.metadata.gps_lng };
+    const newDistance = calculateDistance(currentGPS, poiGPS);
+    const newBearing = calculateBearing(currentGPS, poiGPS);
+    
+    console.log('🔄 Recalculating - Distance:', newDistance.toFixed(1) + 'm', 'Bearing:', newBearing.toFixed(0) + '°');
+    
+    setDistanceToTarget(newDistance);
+    setBearingToTarget(newBearing);
+    
+    // Trigger arrival haptic when very close
+    if (newDistance < 3 && distanceToTarget >= 3) {
+      triggerHaptic('heavy');
+      displayMessage('🎯 You have arrived!', 3000);
+    }
+  }, [currentGPS, selectedPOI, distanceToTarget]);
 
   // Check offline status
   useEffect(() => {
@@ -256,28 +280,10 @@ const AttendeePWANew: React.FC = () => {
     try {
       const watchId = watchGPSPosition(
         (gps, accuracy) => {
-          console.log('📍 GPS Update:', gps, 'accuracy:', accuracy);
+          console.log('📍 GPS Update:', gps.lat.toFixed(6), gps.lng.toFixed(6), 'accuracy:', accuracy.toFixed(1) + 'm');
           setCurrentGPS(gps);
           setGpsAccuracy(accuracy);
           setGpsEnabled(true);
-          
-          // Update precision finding calculations if active and we have a target
-          if (selectedPOI?.metadata?.gps_lat && selectedPOI?.metadata?.gps_lng) {
-            const poiGPS = { lat: selectedPOI.metadata.gps_lat, lng: selectedPOI.metadata.gps_lng };
-            const newDistance = calculateDistance(gps, poiGPS);
-            const newBearing = calculateBearing(gps, poiGPS);
-            
-            console.log('📏 Distance to target:', newDistance.toFixed(1) + 'm', 'Bearing:', newBearing.toFixed(0) + '°');
-            
-            setDistanceToTarget(newDistance);
-            setBearingToTarget(newBearing);
-            
-            // Trigger arrival haptic when very close (first time only)
-            if (newDistance < 3 && distanceToTarget >= 3) {
-              triggerHaptic('heavy');
-              displayMessage('🎯 You have arrived!', 3000);
-            }
-          }
           
           // Convert GPS to floorplan coordinates if we have event bounds
           if (event.gps_bounds_ne_lat && event.gps_bounds_sw_lat) {
@@ -353,9 +359,53 @@ const AttendeePWANew: React.FC = () => {
         }
       }
 
-      console.log('🎯 Starting precision finding mode');
+      console.log('🎯 Starting precision finding mode with path-based navigation');
       
-      // Calculate initial distance and bearing
+      // Calculate path-based route using navigation graph
+      // Find all nodes with GPS coordinates (POIs and waypoints with GPS)
+      const gpsNodes = graphNodes.filter(n => n.metadata?.gps_lat && n.metadata?.gps_lng);
+      
+      if (gpsNodes.length > 0) {
+        // Find nearest GPS node to user's current position
+        const userGPS = currentGPS || await getCurrentGPSPosition();
+        let nearestNode = gpsNodes[0];
+        let minDist = calculateDistance(userGPS, { 
+          lat: nearestNode.metadata!.gps_lat!, 
+          lng: nearestNode.metadata!.gps_lng! 
+        });
+        
+        gpsNodes.forEach(node => {
+          const dist = calculateDistance(userGPS, { 
+            lat: node.metadata!.gps_lat!, 
+            lng: node.metadata!.gps_lng! 
+          });
+          if (dist < minDist) {
+            minDist = dist;
+            nearestNode = node;
+          }
+        });
+        
+        // Calculate shortest path from nearest node to destination POI
+        const nodePath = findShortestNodePath(graphNodes, graphSegments, nearestNode.id, poi.id);
+        
+        if (nodePath.length > 0) {
+          // Filter to only nodes with GPS coordinates for turn-by-turn
+          const waypointsWithGPS = nodePath.filter(nodeId => {
+            const node = graphNodes.find(n => n.id === nodeId);
+            return node?.metadata?.gps_lat && node?.metadata?.gps_lng;
+          }).map(nodeId => graphNodes.find(n => n.id === nodeId)!);
+          
+          setNavigationPath(waypointsWithGPS);
+          setCurrentWaypointIndex(0);
+          
+          console.log('📍 Path-based route:', waypointsWithGPS.length, 'GPS waypoints');
+        } else {
+          console.log('⚠️ No path found, using direct navigation');
+          setNavigationPath([]);
+        }
+      }
+      
+      // Calculate initial distance and bearing to target
       const poiGPS = { lat: poi.metadata.gps_lat, lng: poi.metadata.gps_lng };
       const userGPS = currentGPS || await getCurrentGPSPosition();
       const distance = calculateDistance(userGPS, poiGPS);
@@ -582,6 +632,11 @@ const AttendeePWANew: React.FC = () => {
     const isClose = distanceToTarget < 10;
     const isVeryClose = distanceToTarget < 3;
     const isPointingCorrect = Math.abs(relativeBearing) < 30;
+    
+    // Get current waypoint name for path-based navigation
+    const currentWaypoint = navigationPath.length > 0 ? navigationPath[currentWaypointIndex] : null;
+    const isLastWaypoint = currentWaypointIndex === navigationPath.length - 1;
+    const waypointProgress = navigationPath.length > 0 ? `${currentWaypointIndex + 1}/${navigationPath.length}` : null;
 
     return (
       <div className="flex flex-col h-screen bg-gradient-to-br from-brand-black to-brand-gray-dark text-white">
@@ -595,12 +650,21 @@ const AttendeePWANew: React.FC = () => {
                 headingWatchCleanup();
                 setHeadingWatchCleanup(null);
               }
+              setNavigationPath([]);
+              setCurrentWaypointIndex(0);
             }}
             className="text-brand-yellow text-sm mb-2"
           >
             ← Back
           </button>
           <h1 className="text-2xl font-bold">{selectedPOI?.name}</h1>
+          {currentWaypoint && !isLastWaypoint ? (
+            <p className="text-gray-400 text-sm mt-1">Via {currentWaypoint.name} • Step {waypointProgress}</p>
+          ) : currentWaypoint && isLastWaypoint ? (
+            <p className="text-gray-400 text-sm mt-1">Final destination • Step {waypointProgress}</p>
+          ) : (
+            <p className="text-gray-400 text-sm mt-1">Finding your way...</p>
+          )}
           <p className="text-gray-400 text-sm mt-1">Finding your way...</p>
         </div>
 
@@ -645,17 +709,51 @@ const AttendeePWANew: React.FC = () => {
           {/* Instruction text */}
           <div className="text-center max-w-sm">
             {isVeryClose ? (
-              <p className="text-xl text-green-400 font-semibold">You have arrived!</p>
-            ) : isPointingCorrect ? (
-              <p className="text-lg text-green-400">Keep going straight</p>
-            ) : relativeBearing > 0 ? (
-              <p className="text-lg">Turn right and walk forward</p>
+              <div>
+                <p className="text-xl text-green-400 font-semibold">You have arrived!</p>
+                {currentWaypoint && !isLastWaypoint && (
+                  <p className="text-sm text-gray-400 mt-2">Next: {navigationPath[currentWaypointIndex + 1]?.name}</p>
+                )}
+              </div>
+            ) : currentWaypoint ? (
+              <div>
+                <p className="text-lg font-semibold mb-1">
+                  {isPointingCorrect ? (
+                    <span className="text-green-400">Keep going straight</span>
+                  ) : relativeBearing > 0 ? (
+                    <span>Turn right</span>
+                  ) : (
+                    <span>Turn left</span>
+                  )}
+                </p>
+                <p className="text-sm text-gray-400">
+                  toward {currentWaypoint.name}
+                </p>
+                {!isLastWaypoint && navigationPath[currentWaypointIndex + 1] && (
+                  <p className="text-xs text-gray-500 mt-2">
+                    Then continue to {navigationPath[currentWaypointIndex + 1].name}
+                  </p>
+                )}
+              </div>
             ) : (
-              <p className="text-lg">Turn left and walk forward</p>
+              <div>
+                <p className="text-lg font-semibold mb-1">
+                  {isPointingCorrect ? (
+                    <span className="text-green-400">Keep going straight</span>
+                  ) : relativeBearing > 0 ? (
+                    <span>Turn right and walk forward</span>
+                  ) : (
+                    <span>Turn left and walk forward</span>
+                  )}
+                </p>
+                <p className="text-xs text-gray-500 mt-2">
+                  Direct path to destination
+                </p>
+              </div>
             )}
             
-            {/* Direct path note */}
-            {!isVeryClose && (
+            {/* Path navigation note */}
+            {!isVeryClose && navigationPath.length === 0 && (
               <p className="text-xs text-gray-500 mt-4 px-4">
                 ℹ️ This shows the direct path. View the map below for pathways around buildings.
               </p>
