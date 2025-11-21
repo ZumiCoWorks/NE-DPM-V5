@@ -259,31 +259,7 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
     
     // Upload directly to Supabase Storage (bypass API server)
     try {
-      // Check if bucket exists
-      console.log('🔍 Checking for floorplans bucket...');
-      const { data: buckets, error: listError } = await supabase.storage.listBuckets();
-      
-      if (listError) {
-        console.warn('⚠️ Could not list buckets:', listError.message);
-      } else {
-        const bucketExists = buckets?.some(b => b.name === 'floorplans');
-        console.log('📦 Bucket exists:', bucketExists);
-        
-        if (!bucketExists) {
-          console.log('🆕 Creating floorplans bucket...');
-          const { error: createError } = await supabase.storage.createBucket('floorplans', { 
-            public: true,
-            fileSizeLimit: 10485760 // 10MB
-          });
-          if (createError) {
-            console.error('❌ Failed to create bucket:', createError);
-            throw new Error(`Failed to create bucket: ${createError.message}`);
-          }
-          console.log('✅ Bucket created successfully');
-        }
-      }
-      
-      // Upload file
+      // Upload file directly - bucket already exists
       console.log('⬆️ Uploading file to Supabase Storage...');
       const { data, error } = await supabase.storage
         .from('floorplans')
