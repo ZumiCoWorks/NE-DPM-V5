@@ -256,6 +256,8 @@ const AttendeePWANew: React.FC = () => {
       
       // Extract POIs
       const poisList = nodes.filter(n => n.type === 'poi');
+      console.log('🔍 All nodes:', nodes.map(n => ({ name: n.name, type: n.type })));
+      console.log('📍 Filtered POIs:', poisList.map(p => ({ name: p.name, type: p.type, hasGPS: !!(p.metadata?.gps_lat && p.metadata?.gps_lng) })));
       setPois(poisList);
 
       // Set floorplan image
