@@ -16,12 +16,6 @@
     <!-- Service Worker Registration -->
     <script>
       if ('serviceWorker' in navigator) {
-        // Unregister old broken service workers first
-        navigator.serviceWorker.getRegistrations().then((registrations) => {
-          registrations.forEach(registration => registration.unregister());
-        });
-        
-        // Then register the new one
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js')
             .then((registration) => {
