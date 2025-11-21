@@ -319,14 +319,17 @@ const AttendeePWANew: React.FC = () => {
 
   // Handle event selection
   const handleEventSelect = async (event: EventData) => {
+    console.log('🎯 Event selected:', event.name, event.id);
     setSelectedEvent(event);
     localStorage.setItem('selectedEventId', event.id);
     
     // Fetch navigation data
+    console.log('📡 Fetching navigation data for event:', event.id);
     await fetchNavigationData(event.id);
     
     // Enable GPS if outdoor/hybrid
     if (event.navigation_mode === 'outdoor' || event.navigation_mode === 'hybrid') {
+      console.log('🌍 Enabling GPS tracking for', event.navigation_mode, 'event');
       enableGPSTracking(event);
     }
     
