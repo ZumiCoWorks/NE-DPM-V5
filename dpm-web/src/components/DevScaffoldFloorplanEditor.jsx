@@ -252,27 +252,38 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
   const uploadToSupabase = async (file) => {
     const fileExt = file.name.split('.').pop();
     const fileName = `floorplan_${Date.now()}_${Math.random().toString(36).slice(2,10)}.${fileExt}`;
-    const buf = await file.arrayBuffer();
-    const bytes = new Uint8Array(buf);
-    let binary = '';
-    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-    const base64 = window.btoa(binary);
-    const { data: { session } } = await supabase.auth.getSession();
-    const API_BASE_URL = (import.meta && import.meta.env && import.meta.env.VITE_API_URL) || 'http://localhost:3001/api';
-    if (demoMode) throw new Error('Demo mode: server upload disabled. Paste a hosted URL instead.')
-    const res = await fetch(`${API_BASE_URL}/storage/upload/floorplan`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {})
-      },
-      credentials: 'include',
-      body: JSON.stringify({ filename: fileName, contentType: file.type || 'image/png', base64 })
-    });
-    const json = await res.json();
-    if (!res.ok || !json?.success) throw new Error(json?.message || 'upload failed');
-    if (!json?.url) throw new Error('No URL returned');
-    return json.url;
+    
+    if (demoMode) throw new Error('Demo mode: server upload disabled. Paste a hosted URL instead.');
+    
+    // Upload directly to Supabase Storage (bypass API server)
+    try {
+      // Ensure bucket exists
+      const { error: bucketError } = await supabase.storage.getBucket('floorplans');
+      if (bucketError) {
+        // Try to create bucket if it doesn't exist
+        await supabase.storage.createBucket('floorplans', { public: true });
+      }
+      
+      // Upload file
+      const { data, error } = await supabase.storage
+        .from('floorplans')
+        .upload(fileName, file, {
+          contentType: file.type || 'image/png',
+          upsert: true
+        });
+      
+      if (error) throw new Error(error.message);
+      
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('floorplans')
+        .getPublicUrl(data.path);
+      
+      return urlData.publicUrl;
+    } catch (err) {
+      console.error('Upload error:', err);
+      throw err;
+    }
   };
 
   const handleSelectFloorplan = async (fp) => {
