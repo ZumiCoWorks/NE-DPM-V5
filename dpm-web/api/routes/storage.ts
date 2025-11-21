@@ -4,6 +4,11 @@ import { authenticateToken } from '../middleware/auth.js'
 
 const router = Router()
 
+// Handle OPTIONS preflight
+router.options('/upload/floorplan', (req, res) => {
+  res.status(200).end()
+})
+
 router.post('/upload/floorplan', authenticateToken, async (req: any, res: Response) => {
   try {
     const { filename, contentType, base64 } = req.body as { filename?: string; contentType?: string; base64?: string }

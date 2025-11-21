@@ -76,7 +76,7 @@ app.use('/api/tickets', ticketsRoutes)
 app.use('/api/attendees', attendeesRoutes)
 app.use('/api/leads', leadsRoutes)
 app.use('/api/sponsors', sponsorsRoutes)
-app.use('/api/storage', authenticateToken, storageRoutes)
+app.use('/api/storage', storageRoutes)  // Remove double auth - it's in the route
 app.use('/api/editor', editorRoutes)
 
 /**

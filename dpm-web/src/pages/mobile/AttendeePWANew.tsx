@@ -769,8 +769,8 @@ const AttendeePWANew: React.FC = () => {
           </div>
         </div>
 
-        {/* Bottom action */}
-        <div className="p-6 bg-brand-black/50 backdrop-blur-sm">
+        {/* Bottom actions */}
+        <div className="p-6 bg-brand-black/50 backdrop-blur-sm space-y-3">
           <button
             onClick={() => {
               setCurrentScreen('main');
@@ -780,6 +780,31 @@ const AttendeePWANew: React.FC = () => {
           >
             <Map className="w-5 h-5" />
             View Navigation on Map
+          </button>
+          
+          {/* Debug/Testing button */}
+          <button
+            onClick={() => {
+              // Simulate arrival
+              setDistanceToTarget(0);
+              triggerHaptic('heavy');
+              displayMessage('🎯 Marked as arrived!', 3000);
+              
+              // Log for debugging
+              console.log('🧪 DEBUG: Manually marked as arrived');
+              console.log('Current GPS:', currentGPS);
+              console.log('Target POI:', selectedPOI?.name, selectedPOI?.metadata);
+              
+              // Optional: Auto-return to directory after 2 seconds
+              setTimeout(() => {
+                setCurrentScreen('main');
+                setActiveTab('directory');
+              }, 2000);
+            }}
+            className="w-full bg-gray-700 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2 border border-gray-600"
+          >
+            <CheckCircle className="w-5 h-5" />
+            Mark as Arrived (Debug)
           </button>
         </div>
       </div>
