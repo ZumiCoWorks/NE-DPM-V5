@@ -949,7 +949,7 @@ const AttendeePWANew: React.FC = () => {
             )}
             
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
-              {console.log('🎨 Rendering POIs - count:', pois.length, 'data:', pois)}
+              {(() => { console.log('🎨 Rendering POIs - count:', pois.length, 'data:', pois); return null; })()}
               {pois.length > 0 ? (
                 pois.map((poi) => (
                   <div key={poi.id} className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4">
