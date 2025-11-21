@@ -255,16 +255,36 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
     
     if (demoMode) throw new Error('Demo mode: server upload disabled. Paste a hosted URL instead.');
     
+    console.log('📤 Starting floorplan upload:', fileName);
+    
     // Upload directly to Supabase Storage (bypass API server)
     try {
-      // Ensure bucket exists
-      const { error: bucketError } = await supabase.storage.getBucket('floorplans');
-      if (bucketError) {
-        // Try to create bucket if it doesn't exist
-        await supabase.storage.createBucket('floorplans', { public: true });
+      // Check if bucket exists
+      console.log('🔍 Checking for floorplans bucket...');
+      const { data: buckets, error: listError } = await supabase.storage.listBuckets();
+      
+      if (listError) {
+        console.warn('⚠️ Could not list buckets:', listError.message);
+      } else {
+        const bucketExists = buckets?.some(b => b.name === 'floorplans');
+        console.log('📦 Bucket exists:', bucketExists);
+        
+        if (!bucketExists) {
+          console.log('🆕 Creating floorplans bucket...');
+          const { error: createError } = await supabase.storage.createBucket('floorplans', { 
+            public: true,
+            fileSizeLimit: 10485760 // 10MB
+          });
+          if (createError) {
+            console.error('❌ Failed to create bucket:', createError);
+            throw new Error(`Failed to create bucket: ${createError.message}`);
+          }
+          console.log('✅ Bucket created successfully');
+        }
       }
       
       // Upload file
+      console.log('⬆️ Uploading file to Supabase Storage...');
       const { data, error } = await supabase.storage
         .from('floorplans')
         .upload(fileName, file, {
@@ -272,16 +292,22 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
           upsert: true
         });
       
-      if (error) throw new Error(error.message);
+      if (error) {
+        console.error('❌ Upload error:', error);
+        throw new Error(`Upload failed: ${error.message}`);
+      }
+      
+      console.log('✅ File uploaded successfully:', data.path);
       
       // Get public URL
       const { data: urlData } = supabase.storage
         .from('floorplans')
         .getPublicUrl(data.path);
       
+      console.log('🔗 Public URL:', urlData.publicUrl);
       return urlData.publicUrl;
     } catch (err) {
-      console.error('Upload error:', err);
+      console.error('💥 Upload error:', err);
       throw err;
     }
   };
