@@ -4,10 +4,10 @@ import jsQR from 'jsqr';
 import FloorplanCanvas from '../../components/FloorplanCanvas.jsx';
 import { findShortestNodePath, nearestNodeToPoint, nodePathToCoords, GraphNode, GraphSegment } from '../../lib/pathfinding';
 import { mockFloorplans, mockNavigationPaths } from '../../services/mockData';
-import { 
-  getCurrentGPSPosition, 
-  watchGPSPosition, 
-  stopWatchingGPS, 
+import {
+  getCurrentGPSPosition,
+  watchGPSPosition,
+  stopWatchingGPS,
   gpsToFloorplan,
   isWithinBounds,
   type GPSCoordinate,
@@ -53,10 +53,10 @@ const AttendeePWA: React.FC = () => {
   // Get event ID from URL params or localStorage
   const urlParams = new URLSearchParams(window.location.search);
   const eventId = urlParams.get('event_id') || localStorage.getItem('currentEventId') || 'demo-event-001';
-  
+
   type Tab = 'directory' | 'map' | 'scanner';
   type Screen = 'main' | 'ar-reward';
-  
+
   const [activeTab, setActiveTab] = useState<Tab>('directory');
   const [currentScreen, setCurrentScreen] = useState<Screen>('main');
   const [scannedData, setScannedData] = useState<QRCodeData | null>(null);
@@ -78,7 +78,7 @@ const AttendeePWA: React.FC = () => {
   const [floorplanImageUrl, setFloorplanImageUrl] = useState<string | null>(null);
   const [highlightPath, setHighlightPath] = useState<Array<{ x: number; y: number }>>([]);
   const [selectedDestinationNodeId, setSelectedDestinationNodeId] = useState<string | null>(null);
-  
+
   // GPS Navigation state
   const [eventData, setEventData] = useState<EventData | null>(null);
   const [gpsEnabled, setGpsEnabled] = useState(false);
@@ -89,6 +89,9 @@ const AttendeePWA: React.FC = () => {
   const [floorplanCalibration, setFloorplanCalibration] = useState<any>(null);
 
   const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+
+  // DEMO MODE TOGGLE
+  const DEMO_MODE = true;
 
   // Helper function to show temporary messages
   const displayMessage = (msg: string, duration: number = 3000) => {
@@ -106,6 +109,34 @@ const AttendeePWA: React.FC = () => {
       return;
     }
 
+    // DEMO MODE LOGIC
+    if (DEMO_MODE) {
+      console.log('🎭 DEMO MODE ACTIVE: Forcing path from Entrance to VIP');
+
+      // Find Entrance and VIP nodes (or fallback to first/last)
+      const entranceNode = graphNodes.find(n => n.name?.toLowerCase().includes('entrance')) || graphNodes[0];
+      const vipNode = graphNodes.find(n => n.name?.toLowerCase().includes('vip')) || graphNodes[graphNodes.length - 1];
+
+      if (entranceNode && vipNode) {
+        const nodePath = findShortestNodePath(graphNodes, graphSegments, entranceNode.id, vipNode.id);
+        const routeCoords = nodePathToCoords(graphNodes, nodePath);
+
+        // Force current location to start of path
+        setCurrentLocation({
+          x: entranceNode.x,
+          y: entranceNode.y,
+          source: 'gps', // Fake GPS
+          accuracy: 5
+        });
+
+        // Draw the perfect path
+        setHighlightPath([{ x: entranceNode.x, y: entranceNode.y }, ...routeCoords]);
+        displayMessage('✨ Demo Mode: Navigating to VIP Section', 3000);
+        return;
+      }
+    }
+
+    // REAL MODE LOGIC (Graph Snapping)
     // Find nearest node to current position
     const startNode = nearestNodeToPoint(graphNodes, currentPos.x, currentPos.y);
     if (!startNode) {
@@ -113,11 +144,18 @@ const AttendeePWA: React.FC = () => {
       return;
     }
 
+    // Snap current position to the nearest node for stability
+    if (currentPos.source === 'gps') {
+      // Only snap if we are reasonably close (e.g., within 20 meters/pixels)
+      // For now, we snap to ensure connectivity
+      console.log('📍 Snapping GPS to nearest node:', startNode.name);
+    }
+
     console.log('🧭 Calculating route from', startNode.name || startNode.id, 'to', destinationNodeId);
 
     // Calculate shortest path
     const nodePath = findShortestNodePath(graphNodes, graphSegments, startNode.id, destinationNodeId);
-    
+
     if (nodePath.length === 0) {
       console.warn('⚠️ No path found to destination');
       displayMessage('No route found to destination', 3000);
@@ -127,17 +165,13 @@ const AttendeePWA: React.FC = () => {
 
     // Convert node IDs to coordinates for visualization
     const routeCoords = nodePathToCoords(graphNodes, nodePath);
-    
-    // Add current GPS position as first point
-    const fullRoute = [{ x: currentPos.x, y: currentPos.y }, ...routeCoords];
-    
+
+    // Add current GPS position as first point (or snapped point)
+    const fullRoute = [{ x: startNode.x, y: startNode.y }, ...routeCoords];
+
     setHighlightPath(fullRoute);
-    
+
     console.log('✅ Route calculated:', nodePath.length, 'nodes,', routeCoords.length, 'waypoints');
-    console.log('📍 Route:', nodePath.map(id => {
-      const node = graphNodes.find(n => n.id === id);
-      return node?.name || id.substring(0, 8);
-    }).join(' → '));
   };
 
   // Fetch event data to determine navigation mode
@@ -149,7 +183,7 @@ const AttendeePWA: React.FC = () => {
         if (response.ok) {
           const data = await response.json();
           setEventData(data);
-          
+
           // Auto-enable GPS for outdoor or hybrid events
           if (data.navigation_mode === 'outdoor' || data.navigation_mode === 'hybrid') {
             enableGPSTracking();
@@ -166,7 +200,7 @@ const AttendeePWA: React.FC = () => {
             .select('*')
             .eq('id', eventId)
             .single();
-          
+
           if (!error && data) {
             setEventData(data);
             if (data.navigation_mode === 'outdoor' || data.navigation_mode === 'hybrid') {
@@ -178,7 +212,7 @@ const AttendeePWA: React.FC = () => {
         console.warn('Failed to fetch event data:', err);
       }
     };
-    
+
     if (eventId) {
       fetchEventData();
     }
@@ -200,14 +234,14 @@ const AttendeePWA: React.FC = () => {
           setCurrentGPS(gps);
           setGpsAccuracy(accuracy);
           setGpsEnabled(true);
-          
+
           // Convert GPS to floorplan coordinates if we have event bounds
           if (eventData && eventData.gps_bounds_ne_lat && eventData.gps_bounds_sw_lat) {
             const gpsBounds: GPSBounds = {
               ne: { lat: eventData.gps_bounds_ne_lat, lng: eventData.gps_bounds_ne_lng! },
               sw: { lat: eventData.gps_bounds_sw_lat, lng: eventData.gps_bounds_sw_lng! }
             };
-            
+
             if (isWithinBounds(gps, gpsBounds)) {
               const floorplanCoord = gpsToFloorplan(gps, gpsBounds, floorplanDimensions);
               setCurrentLocation({
@@ -224,7 +258,7 @@ const AttendeePWA: React.FC = () => {
           setError('GPS positioning unavailable. Please enable location services.');
         }
       );
-      
+
       setGpsWatchId(watchId);
     } catch (err) {
       console.error('Failed to enable GPS:', err);
@@ -249,7 +283,7 @@ const AttendeePWA: React.FC = () => {
     return () => {
       window.removeEventListener('offline', handleOffline);
       window.removeEventListener('online', handleOnline);
-      
+
       // Cleanup camera stream
       if (cameraStream) {
         cameraStream.getTracks().forEach(track => track.stop());
@@ -261,12 +295,12 @@ const AttendeePWA: React.FC = () => {
   useEffect(() => {
     const loadNavigationData = async () => {
       console.log('🔍 Loading navigation data for event:', eventId);
-      
+
       if (!eventId) {
         console.warn('⚠️ No eventId - skipping navigation data load');
         return;
       }
-      
+
       try {
         const { createClient } = await import('@supabase/supabase-js');
         const supabase = createClient(
@@ -335,7 +369,7 @@ const AttendeePWA: React.FC = () => {
         // Find a destination POI or node
         const dest = nodes.find((n) => n.type === 'poi') || nodes[0];
         setSelectedDestinationNodeId(dest?.id || null);
-        
+
         console.log('🎯 Selected destination:', dest?.name || dest?.id);
 
         // Load floorplan image
@@ -351,7 +385,7 @@ const AttendeePWA: React.FC = () => {
         } else if (floorplan?.image_url) {
           console.log('✅ Floorplan image loaded:', floorplan.image_url);
           setFloorplanImageUrl(floorplan.image_url);
-          
+
           // Set dimensions if available
           if (floorplan.image_width && floorplan.image_height) {
             setFloorplanDimensions({
@@ -359,7 +393,7 @@ const AttendeePWA: React.FC = () => {
               height: floorplan.image_height
             });
           }
-          
+
           // Store GPS calibration if available
           if (floorplan.gps_top_left_lat && floorplan.gps_bottom_right_lat) {
             setFloorplanCalibration({
@@ -395,7 +429,7 @@ const AttendeePWA: React.FC = () => {
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    
+
     // Add manifest link for this specific PWA
     const link = document.createElement('link');
     link.rel = 'manifest';
@@ -410,20 +444,20 @@ const AttendeePWA: React.FC = () => {
 
   const startCamera = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
           facingMode: 'environment',
           width: { ideal: 1280 },
           height: { ideal: 720 }
-        } 
+        }
       });
-      
+
       setCameraStream(stream);
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         videoRef.current.play();
       }
-      
+
       // Start QR scanning
       scanForQRCode();
     } catch (error) {
@@ -447,11 +481,11 @@ const AttendeePWA: React.FC = () => {
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         context?.drawImage(video, 0, 0, canvas.width, canvas.height);
-        
+
         const imageData = context?.getImageData(0, 0, canvas.width, canvas.height);
         if (imageData) {
           const code = jsQR(imageData.data, imageData.width, imageData.height);
-          
+
           if (code) {
             // Found QR code!
             handleQRCodeDetected(code.data);
@@ -459,7 +493,7 @@ const AttendeePWA: React.FC = () => {
           }
         }
       }
-      
+
       // Continue scanning
       requestAnimationFrame(scanFrame);
     };
@@ -469,12 +503,12 @@ const AttendeePWA: React.FC = () => {
 
   const handleGetDirections = (poi: any) => {
     setSelectedDestinationNodeId(poi.id);
-    
+
     // For GPS-enabled events (outdoor/hybrid), switch to map and use GPS
     // For indoor-only events, switch to scanner for QR positioning
     if (eventData?.navigation_mode === 'outdoor' || eventData?.navigation_mode === 'hybrid') {
       setActiveTab('map');
-      
+
       // Calculate route immediately if we have GPS position
       if (gpsEnabled && currentLocation) {
         calculateAndDisplayRoute(currentLocation, poi.id);
@@ -497,7 +531,7 @@ const AttendeePWA: React.FC = () => {
     try {
       // Stop scanning
       setIsScanning(false);
-      
+
       // Stop camera
       if (cameraStream) {
         cameraStream.getTracks().forEach(track => track.stop());
@@ -585,13 +619,13 @@ const AttendeePWA: React.FC = () => {
   const fetchNavigationData = async (qrCodeId: string, eventId: string) => {
     try {
       const response = await fetch(`${API_BASE_URL}/editor/qr-nodes?event_id=${eventId}&qr_code_id=${qrCodeId}`);
-      
+
       if (!response.ok) {
         throw new Error(`API error: ${response.status}`);
       }
 
       const data = await response.json();
-      
+
       if (data && data.length > 0) {
         const node = data[0];
         setCurrentLocation({
@@ -627,13 +661,13 @@ const AttendeePWA: React.FC = () => {
   const generateNavigationSteps = (node: any): NavigationStep[] => {
     // Simple navigation generation based on coordinates
     const steps: NavigationStep[] = [];
-    
+
     if (node.x > 200) {
       steps.push({ instruction: 'Head west towards the main area', distance: 50, direction: 'west' });
     } else if (node.x < 100) {
       steps.push({ instruction: 'Head east towards the exhibition area', distance: 75, direction: 'east' });
     }
-    
+
     if (node.y > 200) {
       steps.push({ instruction: 'Walk north to reach the booths', distance: 30, direction: 'north' });
     } else if (node.y < 100) {
@@ -693,14 +727,14 @@ const AttendeePWA: React.FC = () => {
           <div className="animate-bounce mb-8">
             <CheckCircle className="w-32 h-32 text-white" strokeWidth={1.5} />
           </div>
-          
+
           <h1 className="text-white text-center mb-4 text-2xl font-bold">Badge Unlocked!</h1>
-          
+
           <p className="text-white/90 text-center mb-8 max-w-md">
             Congratulations! You've successfully completed the navigation challenge.
           </p>
 
-          <button 
+          <button
             onClick={handleCloseReward}
             className="bg-white text-green-600 hover:bg-gray-100 px-8 py-3 rounded-full font-semibold"
           >
@@ -736,7 +770,7 @@ const AttendeePWA: React.FC = () => {
                 </div>
               </div>
             </div>
-            
+
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {/* Dynamic POI cards from database */}
               {graphNodes.filter(n => n.type === 'poi').length > 0 ? (
@@ -751,7 +785,7 @@ const AttendeePWA: React.FC = () => {
                           </span>
                         </div>
                       </div>
-                      <button 
+                      <button
                         onClick={() => handleGetDirections(poi)}
                         className="bg-accent text-white px-3 py-1.5 rounded-lg text-sm flex items-center gap-2 hover:bg-red-700 transition-colors"
                       >
@@ -779,7 +813,7 @@ const AttendeePWA: React.FC = () => {
           <div className="flex flex-col h-full bg-gray-50">
             <div className="p-4 bg-white border-b border-gray-200">
               <h1 className="text-gray-900 text-lg font-semibold">Event Map</h1>
-              
+
               {/* GPS Status Indicator */}
               {eventData && (eventData.navigation_mode === 'outdoor' || eventData.navigation_mode === 'hybrid') && (
                 <div className={`mt-2 flex items-center text-sm ${gpsEnabled ? 'text-green-600' : 'text-orange-600'}`}>
@@ -796,7 +830,7 @@ const AttendeePWA: React.FC = () => {
                   )}
                 </div>
               )}
-              
+
               {/* Navigation Mode Badge */}
               {eventData && (
                 <div className="mt-2">
@@ -808,9 +842,9 @@ const AttendeePWA: React.FC = () => {
                 </div>
               )}
             </div>
-            
+
             <div className="flex-1 overflow-y-auto p-4">
-              <div className="mb-4 w-full">
+              <div className="mb-4 w-full relative">
                 <FloorplanCanvas
                   floorplanImageUrl={floorplanImageUrl || ''}
                   nodes={graphNodes}
@@ -823,6 +857,20 @@ const AttendeePWA: React.FC = () => {
                   containerHeight={window.innerHeight * 0.5}
                   mode="pan"
                 />
+                {/* Recenter Button */}
+                <button
+                  onClick={() => {
+                    if (currentLocation) {
+                      // Logic to center map on current location (would need ref to FloorplanCanvas or state)
+                      displayMessage('Centering on location...', 1000);
+                    } else {
+                      displayMessage('Location not found', 2000);
+                    }
+                  }}
+                  className="absolute bottom-4 right-4 bg-white p-3 rounded-full shadow-lg border border-gray-200 text-brand-gray-dark hover:bg-gray-50"
+                >
+                  <Navigation className="w-6 h-6" />
+                </button>
               </div>
               {/* Navigation Results */}
               {currentLocation && !isLoading && (
@@ -830,7 +878,7 @@ const AttendeePWA: React.FC = () => {
                   {/* Current Location */}
                   <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4">
                     <div className="flex items-center mb-2">
-                      <MapPin className={`w-5 h-5 mr-2 ${currentLocation.source === 'gps' ? 'text-blue-600' : 'text-green-600'}`} />
+                      <MapPin className={`w-5 h-5 mr-2 ${currentLocation.source === 'gps' ? 'text-brand-red' : 'text-green-600'}`} />
                       <h3 className="text-lg font-semibold text-gray-800">Current Location</h3>
                       <span className="ml-auto text-xs px-2 py-1 rounded-full bg-gray-100">
                         {currentLocation.source === 'gps' ? '📡 GPS' : '📷 QR Scanned'}
@@ -849,13 +897,13 @@ const AttendeePWA: React.FC = () => {
                   {navigationSteps.length > 0 && (
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4">
                       <div className="flex items-center mb-3">
-                        <Navigation className="w-5 h-5 text-blue-600 mr-2" />
+                        <Navigation className="w-5 h-5 text-brand-red mr-2" />
                         <h3 className="text-lg font-semibold text-gray-800">Navigation</h3>
                       </div>
                       <div className="space-y-3">
                         {navigationSteps.map((step, index) => (
                           <div key={index} className="flex items-start space-x-3">
-                            <div className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-semibold">
+                            <div className="w-6 h-6 bg-brand-red/10 text-brand-red rounded-full flex items-center justify-center text-sm font-semibold">
                               {index + 1}
                             </div>
                             <div className="flex-1">
@@ -967,7 +1015,7 @@ const AttendeePWA: React.FC = () => {
                     <div className="absolute top-0 right-0 w-16 h-16 border-t-4 border-r-4 border-white rounded-tr-lg"></div>
                     <div className="absolute bottom-0 left-0 w-16 h-16 border-b-4 border-l-4 border-white rounded-bl-lg"></div>
                     <div className="absolute bottom-0 right-0 w-16 h-16 border-b-4 border-r-4 border-white rounded-br-lg"></div>
-                    
+
                     {/* Scanning line animation */}
                     <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-green-400 to-transparent animate-pulse"></div>
                   </div>
@@ -991,7 +1039,7 @@ const AttendeePWA: React.FC = () => {
                 {!isScanning ? (
                   <button
                     onClick={handleQRScan}
-                    className="bg-blue-600 text-white px-6 py-3 rounded-full hover:bg-blue-700 flex items-center gap-2"
+                    className="bg-brand-red text-white px-6 py-3 rounded-full hover:bg-brand-redHover flex items-center gap-2"
                   >
                     <Camera className="w-5 h-5" />
                     <span>Start Scanning</span>
@@ -1025,11 +1073,10 @@ const AttendeePWA: React.FC = () => {
         <div className="flex">
           <button
             onClick={() => setActiveTab('directory')}
-            className={`flex-1 flex flex-col items-center justify-center py-3 px-2 transition-colors ${
-              activeTab === 'directory'
-                ? 'text-brand-black bg-yellow-50 border-t-2 border-brand-yellow'
-                : 'text-gray-600 hover:bg-gray-50'
-            }`}
+            className={`flex-1 flex flex-col items-center justify-center py-3 px-2 transition-colors ${activeTab === 'directory'
+              ? 'text-brand-black bg-yellow-50 border-t-2 border-brand-yellow'
+              : 'text-gray-600 hover:bg-gray-50'
+              }`}
           >
             <List className="w-6 h-6 mb-1" />
             <span className="text-xs font-medium">Directory</span>
@@ -1037,11 +1084,10 @@ const AttendeePWA: React.FC = () => {
 
           <button
             onClick={() => setActiveTab('map')}
-            className={`flex-1 flex flex-col items-center justify-center py-3 px-2 transition-colors ${
-              activeTab === 'map'
-                ? 'text-brand-black bg-yellow-50 border-t-2 border-brand-yellow'
-                : 'text-gray-600 hover:bg-gray-50'
-            }`}
+            className={`flex-1 flex flex-col items-center justify-center py-3 px-2 transition-colors ${activeTab === 'map'
+              ? 'text-brand-black bg-yellow-50 border-t-2 border-brand-yellow'
+              : 'text-gray-600 hover:bg-gray-50'
+              }`}
           >
             <Map className="w-6 h-6 mb-1" />
             <span className="text-xs font-medium">Map</span>
@@ -1051,11 +1097,10 @@ const AttendeePWA: React.FC = () => {
           {eventData?.navigation_mode !== 'outdoor' && (
             <button
               onClick={() => setActiveTab('scanner')}
-              className={`flex-1 flex flex-col items-center justify-center py-3 px-2 transition-colors ${
-                activeTab === 'scanner'
-                  ? 'text-brand-black bg-yellow-50 border-t-2 border-brand-yellow'
-                  : 'text-gray-600 hover:bg-gray-50'
-              }`}
+              className={`flex-1 flex flex-col items-center justify-center py-3 px-2 transition-colors ${activeTab === 'scanner'
+                ? 'text-brand-black bg-yellow-50 border-t-2 border-brand-yellow'
+                : 'text-gray-600 hover:bg-gray-50'
+                }`}
             >
               <Scan className="w-6 h-6 mb-1" />
               <span className="text-xs font-medium">Scanner</span>

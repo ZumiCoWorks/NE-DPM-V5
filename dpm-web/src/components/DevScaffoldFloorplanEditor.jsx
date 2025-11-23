@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 
 const MODES = ['poi', 'node', 'draw-path'];
 
-const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = null, initialNodes = [], initialSegments = [], initialPois = [], initialZones = [] }) => {
+const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = null, initialNodes = [], initialSegments = [], initialPois = [], initialZones = [], onEventChange }) => {
   const demoMode = false // Disabled demo mode for production testing
   const [floorplanUrl, setFloorplanUrl] = useState(initialFloorplan);
   const [nodes, setNodes] = useState(initialNodes);
@@ -49,6 +49,13 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
     if (initialEventId) setCurrentEventId(initialEventId);
   }, [initialEventId]);
 
+  // Notify parent of event change
+  useEffect(() => {
+    if (onEventChange) {
+      onEventChange(currentEventId);
+    }
+  }, [currentEventId, onEventChange]);
+
   // Show setup modal initially until a floorplan is chosen/uploaded
   useEffect(() => {
     setShowSetupModal(!floorplanUrl);
@@ -61,15 +68,44 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
       const user = session?.user ?? null;
       setCurrentUser(user);
       if (user) {
-        fetchFloorplans(user.id).catch(() => {});
-        fetchMyEvents(user.id).catch(() => {});
+        fetchFloorplans(user.id).catch(() => { });
+        fetchMyEvents(user.id).catch(() => { });
       }
     });
     return () => authListener?.subscription?.unsubscribe && authListener.subscription.unsubscribe();
   }, []);
   useEffect(() => {
-    fetchCalibrations(currentEventId).catch(()=>{});
-    fetchNavigationData(currentEventId).catch(()=>{}); // Load POIs and nodes
+    fetchCalibrations(currentEventId).catch(() => { });
+    fetchNavigationData(currentEventId).catch(() => { }); // Load POIs and nodes
+
+    // Auto-load floorplan for the selected event
+    if (currentEventId) {
+      const loadEventFloorplan = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('floorplans')
+            .select('*')
+            .eq('event_id', currentEventId)
+            .single();
+
+          if (data) {
+            setFloorplanUrl(data.image_url);
+            setCurrentFloorplan(data);
+            console.log('🖼️ Auto-loaded floorplan for event:', currentEventId);
+          } else {
+            // Only clear if we found NO floorplan (and it's not just a loading glitch)
+            // But be careful not to clear if the user just uploaded one and hasn't saved the event ID yet.
+            // For now, if we switch to an existing event that has NO floorplan, we probably should clear the old one.
+            // However, if we are just typing a new ID, we might not want to flash clear.
+            // Let's only update if we find one, or if we switched via dropdown (which implies we want that event's state).
+          }
+        } catch (err) {
+          console.warn('Error auto-loading floorplan:', err);
+        }
+      };
+      loadEventFloorplan();
+    }
+
     // Fetch event navigation mode when event changes
     if (currentEventId && myEvents.length > 0) {
       const selectedEvent = myEvents.find(e => e.id === currentEventId);
@@ -77,7 +113,7 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
         setEventNavigationMode(selectedEvent.navigation_mode);
       }
     }
-  }, [currentEventId, myEvents, currentFloorplan]);
+  }, [currentEventId, myEvents]);
 
   const fetchFloorplans = async (userId) => {
     setLoading(true);
@@ -112,16 +148,16 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
     try {
       if (!eventId || !currentFloorplan) return;
       console.log('📍 Fetching navigation data for event:', eventId, 'floorplan:', currentFloorplan.id);
-      
+
       // Fetch all navigation_points for this event and floorplan
       const { data, error } = await supabase
         .from('navigation_points')
         .select('*')
         .eq('event_id', eventId)
         .eq('floorplan_id', currentFloorplan.id);
-      
+
       if (error) throw error;
-      
+
       if (!data || data.length === 0) {
         console.log('ℹ️ No existing navigation data found');
         return;
@@ -162,14 +198,14 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
       setPois(loadedPois);
       setNodes(loadedNodes);
       console.log(`✅ Loaded ${loadedPois.length} POIs and ${loadedNodes.length} nodes`);
-      
+
       // Fetch segments
       const { data: segmentsData, error: segmentsError } = await supabase
         .from('navigation_segments')
         .select('*')
         .eq('event_id', eventId)
         .eq('floorplan_id', currentFloorplan.id);
-      
+
       if (segmentsError) {
         console.warn('⚠️ Error fetching segments:', segmentsError);
       } else if (segmentsData && segmentsData.length > 0) {
@@ -182,7 +218,7 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
         setSegments(loadedSegments);
         console.log(`✅ Loaded ${loadedSegments.length} segments`);
       }
-      
+
     } catch (err) {
       console.error('❌ Error fetching navigation data:', err);
     }
@@ -251,12 +287,12 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
   // Upload helper that uses the app Supabase client to store the file in 'floorplans' bucket
   const uploadToSupabase = async (file) => {
     const fileExt = file.name.split('.').pop();
-    const fileName = `floorplan_${Date.now()}_${Math.random().toString(36).slice(2,10)}.${fileExt}`;
-    
+    const fileName = `floorplan_${Date.now()}_${Math.random().toString(36).slice(2, 10)}.${fileExt}`;
+
     if (demoMode) throw new Error('Demo mode: server upload disabled. Paste a hosted URL instead.');
-    
+
     console.log('📤 Starting floorplan upload:', fileName);
-    
+
     // Upload directly to Supabase Storage (bypass API server)
     try {
       // Upload file directly - bucket already exists
@@ -267,19 +303,19 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
           contentType: file.type || 'image/png',
           upsert: true
         });
-      
+
       if (error) {
         console.error('❌ Upload error:', error);
         throw new Error(`Upload failed: ${error.message}`);
       }
-      
+
       console.log('✅ File uploaded successfully:', data.path);
-      
+
       // Get public URL
       const { data: urlData } = supabase.storage
         .from('floorplans')
         .getPublicUrl(data.path);
-      
+
       console.log('🔗 Public URL:', urlData.publicUrl);
       return urlData.publicUrl;
     } catch (err) {
@@ -324,10 +360,10 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
   // Removed template creation, QR preview, and auth helpers for MVP simplification
 
   const handleNewNode = useCallback(async (n) => {
-    const tempId = `n_${Date.now()}_${Math.floor(Math.random()*1000)}`;
-    const nodeName = `Node ${nodes.length+1}`;
+    const tempId = `n_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+    const nodeName = `Node ${nodes.length + 1}`;
     let node;
-    
+
     // Save node to database if event and floorplan are selected
     if (currentEventId && currentFloorplan) {
       try {
@@ -345,14 +381,14 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
           })
           .select()
           .single();
-        
+
         if (error) throw error;
-        
+
         // Use the real UUID from database
         node = { id: data.id, name: nodeName, qr_id: currentQrId || null, ...n };
         setNodes(prev => [...prev, node]);
         showMessage('✅ Node saved!', 2000);
-        
+
         if (currentQrId) {
           setCurrentQrId('');
         }
@@ -369,16 +405,16 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
       setNodes(prev => [...prev, node]);
       showMessage('Node added (select event to save)', 3000);
     }
-    
+
     return node;
   }, [nodes.length, currentQrId, currentEventId, currentFloorplan]);
 
   const handleNewSegment = useCallback(async (s) => {
-    const id = `s_${Date.now()}_${Math.floor(Math.random()*1000)}`;
+    const id = `s_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
     const seg = { id, ...s };
     setSegments(prev => [...prev, seg]);
     showMessage('Segment added');
-    
+
     // Save segment to database if event and floorplan are selected
     if (currentEventId && currentFloorplan) {
       try {
@@ -391,7 +427,7 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
             end_node_id: s.end_node_id,
             is_bidirectional: true
           });
-        
+
         if (error) throw error;
         showMessage('Segment saved to database!', 2000);
       } catch (err) {
@@ -403,7 +439,7 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
 
   const handleNewPoi = useCallback((p) => {
     // p may contain x,y coords
-    const id = `poi_${Date.now()}_${Math.floor(Math.random()*1000)}`;
+    const id = `poi_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
     const poi = { id, name: p.name || 'POI', type: p.type || 'general', x: p.x, y: p.y, x_pct: p.x_pct, y_pct: p.y_pct };
     setPois(prev => [...prev, poi]);
     showMessage('POI added');
@@ -421,7 +457,7 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
     handleNewPoi(p);
     setShowPoiModal(false);
     setPendingPoiCoords(null);
-    
+
     // Persist to navigation_points directly via Supabase
     if (currentFloorplan && supabase && currentEventId) {
       try {
@@ -436,7 +472,7 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
           const poiX = Math.round(p.x || 0);
           const poiY = Math.round(p.y || 0);
           let minDist = Infinity;
-          
+
           for (const node of nodes) {
             const dx = node.x - poiX;
             const dy = node.y - poiY;
@@ -451,7 +487,7 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
 
         const pointTypeMap = { general: 'poi', amenity: 'poi' };
         const point_type = pointTypeMap[p.type] || 'poi';
-        
+
         const { data, error } = await supabase
           .from('navigation_points')
           .insert({
@@ -472,10 +508,10 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
           .single();
 
         if (error) throw error;
-        
+
         console.log('✅ POI saved to database:', data);
         showMessage(`✅ POI "${p.name}" saved!`, 2000);
-        
+
         // Refresh navigation data to show new POI
         fetchNavigationData();
       } catch (err) {
@@ -493,12 +529,12 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
   // Simple save function - in a full editor this would call your backend / supabase table
   const handleSaveMap = async () => {
     if (!floorplanUrl || !currentFloorplan) return showMessage('Upload a floorplan first');
-    
+
     // This component is deprecated - use UnifiedMapEditorPage instead
     toast.info('Please use the Unified Map Editor from the Events page');
     console.warn('DevScaffoldFloorplanEditor is deprecated. Use UnifiedMapEditorPage instead.');
     return;
-    
+
     const payload = {
       floorplan_id: currentFloorplan.id,
       nodes,
@@ -525,10 +561,10 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
         body: JSON.stringify(payload)
       });
       if (!res.ok) {
-        const j = await res.json().catch(()=>({}));
+        const j = await res.json().catch(() => ({}));
         throw new Error(j?.message || 'save failed');
       }
-      const j = await res.json().catch(()=>({ success:true, url:'' }));
+      const j = await res.json().catch(() => ({ success: true, url: '' }));
       setLastSavedMapUrl(j?.url || '');
       toast.success('Map saved and exported');
       toast.success(`Public graph URL: ${j?.url || ''}`, { duration: 6000 });
@@ -549,7 +585,7 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
       const b = nodes.find(n => n.id === s.end_node_id);
       if (!a || !b) continue;
       const dx = a.x - b.x; const dy = a.y - b.y;
-      const d = Math.sqrt(dx*dx + dy*dy) || 1;
+      const d = Math.sqrt(dx * dx + dy * dy) || 1;
       adj[a.id].push({ id: b.id, w: d });
       adj[b.id].push({ id: a.id, w: d });
     }
@@ -560,7 +596,7 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
     if (!startId || !endId) return [];
     const adj = buildAdjacency();
     const dist = {}; const prev = {};
-    const pq = new Set(nodes.map(n=>n.id));
+    const pq = new Set(nodes.map(n => n.id));
     for (const id of pq) { dist[id] = Infinity; prev[id] = null; }
     dist[startId] = 0;
     while (pq.size) {
@@ -591,7 +627,7 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
     for (const n of nodes) {
       const dx = (n.x || 0) - (poi.x || 0);
       const dy = (n.y || 0) - (poi.y || 0);
-      const d = Math.sqrt(dx*dx + dy*dy);
+      const d = Math.sqrt(dx * dx + dy * dy);
       if (d < bestD) { bestD = d; best = n; }
     }
     return best;
@@ -606,10 +642,10 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
 
   const handleCalibrationComplete = async (calibrationData) => {
     if (!currentFloorplan) return;
-    
+
     try {
       setLoading(true);
-      
+
       // If auto method, calculate corners from event bounds
       let finalCalibration = { ...calibrationData };
       if (calibrationData.method === 'auto' && currentEventId) {
@@ -628,7 +664,7 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
           };
         }
       }
-      
+
       // Update floorplan in database
       const { error } = await supabase
         .from('floorplans')
@@ -647,23 +683,23 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
           is_calibrated: true
         })
         .eq('id', currentFloorplan.id);
-      
+
       if (error) throw error;
-      
+
       // Refresh floorplan data
       const { data: updated } = await supabase
         .from('floorplans')
         .select('*')
         .eq('id', currentFloorplan.id)
         .single();
-      
+
       if (updated) {
         setCurrentFloorplan(updated);
       }
-      
+
       setShowCalibrationWizard(false);
       showMessage('✓ Floorplan calibrated successfully!', 3000);
-      
+
     } catch (err) {
       console.error('Calibration error:', err);
       showMessage('Failed to save calibration', 3000);
@@ -679,41 +715,41 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
 
       {/* Right column: editor */}
       <main>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
-        <div style={{ display: 'flex', gap: 6 }}>
-          {MODES.map(m => (
-            <button key={m} onClick={() => setMode(m)} style={{ padding: '6px 10px', background: mode === m ? '#111827' : '#fff', color: mode === m ? '#fff' : '#111827', border: '1px solid #e5e7eb', borderRadius: 6 }}>{m}</button>
-          ))}
-        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {MODES.map(m => (
+              <button key={m} onClick={() => setMode(m)} style={{ padding: '6px 10px', background: mode === m ? '#111827' : '#fff', color: mode === m ? '#fff' : '#111827', border: '1px solid #e5e7eb', borderRadius: 6 }}>{m}</button>
+            ))}
+          </div>
 
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button onClick={() => setShowSetupModal(true)}>Change floorplan</button>
-          {floorplanUrl && currentFloorplan && (
-            <button 
-              onClick={() => setShowCalibrationWizard(true)}
-              style={{ 
-                background: currentFloorplan?.is_calibrated ? '#10b981' : '#f59e0b', 
-                color: 'white', 
-                border: 'none',
-                padding: '6px 12px',
-                borderRadius: 6,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 4
-              }}
-            >
-              {currentFloorplan?.is_calibrated ? '✓ Calibrated' : '⚠️ Calibrate GPS'}
-            </button>
-          )}
-          <button onClick={handleSaveMap}>Save (server)</button>
-          {lastSavedMapUrl && (
-            <span style={{ fontSize: 12, color: '#6b7280' }}>
-              Export URL: <a href={lastSavedMapUrl} target="_blank" rel="noreferrer">{lastSavedMapUrl}</a>
-              <button onClick={async()=>{ try { const r = await fetch(lastSavedMapUrl); const blob = await r.blob(); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'map.json'; a.click(); } catch{} }} style={{ marginLeft: 6, padding: '2px 6px', border: '1px solid #e5e7eb', borderRadius: 4 }}>Download JSON</button>
-            </span>
-          )}
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button onClick={() => setShowSetupModal(true)}>Change floorplan</button>
+            {floorplanUrl && currentFloorplan && (
+              <button
+                onClick={() => setShowCalibrationWizard(true)}
+                style={{
+                  background: currentFloorplan?.is_calibrated ? '#10b981' : '#f59e0b',
+                  color: 'white',
+                  border: 'none',
+                  padding: '6px 12px',
+                  borderRadius: 6,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4
+                }}
+              >
+                {currentFloorplan?.is_calibrated ? '✓ Calibrated' : '⚠️ Calibrate GPS'}
+              </button>
+            )}
+            <button onClick={handleSaveMap}>Save (server)</button>
+            {lastSavedMapUrl && (
+              <span style={{ fontSize: 12, color: '#6b7280' }}>
+                Export URL: <a href={lastSavedMapUrl} target="_blank" rel="noreferrer">{lastSavedMapUrl}</a>
+                <button onClick={async () => { try { const r = await fetch(lastSavedMapUrl); const blob = await r.blob(); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'map.json'; a.click(); } catch { } }} style={{ marginLeft: 6, padding: '2px 6px', border: '1px solid #e5e7eb', borderRadius: 4 }}>Download JSON</button>
+              </span>
+            )}
+          </div>
         </div>
-      </div>
 
         {/* Calibration panel */}
         <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', marginBottom: 12, borderTop: '1px dashed #e5e7eb', paddingTop: 12 }}>
@@ -747,16 +783,16 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
               style={{ width: '100%', padding: '4px 8px', fontSize: 13, border: '1px solid #e5e7eb', borderRadius: 4 }}
             />
             <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>
-              {mode==='node' ? 'Enter QR ID before adding node to calibrate location' : 'Use draw-path to connect nodes into segments'}
+              {mode === 'node' ? 'Enter QR ID before adding node to calibrate location' : 'Use draw-path to connect nodes into segments'}
             </p>
-            {calibrations?.length>0 && (
+            {calibrations?.length > 0 && (
               <div style={{ marginTop: 8, fontSize: 12 }}>
-                <div style={{ color:'#6b7280', marginBottom:4 }}>Existing calibrations for this event:</div>
-                <ul style={{ maxHeight: 160, overflow:'auto', border:'1px solid #e5e7eb', borderRadius:6, padding:8 }}>
-                  {calibrations.map((c, idx)=> (
-                    <li key={idx} style={{ display:'flex', justifyContent:'space-between' }}>
+                <div style={{ color: '#6b7280', marginBottom: 4 }}>Existing calibrations for this event:</div>
+                <ul style={{ maxHeight: 160, overflow: 'auto', border: '1px solid #e5e7eb', borderRadius: 6, padding: 8 }}>
+                  {calibrations.map((c, idx) => (
+                    <li key={idx} style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span>{c.qr_id_text}</span>
-                      <span style={{ color:'#6b7280' }}>({c.x_coord}, {c.y_coord})</span>
+                      <span style={{ color: '#6b7280' }}>({c.x_coord}, {c.y_coord})</span>
                     </li>
                   ))}
                 </ul>

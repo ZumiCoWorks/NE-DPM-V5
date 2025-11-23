@@ -119,14 +119,14 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   className={cn(
                     'group flex items-center px-2 py-2 text-sm font-medium rounded-md',
                     isActive
-                      ? 'bg-[#ed1c24]/10 text-[#ed1c24]'
+                      ? 'bg-brand-red/10 text-brand-red'
                       : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                   )}
                 >
                   <item.icon
                     className={cn(
                       'mr-3 h-5 w-5',
-                      isActive ? 'text-[#ed1c24]' : 'text-gray-400'
+                      isActive ? 'text-brand-red' : 'text-gray-400'
                     )}
                   />
                   {item.name}
@@ -137,7 +137,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div className="border-t border-gray-200 p-4">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <div className="h-8 w-8 rounded-full bg-[#ed1c24] flex items-center justify-center">
+                <div className="h-8 w-8 rounded-full bg-brand-red flex items-center justify-center">
                   <span className="text-sm font-medium text-white">
                     {user?.full_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
                   </span>
@@ -202,14 +202,14 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   className={cn(
                     'group flex items-center px-2 py-2 text-sm font-medium rounded-md',
                     isActive
-                      ? 'bg-[#ed1c24]/10 text-[#ed1c24]'
+                      ? 'bg-brand-red/10 text-brand-red'
                       : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                   )}
                 >
                   <item.icon
                     className={cn(
                       'mr-3 h-5 w-5',
-                      isActive ? 'text-[#ed1c24]' : 'text-gray-400'
+                      isActive ? 'text-brand-red' : 'text-gray-400'
                     )}
                   />
                   {item.name}
@@ -220,7 +220,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div className="border-t border-gray-200 p-4">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <div className="h-8 w-8 rounded-full bg-[#ed1c24] flex items-center justify-center">
+                <div className="h-8 w-8 rounded-full bg-brand-red flex items-center justify-center">
                   <span className="text-sm font-medium text-white">
                     {user?.full_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
                   </span>

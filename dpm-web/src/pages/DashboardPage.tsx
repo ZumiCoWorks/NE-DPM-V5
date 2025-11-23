@@ -10,8 +10,13 @@ import {
   Users,
   Plus,
   Eye,
+  TrendingUp,
 } from 'lucide-react'
 import { formatDate } from '../lib/utils'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+
+// DEMO MODE TOGGLE
+const DEMO_MODE = true;
 
 interface DashboardStats {
   totalEvents: number
@@ -27,6 +32,18 @@ interface RecentActivity {
   description: string
   created_at: string
 }
+
+// Mock Data for Investor Pitch
+const MOCK_TRAFFIC_DATA = [
+  { time: '09:00', users: 120 },
+  { time: '10:00', users: 250 },
+  { time: '11:00', users: 480 },
+  { time: '12:00', users: 850 },
+  { time: '13:00', users: 1420 }, // Peak
+  { time: '14:00', users: 1100 },
+  { time: '15:00', users: 600 },
+  { time: '16:00', users: 350 },
+];
 
 export const DashboardPage: React.FC = () => {
   const { user, loading: authLoading } = useAuth()
@@ -44,6 +61,16 @@ export const DashboardPage: React.FC = () => {
   const fetchRecentActivity = useCallback(async () => {
     if (!user) return
     if (!supabase) return
+
+    // DEMO MODE: Mock Activity
+    if (DEMO_MODE) {
+      setRecentActivity([
+        { id: '1', type: 'event', title: 'TechSummit 2025', description: 'Main Hall A', created_at: new Date().toISOString() },
+        { id: '2', type: 'campaign', title: 'VIP Scavenger Hunt', description: 'Active - 350 Leads', created_at: new Date(Date.now() - 3600000).toISOString() },
+        { id: '3', type: 'venue', title: 'Convention Center', description: 'Floorplan Updated', created_at: new Date(Date.now() - 7200000).toISOString() },
+      ]);
+      return;
+    }
 
     const activities: RecentActivity[] = []
 
@@ -101,7 +128,7 @@ export const DashboardPage: React.FC = () => {
       // Sort by creation date and limit to 5 most recent
       activities.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       setRecentActivity(activities.slice(0, 5))
-      
+
     } catch (error) {
       console.error('Error fetching recent activity:', error)
     }
@@ -112,19 +139,34 @@ export const DashboardPage: React.FC = () => {
     if (!supabase) return
 
     console.log('📊 Starting dashboard data fetch for user:', user.email);
-    
+
     try {
       setLoading(true)
       console.log('⏳ Dashboard loading set to true');
-      
+
+      // DEMO MODE: Mock Stats
+      if (DEMO_MODE) {
+        console.log('🎭 DEMO MODE: Loading mock stats');
+        await new Promise(resolve => setTimeout(resolve, 800)); // Fake loading delay
+        setStats({
+          totalEvents: 12,
+          totalVenues: 4,
+          totalCampaigns: 8,
+          totalUsers: 1420, // Active Users
+        });
+        await fetchRecentActivity();
+        setLoading(false);
+        return;
+      }
+
       // Set a timeout to prevent indefinite loading
-      const timeout = new Promise((_, reject) => 
+      const timeout = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('Request timeout')), 5000)
       );
-      
+
       // Fetch stats based on user role
       const statsPromises: Promise<Partial<DashboardStats>>[] = []
-      
+
       if (user.role === 'admin') {
         console.log('👑 Fetching admin stats...');
         statsPromises.push((async () => {
@@ -152,7 +194,7 @@ export const DashboardPage: React.FC = () => {
         Promise.all(statsPromises),
         timeout
       ]) as Partial<DashboardStats>[];
-      
+
       let newStats: DashboardStats = {
         totalEvents: 0,
         totalVenues: 0,
@@ -169,7 +211,7 @@ export const DashboardPage: React.FC = () => {
       console.log('🔄 Fetching recent activity...');
       await fetchRecentActivity()
       console.log('✅ Recent activity fetched');
-      
+
     } catch (error) {
       console.error('❌ Error fetching dashboard data:', error)
       // Set loading to false even on error
@@ -197,14 +239,14 @@ export const DashboardPage: React.FC = () => {
 
   const getQuickActions = () => {
     const actions = []
-    
+
     if (user?.role === 'admin') {
       actions.push({
         title: 'Create Event',
         description: 'Set up a new event',
         href: '/events/create',
         icon: Calendar,
-        color: 'bg-blue-500',
+        color: 'bg-brand-red',
       })
       actions.push({
         title: 'Create Venue',
@@ -228,7 +270,7 @@ export const DashboardPage: React.FC = () => {
         color: 'bg-purple-500',
       })
     }
-    
+
     if (user?.role === 'admin') {
       actions.push({
         title: 'AR Campaigns',
@@ -244,7 +286,7 @@ export const DashboardPage: React.FC = () => {
         description: 'View and update your details',
         href: '/profile',
         icon: Users,
-        color: 'bg-blue-500',
+        color: 'bg-brand-red',
       })
       actions.push({
         title: 'Settings',
@@ -254,17 +296,17 @@ export const DashboardPage: React.FC = () => {
         color: 'bg-green-500',
       })
     }
-    
+
     if (user?.role === 'sponsor') {
       actions.push({
         title: 'My Leads',
         description: 'View captured leads',
         href: '/sponsor',
         icon: Users,
-        color: 'bg-indigo-500',
+        color: 'bg-brand-red',
       })
     }
-    
+
     return actions
   }
 
@@ -304,27 +346,73 @@ export const DashboardPage: React.FC = () => {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {(user?.role === 'admin' || user?.role === 'staff') && (
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <Calendar className="h-6 w-6 text-gray-400" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">
-                      Total Events
-                    </dt>
-                    <dd className="text-lg font-medium text-gray-900">
-                      {stats.totalEvents}
-                    </dd>
-                  </dl>
+          <>
+            <div className="bg-white overflow-hidden shadow rounded-lg">
+              <div className="p-5">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <Calendar className="h-6 w-6 text-gray-400" />
+                  </div>
+                  <div className="ml-5 w-0 flex-1">
+                    <dl>
+                      <dt className="text-sm font-medium text-gray-500 truncate">
+                        Total Events
+                      </dt>
+                      <dd className="text-lg font-medium text-gray-900">
+                        {stats.totalEvents}
+                      </dd>
+                    </dl>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+
+            {/* Demo Mode Extra Stats */}
+            {DEMO_MODE && (
+              <>
+                <div className="bg-white overflow-hidden shadow rounded-lg">
+                  <div className="p-5">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0">
+                        <Users className="h-6 w-6 text-brand-red" />
+                      </div>
+                      <div className="ml-5 w-0 flex-1">
+                        <dl>
+                          <dt className="text-sm font-medium text-gray-500 truncate">
+                            Active Users
+                          </dt>
+                          <dd className="text-lg font-medium text-gray-900">
+                            {stats.totalUsers.toLocaleString()}
+                          </dd>
+                        </dl>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-white overflow-hidden shadow rounded-lg">
+                  <div className="p-5">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0">
+                        <Megaphone className="h-6 w-6 text-brand-yellow" />
+                      </div>
+                      <div className="ml-5 w-0 flex-1">
+                        <dl>
+                          <dt className="text-sm font-medium text-gray-500 truncate">
+                            Leads Captured
+                          </dt>
+                          <dd className="text-lg font-medium text-gray-900">
+                            350
+                          </dd>
+                        </dl>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+          </>
         )}
-        {user?.role === 'staff' && (
+        {user?.role === 'staff' && !DEMO_MODE && (
           <div className="bg-white overflow-hidden shadow rounded-lg">
             <div className="p-5">
               <div className="flex items-center">
@@ -347,6 +435,39 @@ export const DashboardPage: React.FC = () => {
         )}
       </div>
 
+      {/* Traffic Chart (Demo Mode Only) */}
+      {DEMO_MODE && (
+        <div className="bg-white shadow rounded-lg p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-medium text-gray-900">Live Traffic Overview</h3>
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+              <div className="w-2 h-2 bg-green-500 rounded-full mr-1.5 animate-pulse"></div>
+              Live
+            </span>
+          </div>
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart
+                data={MOCK_TRAFFIC_DATA}
+                margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+              >
+                <defs>
+                  <linearGradient id="colorUsers" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#ed1c24" stopOpacity={0.8} />
+                    <stop offset="95%" stopColor="#ed1c24" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="time" />
+                <YAxis />
+                <Tooltip />
+                <Area type="monotone" dataKey="users" stroke="#ed1c24" fillOpacity={1} fill="url(#colorUsers)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
       {/* Quick Actions */}
       <div className="bg-white shadow rounded-lg">
         <div className="px-4 py-5 sm:p-6">
@@ -360,7 +481,7 @@ export const DashboardPage: React.FC = () => {
                 <Link
                   key={action.title}
                   to={action.href}
-                  className="relative group bg-white p-6 focus-within:ring-2 focus-within:ring-inset focus-within:ring-blue-500 border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
+                  className="relative group bg-white p-6 focus-within:ring-2 focus-within:ring-inset focus-within:ring-brand-red border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
                 >
                   <div>
                     <span className={`rounded-lg inline-flex p-3 ${action.color} text-white`}>

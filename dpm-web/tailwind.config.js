@@ -13,7 +13,8 @@ export default {
         brand: {
           black: '#000000',
           white: '#FFFFFF',
-          red: '#E63946',
+          red: '#ed1c24', // NavEase Red
+          redHover: '#b2151b', // Darker Red for Hover
           gray: {
             dark: '#3D3D3D',
             light: '#F5F5F5',
@@ -22,7 +23,7 @@ export default {
         },
         // Primary color scheme
         primary: {
-          DEFAULT: '#000000',
+          DEFAULT: '#ed1c24', // NavEase Red
           foreground: '#FFFFFF',
         },
         secondary: {
@@ -30,7 +31,7 @@ export default {
           foreground: '#FFFFFF',
         },
         accent: {
-          DEFAULT: '#E63946',
+          DEFAULT: '#ed1c24', // NavEase Red
           foreground: '#FFFFFF',
         },
         highlight: {

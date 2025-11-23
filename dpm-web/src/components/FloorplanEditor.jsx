@@ -6,8 +6,12 @@ import DevScaffoldFloorplanEditor from './DevScaffoldFloorplanEditor';
 
 export default DevScaffoldFloorplanEditor;
 
-export const FloorplanEditor = ({ initialFloorplan, initialEventId }) => {
+export const FloorplanEditor = ({ initialFloorplan, initialEventId, onEventChange }) => {
   return (
-    <DevScaffoldFloorplanEditor initialFloorplan={initialFloorplan} initialEventId={initialEventId} />
+    <DevScaffoldFloorplanEditor
+      initialFloorplan={initialFloorplan}
+      initialEventId={initialEventId}
+      onEventChange={onEventChange}
+    />
   );
 };
