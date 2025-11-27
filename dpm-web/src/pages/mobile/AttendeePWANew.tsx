@@ -1197,7 +1197,7 @@ const AttendeePWANew: React.FC = () => {
               {/* DEBUG BANNER - REMOVE AFTER TESTING */}
               <div className="bg-blue-100 border-2 border-blue-500 p-4 rounded-lg text-center">
                 <p className="font-bold text-blue-900">DEBUG: POI Count = {pois.length}</p>
-                <p className="text-xs text-blue-700">If you see this with count > 0 but no POIs below, it's a rendering bug</p>
+                <p className="text-xs text-blue-700">If you see this with count &gt; 0 but no POIs below, it's a rendering bug</p>
               </div>
 
               {pois.length > 0 ? (
