@@ -112,6 +112,7 @@ const FloorplanCanvas = ({
   onUpdatePoi,
   onUpdateZone,
   onSaveGeoreference,
+  onNodeClick, // NEW: for landmark editing
   currentFloorplan,
   nodes = [],
   segments = [],
@@ -298,46 +299,46 @@ const FloorplanCanvas = ({
   }, [calculateSegmentIntersections]);
 
   useEffect(() => {
-      if (drawingMode !== 'calibrate') {
-          setCalibrationPoints([]);
-          setRealWorldDistance('');
-      }
-      if (drawingMode !== 'segment') {
-          setCurrentSegmentStartNode(null);
-      }
-      if (drawingMode !== 'poi') {
-          setNewPoiCoords(null);
-          setNewPoiName('');
-          setNewPoiType('');
-      }
-      if (drawingMode !== 'edit') {
-        setEditingPoi(null);
-        setEditedPoiName('');
-        setEditedPoiType('');
-        setEditingZone(null);
-        setEditedZoneName('');
-        setEditedZoneType('');
-      }
-      if (drawingMode !== 'pathfind') {
-        setStartPoint(null);
-        setEndPoint(null);
-        setFoundPath([]);
-        setPathLength(0);
-      }
-      if (drawingMode !== 'zone') {
-        setCurrentZonePoints([]);
-        setNewZoneName('');
-        setNewZoneType('');
-      }
-      if (drawingMode !== 'georeference') {
-        setAnchorPoint(null);
-        setLatitude('');
-        setLongitude('');
-        setBearing('');
-      }
+    if (drawingMode !== 'calibrate') {
+      setCalibrationPoints([]);
+      setRealWorldDistance('');
+    }
+    if (drawingMode !== 'segment') {
+      setCurrentSegmentStartNode(null);
+    }
+    if (drawingMode !== 'poi') {
+      setNewPoiCoords(null);
+      setNewPoiName('');
+      setNewPoiType('');
+    }
+    if (drawingMode !== 'edit') {
+      setEditingPoi(null);
+      setEditedPoiName('');
+      setEditedPoiType('');
+      setEditingZone(null);
+      setEditedZoneName('');
+      setEditedZoneType('');
+    }
+    if (drawingMode !== 'pathfind') {
+      setStartPoint(null);
+      setEndPoint(null);
+      setFoundPath([]);
+      setPathLength(0);
+    }
+    if (drawingMode !== 'zone') {
+      setCurrentZonePoints([]);
+      setNewZoneName('');
+      setNewZoneType('');
+    }
+    if (drawingMode !== 'georeference') {
+      setAnchorPoint(null);
+      setLatitude('');
+      setLongitude('');
+      setBearing('');
+    }
 
-      setHoveredItemId(null);
-      setHoveredItemType(null);
+    setHoveredItemId(null);
+    setHoveredItemType(null);
   }, [drawingMode]);
 
   const handleWheel = (e) => {
@@ -472,12 +473,39 @@ const FloorplanCanvas = ({
 
   const renderNodes = () => {
     if (!nodes) return null;
-    return nodes.map(n => (
-      <Group key={n.id}>
-        <Circle x={n.x} y={n.y} radius={6} fill="#10b981" stroke="#fff" strokeWidth={2} />
-        <Text x={n.x + 8} y={n.y - 6} text={n.name || `N${n.id}`} fontSize={12} fill={konvaTextColor} />
-      </Group>
-    ));
+    return nodes.map(n => {
+      // Visual styling for landmarks (NEW)
+      const isLandmark = n.is_landmark || false;
+      const nodeColor = isLandmark ? '#FF6B00' : '#10b981'; // Orange for landmarks
+      const nodeRadius = isLandmark ? 8 : 6; // Larger for landmarks
+      const strokeWidth = isLandmark ? 3 : 2;
+
+      return (
+        <Group key={n.id}>
+          <Circle
+            x={n.x}
+            y={n.y}
+            radius={nodeRadius}
+            fill={nodeColor}
+            stroke="#fff"
+            strokeWidth={strokeWidth}
+            onClick={() => onNodeClick && onNodeClick(n.id)}
+            onTap={() => onNodeClick && onNodeClick(n.id)}
+            style={{ cursor: onNodeClick ? 'pointer' : 'default' }}
+          />
+          <Text
+            x={n.x + 10}
+            y={n.y - 6}
+            text={isLandmark ? `🏷️ ${n.landmark_name || n.name || `N${n.id}`}` : (n.name || `N${n.id}`)}
+            fontSize={12}
+            fill={konvaTextColor}
+            onClick={() => onNodeClick && onNodeClick(n.id)}
+            onTap={() => onNodeClick && onNodeClick(n.id)}
+            style={{ cursor: onNodeClick ? 'pointer' : 'default' }}
+          />
+        </Group>
+      );
+    });
   };
 
   const renderPois = () => {

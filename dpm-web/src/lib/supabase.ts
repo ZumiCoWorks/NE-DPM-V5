@@ -36,9 +36,18 @@ interface SupabaseAuthLike {
   signOut(): Promise<{ error: null }>
 }
 
+interface SupabaseStorageLike {
+  from(bucket: string): {
+    upload(path: string, file: any, options?: any): Promise<{ data: any; error: any }>
+    getPublicUrl(path: string): { data: { publicUrl: string } }
+    remove(paths: string[]): Promise<{ data: any; error: any }>
+  }
+}
+
 interface SupabaseClientLike {
   from(table: string): QueryBuilder
   auth: SupabaseAuthLike
+  storage: SupabaseStorageLike
 }
 
 let _supabase: SupabaseClientLike | null = null
@@ -72,15 +81,28 @@ if (demoMode) {
   }
   const mockAuth: SupabaseAuthLike = {
     getSession: async () => ({ data: { session: null } }),
-    onAuthStateChange: (callback: (event: string, session: Session | null) => void) => { void callback; return { data: { subscription: { unsubscribe() {} } } } },
+    onAuthStateChange: (callback: (event: string, session: Session | null) => void) => { void callback; return { data: { subscription: { unsubscribe() { } } } } },
     getUser: async () => ({ data: { user: { id: 'demo-user', email: 'demo@example.com' } }, error: null }),
     signInWithPassword: async (_opts?: unknown) => { void _opts; return { data: { user: null, session: null }, error: null } },
     signUp: async (_opts?: unknown) => { void _opts; return { data: { user: null, session: null }, error: null } },
     signOut: async () => ({ error: null }),
   }
+  const mockStorage: SupabaseStorageLike = {
+    from: (bucket: string) => ({
+      upload: async (path: string, file: any, options?: any) => {
+        console.log(`[Mock Storage] Uploading to ${bucket}/${path}`, file);
+        return { data: { path }, error: null };
+      },
+      getPublicUrl: (path: string) => ({
+        data: { publicUrl: `https://mock-storage.com/${bucket}/${path}` }
+      }),
+      remove: async () => ({ data: {}, error: null }),
+    })
+  }
   _supabase = {
     from: (table: string) => { void table; return makeBuilder([]) },
     auth: mockAuth,
+    storage: mockStorage,
   }
   // eslint-disable-next-line no-console
   console.log('LOG: Demo mode enabled — using mock Supabase client')

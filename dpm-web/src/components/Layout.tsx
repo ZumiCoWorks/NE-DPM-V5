@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { useDemoMode } from '../contexts/DemoModeContext'
 import {
   Home,
   Calendar,
@@ -11,6 +12,7 @@ import {
   Menu,
   X,
   Settings,
+  FlaskConical,
 } from 'lucide-react'
 import { cn } from '../lib/utils'
 
@@ -26,36 +28,41 @@ interface NavItem {
 }
 
 const navigation: NavItem[] = [
-  { name: 'Dashboard', href: '/dashboard', icon: Home },
+  {
+    name: 'Dashboard',
+    href: '/dashboard',
+    icon: Home,
+    roles: ['admin', 'sponsor', 'staff', 'organizer'],
+  },
   {
     name: 'Events',
     href: '/events',
     icon: Calendar,
-    roles: ['admin'],
+    roles: ['admin', 'organizer'],
   },
   {
     name: 'Venues',
     href: '/venues',
     icon: MapPin,
-    roles: ['admin'],
+    roles: ['admin', 'organizer'],
   },
   {
     name: 'Map Editor',
     href: '/map-editor',
     icon: MapPin,
-    roles: ['admin'],
+    roles: ['admin', 'organizer'], // Added organizer
   },
   {
     name: 'ROI Reports',
     href: '/roi-reports',
     icon: Megaphone,
-    roles: ['admin'],
+    roles: ['admin', 'organizer'],
   },
   {
     name: 'AR Campaigns',
     href: '/ar-campaigns',
     icon: MapPin,
-    roles: ['admin'],
+    roles: ['admin', 'organizer'],
   },
   {
     name: 'Lead Scanner',
@@ -68,6 +75,7 @@ const navigation: NavItem[] = [
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { user, logout } = useAuth()
+  const { demoMode, toggleDemoMode } = useDemoMode()
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -178,6 +186,26 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 <LogOut className="mr-3 h-4 w-4 text-gray-400" />
                 Sign out
               </button>
+
+              {/* Demo Mode Toggle */}
+              <div className="pt-3 mt-3 border-t border-gray-200">
+                <button
+                  onClick={toggleDemoMode}
+                  className={`group flex w-full items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${demoMode
+                    ? 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    }`}
+                >
+                  <FlaskConical className={`mr-3 h-4 w-4 ${demoMode ? 'text-amber-600' : 'text-gray-400'
+                    }`} />
+                  {demoMode ? 'Demo Mode ON' : 'Demo Mode OFF'}
+                </button>
+                {demoMode && (
+                  <p className="mt-1 px-2 text-xs text-amber-600">
+                    Showing mock data for demos
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -259,6 +287,26 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 <LogOut className="mr-3 h-4 w-4 text-gray-400" />
                 Sign out
               </button>
+
+              {/* Demo Mode Toggle */}
+              <div className="pt-3 mt-3 border-t border-gray-200">
+                <button
+                  onClick={toggleDemoMode}
+                  className={`group flex w-full items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${demoMode
+                    ? 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    }`}
+                >
+                  <FlaskConical className={`mr-3 h-4 w-4 ${demoMode ? 'text-amber-600' : 'text-gray-400'
+                    }`} />
+                  {demoMode ? 'Demo Mode ON' : 'Demo Mode OFF'}
+                </button>
+                {demoMode && (
+                  <p className="mt-1 px-2 text-xs text-amber-600">
+                    Showing mock data for demos
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         </div>

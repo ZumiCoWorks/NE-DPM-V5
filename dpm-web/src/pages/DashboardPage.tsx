@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { useDemoMode } from '../contexts/DemoModeContext'
 import { supabase } from '../lib/supabase'
 import { LoadingSpinner } from '../components/ui/loadingSpinner'
 import {
@@ -11,12 +12,10 @@ import {
   Plus,
   Eye,
   TrendingUp,
+  FlaskConical,
 } from 'lucide-react'
 import { formatDate } from '../lib/utils'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-
-// DEMO MODE TOGGLE
-const DEMO_MODE = true;
 
 interface DashboardStats {
   totalEvents: number
@@ -47,6 +46,8 @@ const MOCK_TRAFFIC_DATA = [
 
 export const DashboardPage: React.FC = () => {
   const { user, loading: authLoading } = useAuth()
+  const { demoMode } = useDemoMode() // Use global demo mode context
+
   const [stats, setStats] = useState<DashboardStats>({
     totalEvents: 0,
     totalVenues: 0,
@@ -63,7 +64,7 @@ export const DashboardPage: React.FC = () => {
     if (!supabase) return
 
     // DEMO MODE: Mock Activity
-    if (DEMO_MODE) {
+    if (demoMode) {
       setRecentActivity([
         { id: '1', type: 'event', title: 'TechSummit 2025', description: 'Main Hall A', created_at: new Date().toISOString() },
         { id: '2', type: 'campaign', title: 'VIP Scavenger Hunt', description: 'Active - 350 Leads', created_at: new Date(Date.now() - 3600000).toISOString() },
@@ -132,7 +133,7 @@ export const DashboardPage: React.FC = () => {
     } catch (error) {
       console.error('Error fetching recent activity:', error)
     }
-  }, [user])
+  }, [user, demoMode])
 
   const fetchDashboardData = useCallback(async () => {
     if (!user) return
@@ -145,7 +146,7 @@ export const DashboardPage: React.FC = () => {
       console.log('⏳ Dashboard loading set to true');
 
       // DEMO MODE: Mock Stats
-      if (DEMO_MODE) {
+      if (demoMode) {
         console.log('🎭 DEMO MODE: Loading mock stats');
         await new Promise(resolve => setTimeout(resolve, 800)); // Fake loading delay
         setStats({
@@ -235,7 +236,7 @@ export const DashboardPage: React.FC = () => {
 
       return () => clearTimeout(maxLoadTimeout);
     }
-  }, [user]) // Removed fetchDashboardData from dependencies to prevent double-fetch
+  }, [user, demoMode]) // Removed fetchDashboardData from dependencies to prevent double-fetch
 
   const getQuickActions = () => {
     const actions = []
@@ -368,7 +369,7 @@ export const DashboardPage: React.FC = () => {
             </div>
 
             {/* Demo Mode Extra Stats */}
-            {DEMO_MODE && (
+            {demoMode && (
               <>
                 <div className="bg-white overflow-hidden shadow rounded-lg">
                   <div className="p-5">
@@ -412,7 +413,7 @@ export const DashboardPage: React.FC = () => {
             )}
           </>
         )}
-        {user?.role === 'staff' && !DEMO_MODE && (
+        {user?.role === 'staff' && !demoMode && (
           <div className="bg-white overflow-hidden shadow rounded-lg">
             <div className="p-5">
               <div className="flex items-center">
@@ -436,7 +437,7 @@ export const DashboardPage: React.FC = () => {
       </div>
 
       {/* Traffic Chart (Demo Mode Only) */}
-      {DEMO_MODE && (
+      {demoMode && (
         <div className="bg-white shadow rounded-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-medium text-gray-900">Live Traffic Overview</h3>
@@ -469,6 +470,13 @@ export const DashboardPage: React.FC = () => {
       )}
 
       {/* Quick Actions */}
+      <div className="md:flex md:items-center md:justify-between">
+        <div className="flex-1 min-w-0">
+          <h2 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+            Dashboard
+          </h2>
+        </div>
+      </div>
       <div className="bg-white shadow rounded-lg">
         <div className="px-4 py-5 sm:p-6">
           <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
@@ -484,7 +492,7 @@ export const DashboardPage: React.FC = () => {
                   className="relative group bg-white p-6 focus-within:ring-2 focus-within:ring-inset focus-within:ring-brand-red border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
                 >
                   <div>
-                    <span className={`rounded-lg inline-flex p-3 ${action.color} text-white`}>
+                    <span className={`rounded - lg inline - flex p - 3 ${action.color} text - white`}>
                       <Icon className="h-6 w-6" />
                     </span>
                   </div>

@@ -20,6 +20,7 @@ export const UnifiedMapEditorPage: React.FC = () => {
   const initialEventId = searchParams.get('eventId')
   const [eventId, setEventId] = useState<string | null>(initialEventId)
   const [initialFloorplanUrl, setInitialFloorplanUrl] = useState<string | undefined>(undefined)
+  const [gpsFallbackInstruction, setGpsFallbackInstruction] = useState<string>('')
 
   useEffect(() => {
     if (!floorplanId) return
@@ -61,59 +62,124 @@ export const UnifiedMapEditorPage: React.FC = () => {
       const { data: segments } = await supabase.from('navigation_segments').select('*').eq('event_id', eventId);
       const { data: floorplan } = await supabase.from('floorplans').select('*').eq('event_id', eventId).single();
 
-      const floorplanData = floorplan as { image_url?: string } | null;
+      const floorplanData = floorplan as { image_url?: string; calibration_method?: string; pixels_per_meter?: number } | null;
       const nodesData = (nodes || []) as any[];
+      const segmentsData = (segments || []) as any[];
 
-      const payload = {
-        generated_at: new Date().toISOString(),
-        event_id: eventId,
-        mapUrl: floorplanData?.image_url || '',
-        nodes: nodes || [],
-        edges: segments || [],
-        pois: nodesData.filter((n: any) => n.point_type === 'poi') || [],
+      // Construct the Manifest JSON
+      const manifest = {
+        eventId: eventId,
+        generatedAt: new Date().toISOString(),
+        floorplanUrl: floorplanData?.image_url || '',
+        gpsFallbackInstruction: gpsFallbackInstruction || 'Look for physical landmarks to orient yourself.',
+        config: {
+          pixelsPerMeter: floorplanData?.pixels_per_meter || 15.5, // Default or fetched
+          calibrationMethod: floorplanData?.calibration_method || 'manual'
+        },
+        nodes: nodesData.map(n => ({
+          id: n.id,
+          x: n.x_coord,
+          y: n.y_coord,
+          name: n.name,
+          type: n.point_type,
+          isDestination: n.is_destination,
+          neighbors: segmentsData
+            .filter(s => s.start_node_id === n.id || s.end_node_id === n.id)
+            .map(s => {
+              const neighborId = s.start_node_id === n.id ? s.end_node_id : s.start_node_id;
+              // Calculate distance (weight)
+              const neighborNode = nodesData.find(nd => nd.id === neighborId);
+              let weight = 1;
+              if (neighborNode) {
+                const dx = n.x_coord - neighborNode.x_coord;
+                const dy = n.y_coord - neighborNode.y_coord;
+                weight = Math.sqrt(dx * dx + dy * dy);
+              }
+              return { id: neighborId, weight };
+            })
+        })),
+        pois: nodesData.filter((n: any) => n.point_type === 'poi').map(p => ({
+          id: p.id,
+          name: p.name,
+          x: p.x_coord,
+          y: p.y_coord
+        }))
       };
 
-      console.log('🚀 Publishing Map Payload:', payload);
+      console.log('🚀 Generated Manifest:', manifest);
 
-      // Simulate saving to a "published_maps" bucket or table
-      // For now, we'll just download it as a JSON file for the user to verify
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(payload, null, 2));
-      const downloadAnchorNode = document.createElement('a');
-      downloadAnchorNode.setAttribute("href", dataStr);
-      downloadAnchorNode.setAttribute("download", `naveaze_map_${eventId}.json`);
-      document.body.appendChild(downloadAnchorNode);
-      downloadAnchorNode.click();
-      downloadAnchorNode.remove();
+      // NOTE: Manifest upload disabled for Phase 1 - not needed for PWA functionality
+      // The PWA loads data directly from database tables, not from manifest files
+      /*
+      // Convert to Blob
+      const blob = new Blob([JSON.stringify(manifest, null, 2)], { type: 'application/json' });
+      const fileName = `manifest_${eventId}.json`;
 
-      alert('Map Published Successfully! JSON payload downloaded.');
-    } catch (error) {
+      // Upload to Supabase Storage
+      // Try 'events' bucket first, fallback to 'floorplans' if needed
+      let { error: uploadError } = await supabase.storage
+        .from('events')
+        .upload(fileName, blob, { upsert: true });
+
+      if (uploadError) {
+        console.warn('Failed to upload to events bucket, trying floorplans bucket...', uploadError);
+        const { error: fallbackError } = await supabase.storage
+          .from('floorplans')
+          .upload(fileName, blob, { upsert: true });
+
+        if (fallbackError) {
+          throw fallbackError;
+        }
+      }
+
+      // Get Public URL
+      const { data: publicUrlData } = supabase.storage
+        .from('events')
+        .getPublicUrl(fileName);
+
+      console.log('📦 Manifest uploaded:', publicUrlData?.publicUrl);
+      */
+
+      alert('✅ Map published successfully!');
+
+    } catch (error: any) {
       console.error('Error publishing map:', error);
-      alert('Failed to publish map. See console for details.');
+      alert(`Failed to publish map: ${error.message || error}`);
     }
   };
 
   return (
-    <div style={{ padding: 16 }}>
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Unified Map Editor</h2>
-          <p className="text-gray-500">Build POIs, paths, and QR anchors for the NavEaze MVP.</p>
+    <div className="h-screen flex flex-col">
+      <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between shadow-sm z-10">
+        <div className="flex items-center space-x-4">
+          <h1 className="text-lg font-semibold text-gray-900">Unified Map Editor</h1>
+          {eventId && <span className="text-sm text-gray-500 font-mono bg-gray-100 px-2 py-1 rounded">Event: {eventId}</span>}
         </div>
-        <button
-          onClick={handlePublish}
-          className="bg-brand-red text-white px-4 py-2 rounded-md hover:bg-brand-redHover transition-colors flex items-center gap-2 font-medium shadow-sm"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-upload-cloud"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" /><path d="M12 12v9" /><path d="m16 16-4-4-4 4" /></svg>
-          Publish Map
-        </button>
+        <div className="flex items-center space-x-3">
+          <input
+            type="text"
+            placeholder="Bad Signal Instruction (e.g. Look for Red Banners)"
+            className="text-sm border border-gray-300 rounded px-3 py-1.5 w-64 focus:ring-2 focus:ring-brand-red focus:border-transparent"
+            value={gpsFallbackInstruction}
+            onChange={(e) => setGpsFallbackInstruction(e.target.value)}
+          />
+          <button
+            onClick={handlePublish}
+            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center shadow-sm"
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+            </svg>
+            Publish Map
+          </button>
+        </div>
       </div>
-
-      <div style={{ marginTop: 12 }} className="bg-white rounded-lg shadow p-1">
-        <Suspense fallback={<div style={{ padding: 24 }}><LoadingSpinner size="lg" /></div>}>
+      <div className="flex-1 relative bg-gray-50">
+        <Suspense fallback={<div className="flex items-center justify-center h-full"><LoadingSpinner /></div>}>
           <FloorplanEditor
-            initialFloorplan={initialFloorplanUrl ?? null}
-            initialEventId={initialEventId ?? null}
-            onEventChange={(id: string | null) => setEventId(id)}
+            initialFloorplan={initialFloorplanUrl}
+            initialEventId={eventId}
+            onEventChange={(id) => setEventId(id)}
           />
         </Suspense>
       </div>

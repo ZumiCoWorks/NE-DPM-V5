@@ -13,12 +13,13 @@ export const RegisterPage: React.FC = () => {
     password: '',
     confirmPassword: '',
     fullName: '',
+    role: 'organizer' as UserRole, // Default to organizer
   })
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  
+
   const { user, loading, register } = useAuth()
   const navigate = useNavigate()
 
@@ -73,7 +74,7 @@ export const RegisterPage: React.FC = () => {
     setIsLoading(true)
 
     try {
-      await register(formData.email, formData.password, formData.fullName)
+      await register(formData.email, formData.password, formData.fullName, formData.role)
       // After successful registration, redirect to dashboard
       navigate('/dashboard')
     } catch (err: any) {
@@ -103,14 +104,14 @@ export const RegisterPage: React.FC = () => {
             </Link>
           </p>
         </div>
-        
+
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           {error && (
             <div className="rounded-md bg-red-50 p-4">
               <div className="text-sm text-red-700">{error}</div>
             </div>
           )}
-          
+
           <div className="space-y-4">
             <div>
               <label htmlFor="fullName" className="block text-sm font-medium text-gray-700">
@@ -127,7 +128,7 @@ export const RegisterPage: React.FC = () => {
                 placeholder="Enter your full name"
               />
             </div>
-            
+
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                 Email address
@@ -144,7 +145,7 @@ export const RegisterPage: React.FC = () => {
                 placeholder="Enter your email"
               />
             </div>
-            
+
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                 Password
@@ -174,7 +175,7 @@ export const RegisterPage: React.FC = () => {
                 </button>
               </div>
             </div>
-            
+
             <div>
               <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
                 Confirm Password
@@ -203,6 +204,27 @@ export const RegisterPage: React.FC = () => {
                   )}
                 </button>
               </div>
+            </div>
+
+            {/* Role Selection (NEW) */}
+            <div>
+              <label htmlFor="role" className="block text-sm font-medium text-gray-700">
+                Account Type
+              </label>
+              <select
+                id="role"
+                name="role"
+                value={formData.role}
+                onChange={handleChange}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              >
+                <option value="organizer">Event Organizer</option>
+                <option value="sponsor">Sponsor</option>
+                <option value="staff">Staff Member</option>
+              </select>
+              <p className="mt-1 text-xs text-gray-500">
+                Choose the role that best describes how you'll use NavEase
+              </p>
             </div>
           </div>
 

@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
+import { DemoModeProvider } from './contexts/DemoModeContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Layout as AdminLayout } from './components/Layout';
 import { LandingPage } from './pages/LandingPage';
@@ -25,202 +26,208 @@ import { ProfilePage } from './pages/profile/ProfilePage';
 import { RegisterPage as VendorSignupPage } from './pages/auth/RegisterPage';
 import { AttendeePWA } from './pages/mobile/AttendeePWA';
 import AttendeePWANew from './pages/mobile/AttendeePWANew';
+import StaffPWA from './pages/mobile/StaffPWA';
 
 
 export default function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/role-selector" element={<RoleSelectorPage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/signup" element={<VendorSignupPage />} />
-          
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <AdminLayout>
-                  <DashboardPage />
-                </AdminLayout>
-              </ProtectedRoute>
-            }
-          />
-          
-          <Route
-            path="/events"
-            element={
-              <ProtectedRoute>
-                <AdminLayout>
-                  <EventsPage />
-                </AdminLayout>
-              </ProtectedRoute>
-            }
-          />
-          
-          <Route
-            path="/events/create"
-            element={
-              <ProtectedRoute>
-                <AdminLayout>
-                  <CreateEventPage />
-                </AdminLayout>
-              </ProtectedRoute>
-            }
-          />
-          
-          <Route
-            path="/events/:id"
-            element={
-              <ProtectedRoute>
-                <AdminLayout>
-                  <EventDetailPage />
-                </AdminLayout>
-              </ProtectedRoute>
-            }
-          />
-          
-          <Route
-            path="/events/:id/sponsors"
-            element={
-              <ProtectedRoute>
-                <AdminLayout>
-                  <SponsorManagementPage />
-                </AdminLayout>
-              </ProtectedRoute>
-            }
-          />
-          
-          <Route
-            path="/map-editor"
-            element={
-              <ProtectedRoute>
-                <AdminLayout>
-                  <MapEditorPage />
-                </AdminLayout>
-              </ProtectedRoute>
-            }
-          />
-          
-          <Route
-            path="/map-editor/:id"
-            element={
-              <ProtectedRoute>
-                <AdminLayout>
-                  <MapEditorPage />
-                </AdminLayout>
-              </ProtectedRoute>
-            }
-          />
-          
-          <Route
-            path="/sponsors"
-            element={
-              <ProtectedRoute>
-                <AdminLayout>
-                  <SponsorDashboardPage />
-                </AdminLayout>
-              </ProtectedRoute>
-            }
-          />
-          
-          <Route
-            path="/venues"
-            element={
-              <ProtectedRoute>
-                <AdminLayout>
-                  <VenuesPage />
-                </AdminLayout>
-              </ProtectedRoute>
-            }
-          />
-          
-          <Route
-            path="/venues/create"
-            element={
-              <ProtectedRoute>
-                <AdminLayout>
-                  <CreateVenuePage />
-                </AdminLayout>
-              </ProtectedRoute>
-            }
-          />
-          
-          <Route
-            path="/venues/:id"
-            element={
-              <ProtectedRoute>
-                <AdminLayout>
-                  <EditVenuePage />
-                </AdminLayout>
-              </ProtectedRoute>
-            }
-          />
-          
-          <Route
-            path="/roi-reports"
-            element={
-              <ProtectedRoute>
-                <AdminLayout>
-                  <ROIDashboardPage />
-                </AdminLayout>
-              </ProtectedRoute>
-            }
-          />
-          
-          <Route
-            path="/ar-campaigns"
-            element={
-              <ProtectedRoute>
-                <AdminLayout>
-                  <ARCampaignsPage />
-                </AdminLayout>
-              </ProtectedRoute>
-            }
-          />
-          
-          <Route
-            path="/ar-campaigns/create"
-            element={
-              <ProtectedRoute>
-                <AdminLayout>
-                  <CreateARCampaignPage />
-                </AdminLayout>
-              </ProtectedRoute>
-            }
-          />
-          
-          <Route
-            path="/ar-campaigns/:id"
-            element={
-              <ProtectedRoute>
-                <AdminLayout>
-                  <EditARCampaignPage />
-                </AdminLayout>
-              </ProtectedRoute>
-            }
-          />
-          
-          <Route
-            path="/profile"
-            element={
-              <ProtectedRoute>
-                <AdminLayout>
-                  <ProfilePage />
-                </AdminLayout>
-              </ProtectedRoute>
-            }
-          />
+    <DemoModeProvider>
+      <AuthProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/role-selector" element={<RoleSelectorPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/signup" element={<VendorSignupPage />} />
 
-          {/* Attendee Mobile PWA - No auth required */}
-          <Route path="/attendee" element={<AttendeePWANew />} />
-          <Route path="/attendee-old" element={<AttendeePWA />} />
-          
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <AdminLayout>
+                    <DashboardPage />
+                  </AdminLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/events"
+              element={
+                <ProtectedRoute>
+                  <AdminLayout>
+                    <EventsPage />
+                  </AdminLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/events/create"
+              element={
+                <ProtectedRoute>
+                  <AdminLayout>
+                    <CreateEventPage />
+                  </AdminLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/events/:id/edit"
+              element={
+                <ProtectedRoute>
+                  <AdminLayout>
+                    <EventDetailPage />
+                  </AdminLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/events/:id/sponsors"
+              element={
+                <ProtectedRoute>
+                  <AdminLayout>
+                    <SponsorManagementPage />
+                  </AdminLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/map-editor"
+              element={
+                <ProtectedRoute>
+                  <AdminLayout>
+                    <MapEditorPage />
+                  </AdminLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/map-editor/:id"
+              element={
+                <ProtectedRoute>
+                  <AdminLayout>
+                    <MapEditorPage />
+                  </AdminLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/sponsors"
+              element={
+                <ProtectedRoute>
+                  <AdminLayout>
+                    <SponsorDashboardPage />
+                  </AdminLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/venues"
+              element={
+                <ProtectedRoute>
+                  <AdminLayout>
+                    <VenuesPage />
+                  </AdminLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/venues/create"
+              element={
+                <ProtectedRoute>
+                  <AdminLayout>
+                    <CreateVenuePage />
+                  </AdminLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/venues/:id"
+              element={
+                <ProtectedRoute>
+                  <AdminLayout>
+                    <EditVenuePage />
+                  </AdminLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/roi-reports"
+              element={
+                <ProtectedRoute>
+                  <AdminLayout>
+                    <ROIDashboardPage />
+                  </AdminLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/ar-campaigns"
+              element={
+                <ProtectedRoute>
+                  <AdminLayout>
+                    <ARCampaignsPage />
+                  </AdminLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/ar-campaigns/create"
+              element={
+                <ProtectedRoute>
+                  <AdminLayout>
+                    <CreateARCampaignPage />
+                  </AdminLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/ar-campaigns/:id"
+              element={
+                <ProtectedRoute>
+                  <AdminLayout>
+                    <EditARCampaignPage />
+                  </AdminLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <AdminLayout>
+                    <ProfilePage />
+                  </AdminLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Attendee Mobile PWA - No auth required */}
+            <Route path="/attendee" element={<AttendeePWANew />} />
+            <Route path="/attendee-old" element={<AttendeePWA />} />
+
+            {/* Staff Mobile PWA - No auth required */}
+            <Route path="/staff" element={<StaffPWA />} />
+
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
+    </DemoModeProvider>
   );
 }

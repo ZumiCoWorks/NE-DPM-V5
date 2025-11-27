@@ -50,12 +50,12 @@ export const EventsPage: React.FC = () => {
 
     try {
       setLoading(true)
-      
+
       if (!supabase) {
         console.error('Supabase client not initialized')
         return
       }
-      
+
       // Fetch raw events without embedded relations to avoid schema/relationship mismatch
       let query = supabase
         .from('events')
@@ -129,13 +129,44 @@ export const EventsPage: React.FC = () => {
 
     try {
       setDeleteLoading(eventId)
-      
+
       if (!supabase) {
         console.error('Supabase client not initialized')
         alert('Database connection not available')
         return
       }
-      
+
+      // 1. Garbage Collection: Fetch floorplan to get image URL before cascade delete
+      const { data: floorplanData } = await supabase
+        .from('floorplans')
+        .select('image_url')
+        .eq('event_id', eventId)
+        .single()
+
+      const floorplan = floorplanData as { image_url?: string } | null
+
+      // 2. Delete Floorplan Image from Storage
+      if (floorplan?.image_url) {
+        try {
+          // Extract filename from URL (assuming standard Supabase Storage URL format)
+          const urlParts = floorplan.image_url.split('/')
+          const fileName = urlParts[urlParts.length - 1]
+          if (fileName) {
+            await supabase.storage.from('floorplans').remove([fileName])
+            console.log('🗑️ Deleted floorplan image:', fileName)
+          }
+        } catch (err) {
+          console.warn('Failed to delete floorplan image:', err)
+        }
+      }
+
+      // 3. Delete Manifests from Storage (Try both buckets)
+      const manifestName = `manifest_${eventId}.json`
+      await supabase.storage.from('events').remove([manifestName])
+      await supabase.storage.from('floorplans').remove([manifestName])
+      console.log('🗑️ Deleted manifests:', manifestName)
+
+      // 4. Delete Event Record (Cascade will handle DB relations)
       const { error } = await supabase
         .from('events')
         .delete()
@@ -172,11 +203,11 @@ export const EventsPage: React.FC = () => {
 
   const filteredEvents = events.filter(event => {
     const matchesSearch = event.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         event.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         event.venue?.name.toLowerCase().includes(searchTerm.toLowerCase())
-    
+      event.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      event.venue?.name.toLowerCase().includes(searchTerm.toLowerCase())
+
     const matchesStatus = statusFilter === 'all' || event.status === statusFilter
-    
+
     return matchesSearch && matchesStatus
   })
 

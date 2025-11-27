@@ -6,7 +6,7 @@ interface User {
   email: string;
   full_name: string;
   name: string;
-  role: 'admin' | 'sponsor' | 'staff';
+  role: 'admin' | 'sponsor' | 'staff' | 'organizer';
   organization_id?: string;
   avatar_url?: string;
   created_at?: string;
@@ -21,7 +21,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, fullName: string) => Promise<void>;
+  register: (email: string, password: string, fullName: string, role?: 'admin' | 'sponsor' | 'staff' | 'organizer') => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
   updateProfile: (updates: Partial<User>) => Promise<void>;
@@ -43,7 +43,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
 
         const { data: { session } } = await supabase.auth.getSession();
-        
+
         if (session?.user) {
           // Fetch user profile from profiles table
           const { data: profile } = await supabase
@@ -64,9 +64,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             } else if (p.last_name) {
               fullName = p.last_name;
             } else {
-              fullName = session.user.user_metadata?.full_name || 
-                        session.user.user_metadata?.name || 
-                        '';
+              fullName = session.user.user_metadata?.full_name ||
+                session.user.user_metadata?.name ||
+                '';
             }
             console.log('✅ Setting user with full_name:', fullName);
             setUser({
@@ -74,7 +74,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               email: p.email || session.user.email || '',
               full_name: fullName,
               name: fullName,
-              role: p.role || 'admin',
+              role: p.role || 'organizer',
               organization_id: p.organization_id,
               avatar_url: p.avatar_url,
               created_at: p.created_at,
@@ -102,7 +102,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // Listen for auth changes (but ignore repeated SIGNED_IN events to prevent loops)
     let lastEvent = '';
     let lastEventTime = 0;
-    
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       // Prevent duplicate events within 1 second
       const now = Date.now();
@@ -112,18 +112,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
       lastEvent = event;
       lastEventTime = now;
-      
+
       console.log('Auth state changed:', event);
-      
+
       // Only fetch profile on specific events
       if (event === 'INITIAL_SESSION' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
         // Let the initial session logic handle this
         if (event === 'INITIAL_SESSION') return;
       }
-      
+
       if (session?.user && supabase && (event === 'SIGNED_IN' || event === 'USER_UPDATED')) {
         console.log('🔄 Fetching profile for user:', session.user.email);
-        
+
         try {
           // Add timeout to profile fetch
           const profilePromise = supabase
@@ -131,16 +131,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             .select('*')
             .eq('id', session.user.id)
             .single();
-          
-          const timeoutPromise = new Promise((_, reject) => 
+
+          const timeoutPromise = new Promise((_, reject) =>
             setTimeout(() => reject(new Error('Profile fetch timeout')), 5000)
           );
-          
+
           const { data: profile, error } = await Promise.race([
             profilePromise,
             timeoutPromise
           ]) as any;
-          
+
           if (error) {
             console.error('❌ Error fetching profile:', error);
             // Continue without profile data
@@ -149,7 +149,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               email: session.user.email || '',
               full_name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || '',
               name: session.user.user_metadata?.name || session.user.user_metadata?.full_name || '',
-              role: 'admin',
+              role: 'organizer', // Changed from 'staff' to 'organizer'
               organization_id: undefined,
               avatar_url: undefined,
               created_at: session.user.created_at || new Date().toISOString(),
@@ -171,9 +171,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             } else if (p.last_name) {
               fullName = p.last_name;
             } else {
-              fullName = session.user.user_metadata?.full_name || 
-                        session.user.user_metadata?.name || 
-                        '';
+              fullName = session.user.user_metadata?.full_name ||
+                session.user.user_metadata?.name ||
+                '';
             }
             console.log('✅ Setting user with full_name:', fullName);
             setUser({
@@ -181,7 +181,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               email: p.email || session.user.email || '',
               full_name: fullName,
               name: fullName,
-              role: p.role || 'admin',
+              role: p.role || 'organizer',
               organization_id: p.organization_id,
               avatar_url: p.avatar_url,
               created_at: p.created_at,
@@ -202,7 +202,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             email: session.user.email || '',
             full_name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || '',
             name: session.user.user_metadata?.name || session.user.user_metadata?.full_name || '',
-            role: 'admin',
+            role: 'organizer',
             organization_id: undefined,
             avatar_url: undefined,
             created_at: session.user.created_at || new Date().toISOString(),
@@ -217,7 +217,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         console.log('❌ No session, clearing user');
         setUser(null);
       }
-      
+
       console.log('✅ Auth loading complete');
       setLoading(false);
     });
@@ -253,7 +253,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             email: p.email || data.user.email || '',
             full_name: p.full_name || p.name || '',
             name: p.name || p.full_name || '',
-            role: p.role || 'admin',
+            role: p.role || 'organizer',
             organization_id: p.organization_id,
             avatar_url: p.avatar_url,
             created_at: p.created_at,
@@ -273,7 +273,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const register = async (email: string, password: string, fullName: string) => {
+  const register = async (email: string, password: string, fullName: string, role: 'admin' | 'sponsor' | 'staff' | 'organizer' = 'organizer') => {
     setLoading(true);
     try {
       if (!supabase) throw new Error('Supabase not initialized');
@@ -312,16 +312,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           } else if (p.last_name) {
             profileFullName = p.last_name;
           } else {
-            profileFullName = data.user.user_metadata?.full_name || 
-                            data.user.user_metadata?.name || 
-                            fullName;
+            profileFullName = data.user.user_metadata?.full_name ||
+              data.user.user_metadata?.name ||
+              fullName;
           }
           setUser({
             id: p.id,
             email: p.email || data.user.email || '',
             full_name: profileFullName,
             name: profileFullName,
-            role: p.role || 'admin',
+            role: p.role || 'organizer',
             organization_id: p.organization_id,
             avatar_url: p.avatar_url,
             created_at: p.created_at,
@@ -350,7 +350,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const updateProfile = async (updates: Partial<User>) => {
     if (!user || !supabase) return;
-    
+
     try {
       const { error } = await supabase
         .from('profiles')

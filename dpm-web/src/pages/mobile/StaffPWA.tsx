@@ -33,7 +33,7 @@ const StaffPWA: React.FC = () => {
   const eventId = urlParams.get('event_id') || localStorage.getItem('currentEventId') || 'demo-event-001';
   const sponsorId = urlParams.get('sponsor_id') || localStorage.getItem('currentSponsorId') || 'demo-sponsor-001';
   const staffId = urlParams.get('staff_id') || localStorage.getItem('currentStaffId') || 'demo-staff-001';
-  
+
   type Screen = 'scanner' | 'qualify';
   const [currentScreen, setCurrentScreen] = useState<Screen>('scanner');
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -78,7 +78,7 @@ const StaffPWA: React.FC = () => {
     // Online/offline detection
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
-    
+
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
@@ -92,7 +92,7 @@ const StaffPWA: React.FC = () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
       document.head.removeChild(link);
-      
+
       // Cleanup camera stream
       if (cameraStreamRef.current) {
         cameraStreamRef.current.getTracks().forEach(track => track.stop());
@@ -114,20 +114,20 @@ const StaffPWA: React.FC = () => {
 
   const startCamera = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
           facingMode: 'environment',
           width: { ideal: 1280 },
           height: { ideal: 720 }
-        } 
+        }
       });
-      
+
       cameraStreamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         videoRef.current.play();
       }
-      
+
       // Start QR scanning
       scanForQRCode();
     } catch (error) {
@@ -151,11 +151,11 @@ const StaffPWA: React.FC = () => {
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         context?.drawImage(video, 0, 0, canvas.width, canvas.height);
-        
+
         const imageData = context?.getImageData(0, 0, canvas.width, canvas.height);
         if (imageData) {
           const code = jsQR(imageData.data, imageData.width, imageData.height);
-          
+
           if (code) {
             // Found QR code!
             handleQRCodeDetected(code.data);
@@ -163,7 +163,7 @@ const StaffPWA: React.FC = () => {
           }
         }
       }
-      
+
       // Continue scanning
       requestAnimationFrame(scanFrame);
     };
@@ -182,7 +182,7 @@ const StaffPWA: React.FC = () => {
       });
       if (!res.ok) throw new Error('Ticket not found');
       const data = await res.json();
-      
+
       // Switch to qualify screen with attendee data
       setAttendeeInfo({
         id: data.id || raw,
@@ -215,7 +215,7 @@ const StaffPWA: React.FC = () => {
     try {
       // Stop scanning
       setIsScanning(false);
-      
+
       // Stop camera
       if (cameraStreamRef.current) {
         cameraStreamRef.current.getTracks().forEach(track => track.stop());
@@ -247,7 +247,7 @@ const StaffPWA: React.FC = () => {
 
   const syncUnsyncedLeads = async () => {
     const unsyncedLeads = leads.filter(lead => !lead.synced);
-    
+
     for (const lead of unsyncedLeads) {
       try {
         const response = await fetch(`${API_BASE_URL}/leads`, {
@@ -271,7 +271,7 @@ const StaffPWA: React.FC = () => {
 
         if (response.ok) {
           // Mark as synced
-          setLeads(prev => prev.map(l => 
+          setLeads(prev => prev.map(l =>
             l.id === lead.id ? { ...l, synced: true } : l
           ));
         }
@@ -288,7 +288,7 @@ const StaffPWA: React.FC = () => {
     }
 
     setIsSaving(true);
-    
+
     const newLead: Lead = {
       id: Date.now().toString(),
       full_name: currentLead.full_name,
@@ -338,7 +338,7 @@ const StaffPWA: React.FC = () => {
 
       // Save to local storage
       setLeads(prev => [...prev, newLead]);
-      
+
       // Show success state
       setSaved(true);
       setTimeout(() => {
@@ -355,7 +355,7 @@ const StaffPWA: React.FC = () => {
         setAttendeeInfo(null);
         setCurrentScreen('scanner');
       }, 1500);
-      
+
     } catch (error) {
       console.error('Failed to save lead:', error);
       alert('Lead saved locally. Will sync when online.');
@@ -411,9 +411,8 @@ const StaffPWA: React.FC = () => {
         {[1, 2, 3, 4, 5].map((star) => (
           <Star
             key={star}
-            className={`w-6 h-6 ${
-              star <= rating ? 'text-yellow-400 fill-current' : 'text-gray-300'
-            } ${onRatingChange ? 'cursor-pointer hover:text-yellow-500' : ''}`}
+            className={`w-6 h-6 ${star <= rating ? 'text-yellow-400 fill-current' : 'text-gray-300'
+              } ${onRatingChange ? 'cursor-pointer hover:text-yellow-500' : ''}`}
             onClick={() => onRatingChange?.(star)}
           />
         ))}
@@ -458,6 +457,53 @@ const StaffPWA: React.FC = () => {
             </div>
           )}
 
+          {/* Phase 3 Preview Banner (NEW) */}
+          <div className="m-4 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl p-4 shadow-lg">
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-white/20 rounded-lg">
+                  <Star className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-white font-bold text-sm">Phase 3: AI Lead Scoring</h3>
+                  <p className="text-white/80 text-xs">Smart capture with predictive analytics</p>
+                </div>
+              </div>
+              <span className="px-2 py-1 bg-yellow-400 text-purple-900 text-xs font-bold rounded-full whitespace-nowrap">
+                PREVIEW
+              </span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 mb-3">
+              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-2 border border-white/20">
+                <div className="text-xs text-white/70">AI Score</div>
+                <div className="text-xl font-bold text-white">87/100</div>
+                <div className="text-xs text-green-400">High Intent</div>
+              </div>
+              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-2 border border-white/20">
+                <div className="text-xs text-white/70">Engagement</div>
+                <div className="text-xl font-bold text-white">6.2min</div>
+                <div className="text-xs text-blue-400">Very Engaged</div>
+              </div>
+              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-2 border border-white/20">
+                <div className="text-xs text-white/70">Booth Visits</div>
+                <div className="text-xl font-bold text-white">4x</div>
+                <div className="text-xs text-yellow-400">Returning</div>
+              </div>
+            </div>
+
+            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 border border-white/20">
+              <div className="text-xs text-white/80 font-medium mb-2">🤖 AI Suggestion:</div>
+              <div className="text-sm text-white">"Ask about enterprise pricing - high purchase intent detected"</div>
+            </div>
+
+            <div className="mt-3 pt-3 border-t border-white/20">
+              <div className="text-xs text-white/70">
+                <strong className="text-white">Phase 3 Features:</strong> Auto-filled forms from badge scan • Real-time competitor intel • Personalized talking points • Lead prioritization
+              </div>
+            </div>
+          </div>
+
           <div className="p-4 space-y-4">
             {/* QR Scanner */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
@@ -480,7 +526,7 @@ const StaffPWA: React.FC = () => {
                   </button>
                 )}
               </div>
-              
+
               {/* Camera Preview */}
               {isScanning && (
                 <div className="relative mb-4">
@@ -566,7 +612,7 @@ const StaffPWA: React.FC = () => {
                   </button>
                 </div>
               </div>
-              
+
               {showLeadsList && (
                 <div className="space-y-2 max-h-64 overflow-y-auto">
                   {leads.map((lead) => (
@@ -602,7 +648,7 @@ const StaffPWA: React.FC = () => {
         <>
           {/* Qualify Screen */}
           <div className="bg-gradient-to-b from-purple-600 to-purple-700 px-4 py-4 flex items-center shadow-lg">
-            <button 
+            <button
               onClick={() => setCurrentScreen('scanner')}
               className="mr-3 p-2 -ml-2 hover:bg-white/10 rounded-full transition-colors"
             >
@@ -615,7 +661,7 @@ const StaffPWA: React.FC = () => {
             {/* Attendee Info Card */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-6">
               <h2 className="text-gray-700 font-medium mb-4">Attendee Info</h2>
-              
+
               <div className="space-y-4">
                 <div className="flex items-start">
                   <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mr-3 flex-shrink-0">
@@ -656,7 +702,7 @@ const StaffPWA: React.FC = () => {
                     required
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     <Mail className="w-4 h-4 inline mr-1" />
@@ -671,7 +717,7 @@ const StaffPWA: React.FC = () => {
                     required
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     <Building className="w-4 h-4 inline mr-1" />
@@ -685,7 +731,7 @@ const StaffPWA: React.FC = () => {
                     placeholder="Enter company name"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
                   <input
@@ -696,15 +742,15 @@ const StaffPWA: React.FC = () => {
                     placeholder="Enter phone number"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Rating</label>
-                  <StarRating 
-                    rating={currentLead.rating || 3} 
+                  <StarRating
+                    rating={currentLead.rating || 3}
                     onRatingChange={(rating) => setCurrentLead(prev => ({ ...prev, rating }))}
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
                   <textarea

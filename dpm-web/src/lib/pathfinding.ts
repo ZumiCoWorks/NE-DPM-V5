@@ -1,9 +1,14 @@
-export type GraphNode = { 
-  id: string; 
-  x: number; 
-  y: number; 
-  name?: string; 
+export type GraphNode = {
+  id: string;
+  x: number;
+  y: number;
+  name?: string;
   type?: string;
+  // Landmark support (NEW)
+  isLandmark?: boolean;
+  landmarkName?: string | null;
+  landmarkDescription?: string | null;
+  landmarkPhotoUrl?: string | null;
   metadata?: {
     gps_lat?: number;
     gps_lng?: number;
@@ -104,7 +109,7 @@ export function nodePathToCoords(nodes: GraphNode[], nodePath: string[]) {
  */
 export function generateTurnByTurnDirections(nodes: GraphNode[], nodePath: string[]): string[] {
   const directions: string[] = [];
-  
+
   if (nodePath.length === 0) return directions;
   if (nodePath.length === 1) return ['You have arrived'];
 
@@ -121,10 +126,10 @@ export function generateTurnByTurnDirections(nodes: GraphNode[], nodePath: strin
     const nextNode = pathNodes[i + 1];
 
     const distance = Math.round(getNodeDistance(node, nextNode));
-    
+
     // Calculate turn direction
     const turn = calculateTurnDirection(prevNode, node, nextNode);
-    
+
     let instruction = '';
     if (turn === 'straight') {
       instruction = `➡️ Continue straight`;
@@ -169,15 +174,15 @@ function getNodeDistance(node1: GraphNode, node2: GraphNode): number {
 function calculateTurnDirection(from: GraphNode, via: GraphNode, to: GraphNode): 'straight' | 'left' | 'right' | 'u-turn' {
   const angle1 = Math.atan2(via.y - from.y, via.x - from.x);
   const angle2 = Math.atan2(to.y - via.y, to.x - via.x);
-  
+
   let diff = angle2 - angle1;
-  
+
   // Normalize to -PI to PI
   while (diff > Math.PI) diff -= 2 * Math.PI;
   while (diff < -Math.PI) diff += 2 * Math.PI;
-  
+
   const degrees = diff * (180 / Math.PI);
-  
+
   if (Math.abs(degrees) < 30) return 'straight';
   if (degrees > 150 || degrees < -150) return 'u-turn';
   if (degrees > 0) return 'right';
@@ -189,11 +194,11 @@ function calculateTurnDirection(from: GraphNode, via: GraphNode, to: GraphNode):
  */
 export function calculatePathDistance(nodes: GraphNode[], nodePath: string[]): number {
   const pathNodes = nodePath.map(id => nodes.find(n => n.id === id)).filter(Boolean) as GraphNode[];
-  
+
   let totalDistance = 0;
   for (let i = 0; i < pathNodes.length - 1; i++) {
     totalDistance += getNodeDistance(pathNodes[i], pathNodes[i + 1]);
   }
-  
+
   return Math.round(totalDistance);
 }

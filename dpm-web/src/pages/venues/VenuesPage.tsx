@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
+import { useDemoMode } from '../../contexts/DemoModeContext'
 import { LoadingSpinner } from '../../components/ui/loadingSpinner'
 import { MapPin, Building, Users, Plus, Edit, Trash2, Search, Filter, Phone, Mail } from 'lucide-react'
 import { cn } from '../../lib/utils'
@@ -23,6 +24,7 @@ type VenueStatus = 'all' | 'active' | 'inactive' | 'maintenance'
 
 export const VenuesPage: React.FC = () => {
   const { user } = useAuth()
+  const { demoMode } = useDemoMode()
   const [venues, setVenues] = useState<Venue[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -34,12 +36,57 @@ export const VenuesPage: React.FC = () => {
 
     try {
       setLoading(true)
-      
+
+      // DEMO MODE: Mock Venues
+      if (demoMode) {
+        await new Promise(resolve => setTimeout(resolve, 500)); // Fake loading delay
+        setVenues([
+          {
+            id: 'demo-1',
+            name: 'AFDA',
+            description: 'Main convention center for tech events',
+            address: '41 Flame Ave',
+            capacity: 5000,
+            venue_type: 'Convention Center',
+            contact_email: 'info@afda.co.za',
+            contact_phone: '+27 21 123 4567',
+            status: 'active',
+            created_at: new Date().toISOString(),
+          },
+          {
+            id: 'demo-2',
+            name: 'Cape Town Convention Center',
+            description: 'Main convention center for tech events',
+            address: '1 Lower Long Street, Cape Town',
+            capacity: 10000,
+            venue_type: 'Convention Center',
+            contact_email: 'info@cticc.co.za',
+            contact_phone: '+27 21 410 5000',
+            status: 'active',
+            created_at: new Date(Date.now() - 86400000).toISOString(),
+          },
+          {
+            id: 'demo-3',
+            name: 'V&A Waterfront Pavilion',
+            description: 'Outdoor venue for summer events',
+            address: 'Victoria & Alfred Waterfront, Cape Town',
+            capacity: 2000,
+            venue_type: 'Outdoor',
+            contact_email: 'events@waterfront.co.za',
+            contact_phone: '+27 21 408 7600',
+            status: 'maintenance',
+            created_at: new Date(Date.now() - 172800000).toISOString(),
+          },
+        ]);
+        setLoading(false);
+        return;
+      }
+
       if (!supabase) {
         console.error('Supabase client not initialized')
-        return
+        return;
       }
-      
+
       const { data, error } = await supabase
         .from('venues')
         .select('id, name, description, address, capacity, venue_type, contact_email, contact_phone, status, created_at')
@@ -56,26 +103,32 @@ export const VenuesPage: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [user])
+  }, [user, demoMode])
 
   useEffect(() => {
     fetchVenues()
   }, [fetchVenues])
 
   const handleDeleteVenue = async (venueId: string) => {
+    // Prevent deletion in demo mode
+    if (demoMode) {
+      alert('Cannot delete venues in demo mode. Toggle off demo mode in the sidebar to manage real data.');
+      return;
+    }
+
     if (!confirm('Are you sure you want to delete this venue? This action cannot be undone.')) {
       return
     }
 
     try {
       setDeleteLoading(venueId)
-      
+
       if (!supabase) {
         console.error('Supabase client not initialized')
         alert('Database connection not available')
         return
       }
-      
+
       const { error } = await supabase
         .from('venues')
         .delete()

@@ -3,6 +3,7 @@ import ImageUploader from './scaffold/ImageUploader';
 import POIForm from './scaffold/POIForm';
 import FloorplanCanvas from './scaffold/FloorplanCanvas';
 import CalibrationWizard from './CalibrationWizard';
+import { NodeEditModal } from './NodeEditModal';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
 
@@ -40,6 +41,10 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
 
   // Simple message banner
   const [banner, setBanner] = useState(null);
+
+  // Landmark editing (NEW)
+  const [selectedNode, setSelectedNode] = useState(null);
+  const [showNodeEditModal, setShowNodeEditModal] = useState(false);
 
   useEffect(() => {
     if (initialFloorplan) setFloorplanUrl(initialFloorplan);
@@ -184,13 +189,18 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
             gps_lng: point.gps_lng
           });
         } else {
-          // Regular navigation nodes
+          // Regular navigation nodes (NOW WITH LANDMARK DATA)
           loadedNodes.push({
             id: point.id,
             name: point.name || `Node ${loadedNodes.length + 1}`,
             x: point.x_coord,
             y: point.y_coord,
-            qr_id: point.qr_code_data
+            qr_id: point.qr_code_data,
+            // Landmark fields (NEW)
+            is_landmark: point.is_landmark || false,
+            landmark_name: point.landmark_name || null,
+            landmark_description: point.landmark_description || null,
+            landmark_photo_url: point.landmark_photo_url || null
           });
         }
       });
@@ -437,6 +447,30 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
     }
   }, [currentEventId, currentFloorplan]);
 
+  // Handle node click for landmark editing (NEW - only when not drawing paths)
+  const handleNodeClick = useCallback((nodeId) => {
+    // Don't open modal if in draw-path or segment mode
+    if (mode === 'draw-path' || mode === 'segment') {
+      return; // Let the path drawing logic handle it
+    }
+
+    const node = nodes.find(n => n.id === nodeId);
+    if (node) {
+      setSelectedNode(node);
+      setShowNodeEditModal(true);
+    }
+  }, [nodes, mode]);
+
+  // Handle node edit modal save (NEW)
+  const handleNodeEditSave = useCallback(async () => {
+    // Refetch navigation data to get updated landmark info
+    if (currentEventId && currentFloorplan) {
+      await fetchNavigationData(currentEventId);
+    }
+    setShowNodeEditModal(false);
+    setSelectedNode(null);
+  }, [currentEventId, currentFloorplan]);
+
   const handleNewPoi = useCallback((p) => {
     // p may contain x,y coords
     const id = `poi_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
@@ -444,6 +478,31 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
     setPois(prev => [...prev, poi]);
     showMessage('POI added');
   }, []);
+
+  // Delete POI handler (NEW)
+  const handleDeletePoi = useCallback(async (poiId, poiName) => {
+    if (!confirm(`Delete POI "${poiName}"?`)) return;
+
+    try {
+      // Remove from database if it has a database ID (not temp)
+      if (currentEventId && !poiId.startsWith('poi_')) {
+        const { error } = await supabase
+          .from('navigation_points')
+          .delete()
+          .eq('id', poiId);
+
+        if (error) throw error;
+      }
+
+      // Remove from state
+      setPois(prev => prev.filter(p => p.id !== poiId));
+      showMessage(`✅ POI "${poiName}" deleted`, 2000);
+
+    } catch (err) {
+      console.error('Error deleting POI:', err);
+      showMessage('❌ Error deleting POI', 3000);
+    }
+  }, [currentEventId, showMessage]);
 
   const handleCanvasClickForPoi = (coords) => {
     // Called by the canvas when in poi mode — open modal to collect name/type
@@ -802,6 +861,54 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
           {/* Templates removed for MVP */}
         </div>
 
+        {/* POI Management Section (NEW) */}
+        {pois.length > 0 && (
+          <div style={{ marginTop: 16, padding: 12, background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <h3 style={{ fontSize: 14, fontWeight: 600, color: '#111827', margin: 0 }}>POIs ({pois.length})</h3>
+            </div>
+            <div style={{ maxHeight: 200, overflow: 'auto' }}>
+              <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {pois.map((poi) => (
+                  <li
+                    key={poi.id}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '8px 12px',
+                      background: 'white',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: 6
+                    }}
+                  >
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 500, fontSize: 13, color: '#111827' }}>{poi.name}</div>
+                      <div style={{ fontSize: 11, color: '#6b7280' }}>
+                        {poi.type || 'general'} • ({Math.round(poi.x || 0)}, {Math.round(poi.y || 0)})
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleDeletePoi(poi.id, poi.name)}
+                      style={{
+                        padding: '4px 8px',
+                        fontSize: 11,
+                        background: '#fee2e2',
+                        color: '#dc2626',
+                        border: '1px solid #fecaca',
+                        borderRadius: 4,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+
         {banner && <div style={{ marginBottom: 8, padding: 8, background: '#f0f9ff', border: '1px solid #bfdbfe' }}>{banner}</div>}
 
         <div>
@@ -815,6 +922,7 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
             onNewNode={(n) => { if (mode === 'node' || mode === 'draw-path') return handleNewNode(n); }}
             onNewSegment={(s) => { if (mode === 'draw-path') handleNewSegment(s); }}
             onNewPoi={(p) => { if (mode === 'poi') handleCanvasClickForPoi(p); }}
+            onNodeClick={handleNodeClick}
           />
         </div>
       </main>
@@ -890,6 +998,19 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
           floorplanImageUrl={floorplanUrl}
           onComplete={handleCalibrationComplete}
           onCancel={() => setShowCalibrationWizard(false)}
+        />
+      )}
+
+      {/* Node Edit Modal for Landmark Editing (NEW) */}
+      {showNodeEditModal && selectedNode && currentEventId && (
+        <NodeEditModal
+          node={selectedNode}
+          onSave={handleNodeEditSave}
+          onClose={() => {
+            setShowNodeEditModal(false);
+            setSelectedNode(null);
+          }}
+          eventId={currentEventId}
         />
       )}
     </div>

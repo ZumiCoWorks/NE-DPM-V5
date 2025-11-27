@@ -41,6 +41,7 @@ interface EventData {
   gps_bounds_ne_lng?: number;
   gps_bounds_sw_lat?: number;
   gps_bounds_sw_lng?: number;
+  gps_fallback_instruction?: string;
 }
 
 interface NavigationStep {
@@ -84,14 +85,14 @@ const AttendeePWA: React.FC = () => {
   const [gpsEnabled, setGpsEnabled] = useState(false);
   const [gpsWatchId, setGpsWatchId] = useState<number | null>(null);
   const [currentGPS, setCurrentGPS] = useState<GPSCoordinate | null>(null);
-  const [gpsAccuracy, setGpsAccuracy] = useState<number>(0);
+  const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
   const [floorplanDimensions, setFloorplanDimensions] = useState<FloorplanDimensions>({ width: 1000, height: 1000 });
   const [floorplanCalibration, setFloorplanCalibration] = useState<any>(null);
 
   const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
   // DEMO MODE TOGGLE
-  const DEMO_MODE = true;
+  const DEMO_MODE = false; // Phase 2: Disabled for Pilot
 
   // Helper function to show temporary messages
   const displayMessage = (msg: string, duration: number = 3000) => {
@@ -215,6 +216,31 @@ const AttendeePWA: React.FC = () => {
 
     if (eventId) {
       fetchEventData();
+
+      // Analytics: Log App Open
+      import('../../lib/analytics').then(({ logEvent, flushEvents }) => {
+        logEvent(eventId, 'app_open', {
+          userAgent: navigator.userAgent,
+          timestamp: Date.now()
+        });
+
+        // Initial flush check
+        flushEvents();
+
+        // Set up interval to flush every 30s
+        const intervalId = setInterval(() => {
+          flushEvents();
+        }, 30000);
+
+        // Flush on online
+        const handleOnline = () => flushEvents();
+        window.addEventListener('online', handleOnline);
+
+        return () => {
+          clearInterval(intervalId);
+          window.removeEventListener('online', handleOnline);
+        };
+      });
     }
   }, [eventId]);
 
@@ -227,43 +253,79 @@ const AttendeePWA: React.FC = () => {
     };
   }, [gpsWatchId]);
 
+  // Phase 2.3: Real GPS & "Bad Signal" Mode
+  // DEMO_MODE is defined above at line 94
+  // State variables are defined above at lines 84-87
+  const [badSignal, setBadSignal] = useState(false);
+
   const enableGPSTracking = () => {
-    try {
-      const watchId = watchGPSPosition(
-        (gps, accuracy) => {
-          setCurrentGPS(gps);
-          setGpsAccuracy(accuracy);
-          setGpsEnabled(true);
+    if (!navigator.geolocation) {
+      console.warn('Geolocation not supported');
+      return;
+    }
 
-          // Convert GPS to floorplan coordinates if we have event bounds
+    // console.log('📡 Starting Real GPS Tracking...');
+
+    const id = navigator.geolocation.watchPosition(
+      (position) => {
+        const { latitude, longitude, accuracy } = position.coords;
+        // console.log(`📍 GPS Update: ${latitude.toFixed(6)}, ${longitude.toFixed(6)} (Accuracy: ${accuracy}m)`);
+
+        setCurrentGPS({ lat: latitude, lng: longitude });
+        setGpsAccuracy(accuracy);
+        setGpsEnabled(true);
+
+        // Phase 2.3: Bad Signal Logic
+        if (accuracy > 15) {
+          if (!badSignal) {
+            console.warn('⚠️ Weak GPS Signal:', accuracy, 'm');
+            setBadSignal(true);
+            displayMessage('Weak GPS Signal. Look for landmarks.', 4000);
+          }
+        } else {
+          if (badSignal) {
+            console.log('✅ GPS Signal Restored');
+            setBadSignal(false);
+          }
+
+          // Only update floorplan location if signal is good
           if (eventData && eventData.gps_bounds_ne_lat && eventData.gps_bounds_sw_lat) {
-            const gpsBounds: GPSBounds = {
-              ne: { lat: eventData.gps_bounds_ne_lat, lng: eventData.gps_bounds_ne_lng! },
-              sw: { lat: eventData.gps_bounds_sw_lat, lng: eventData.gps_bounds_sw_lng! }
-            };
+            // ... existing conversion logic ...
+            // We need to make sure we have the bounds and dimensions
+            if (floorplanDimensions && floorplanCalibration) {
+              // We can use the helper if available, or just rely on the existing logic below
+              const gpsBounds: GPSBounds = {
+                ne: { lat: eventData.gps_bounds_ne_lat, lng: eventData.gps_bounds_ne_lng! },
+                sw: { lat: eventData.gps_bounds_sw_lat, lng: eventData.gps_bounds_sw_lng! }
+              };
 
-            if (isWithinBounds(gps, gpsBounds)) {
-              const floorplanCoord = gpsToFloorplan(gps, gpsBounds, floorplanDimensions);
-              setCurrentLocation({
-                x: floorplanCoord.x,
-                y: floorplanCoord.y,
-                source: 'gps',
-                accuracy
-              });
+              const currentGPSCoord = { lat: latitude, lng: longitude };
+              if (isWithinBounds(currentGPSCoord, gpsBounds)) {
+                const floorplanCoord = gpsToFloorplan(currentGPSCoord, gpsBounds, floorplanDimensions);
+                setCurrentLocation({
+                  x: floorplanCoord.x,
+                  y: floorplanCoord.y,
+                  source: 'gps',
+                  accuracy
+                });
+              }
             }
           }
-        },
-        (error) => {
-          console.error('GPS error:', error);
-          setError('GPS positioning unavailable. Please enable location services.');
         }
-      );
+      },
+      (error) => {
+        console.error('GPS Error:', error);
+        setGpsEnabled(false);
+        setError('GPS positioning unavailable. Please enable location services.');
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 5000,
+        timeout: 10000
+      }
+    );
 
-      setGpsWatchId(watchId);
-    } catch (err) {
-      console.error('Failed to enable GPS:', err);
-      setError('GPS not supported on this device');
-    }
+    setGpsWatchId(id);
   };
 
   useEffect(() => {
@@ -291,126 +353,239 @@ const AttendeePWA: React.FC = () => {
     };
   }, [cameraStream]);
 
-  // Load navigation data from Supabase database
-  useEffect(() => {
-    const loadNavigationData = async () => {
-      console.log('🔍 Loading navigation data for event:', eventId);
+  // Fetch manifest from Supabase Storage or Cache
+  const fetchManifest = async (eventId: string) => {
+    const manifestKey = `manifest_${eventId}`;
 
-      if (!eventId) {
-        console.warn('⚠️ No eventId - skipping navigation data load');
-        return;
+    // Initialize Supabase client
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabase = createClient(
+      import.meta.env.VITE_SUPABASE_URL,
+      import.meta.env.VITE_SUPABASE_ANON_KEY
+    );
+
+    // Import idb-keyval dynamically
+    const { get, set } = await import('idb-keyval');
+
+    try {
+      // Try fetching from network first
+      console.log('🌐 Fetching manifest for event:', eventId);
+      const { data } = supabase.storage.from('events').getPublicUrl(`manifest_${eventId}.json`);
+
+      if (data?.publicUrl) {
+        const response = await fetch(data.publicUrl);
+        if (response.ok) {
+          const manifest = await response.json();
+          console.log('✅ Manifest fetched from network:', manifest);
+
+          // Cache manifest
+          localStorage.setItem(manifestKey, JSON.stringify(manifest));
+
+          // Cache Floorplan Image (The "Digital Backpack")
+          if (manifest.floorplanUrl) {
+            const imageKey = `floorplan_blob_${eventId}`;
+            const cachedImage = await get(imageKey);
+
+            if (!cachedImage) {
+              console.log('🎒 Caching floorplan image to IndexedDB...');
+              try {
+                const imgRes = await fetch(manifest.floorplanUrl);
+                if (imgRes.ok) {
+                  const blob = await imgRes.blob();
+                  await set(imageKey, blob);
+                  console.log('✅ Floorplan image cached successfully');
+                }
+              } catch (err) {
+                console.warn('Failed to cache floorplan image:', err);
+              }
+            } else {
+              console.log('📦 Floorplan image already cached');
+            }
+          }
+
+          return manifest;
+        }
       }
+    } catch (error) {
+      console.warn('⚠️ Network fetch failed, trying cache...', error);
+    }
 
+    // Fallback to cache
+    const cached = localStorage.getItem(manifestKey);
+    if (cached) {
+      console.log('📦 Loaded manifest from cache');
+      return JSON.parse(cached);
+    }
+
+    return null;
+  };
+
+  // Load navigation data from Supabase database or Manifest
+  useEffect(() => {
+    const loadEventData = async () => {
       try {
+        setIsLoading(true);
+
+        // Initialize Supabase client
         const { createClient } = await import('@supabase/supabase-js');
         const supabase = createClient(
           import.meta.env.VITE_SUPABASE_URL,
           import.meta.env.VITE_SUPABASE_ANON_KEY
         );
 
-        console.log('📡 Fetching navigation points from database...');
-        // Fetch navigation points (nodes and POIs)
-        const { data: points, error: pointsError } = await supabase
-          .from('navigation_points')
-          .select('*')
-          .eq('event_id', eventId);
+        // 1. Get Event ID
+        let targetEventId = eventId || '';
 
-        if (pointsError) {
-          console.error('❌ Error loading navigation points:', pointsError);
-          return;
-        }
+        if (!targetEventId) {
+          // Fetch most recent active event if no ID provided
+          const { data: events } = await supabase
+            .from('events')
+            .select('id, name, navigation_mode, gps_bounds_ne_lat, gps_bounds_ne_lng, gps_bounds_sw_lat, gps_bounds_sw_lng')
+            .order('created_at', { ascending: false })
+            .limit(1);
 
-        console.log('✅ Raw navigation points:', points);
-
-        console.log('📡 Fetching navigation segments from database...');
-        // Fetch navigation segments
-        const { data: segments, error: segmentsError } = await supabase
-          .from('navigation_segments')
-          .select('*')
-          .eq('event_id', eventId);
-
-        if (segmentsError) {
-          console.error('❌ Error loading navigation segments:', segmentsError);
-          return;
-        }
-
-        console.log('✅ Raw navigation segments:', segments);
-
-        // Convert database points to GraphNode format
-        const nodes: GraphNode[] = (points || [])
-          .filter((p: any) => p.point_type === 'node' || p.point_type === 'poi')
-          .map((p: any) => ({
-            id: p.id,
-            x: Number(p.x_coord),
-            y: Number(p.y_coord),
-            name: p.name || `Node ${p.id.substring(0, 8)}`,
-            type: p.point_type === 'poi' ? 'poi' : 'node'
-          }));
-
-        // Convert database segments to GraphSegment format
-        const graphSegs: GraphSegment[] = (segments || []).map((s: any) => ({
-          id: s.id,
-          start_node_id: s.start_node_id,
-          end_node_id: s.end_node_id
-        }));
-
-        console.log('📍 Loaded navigation data:', {
-          rawPoints: points?.length || 0,
-          rawSegments: segments?.length || 0,
-          convertedNodes: nodes.length,
-          convertedSegments: graphSegs.length,
-          nodes,
-          segments: graphSegs
-        });
-
-        setGraphNodes(nodes);
-        setGraphSegments(graphSegs);
-
-        // Find a destination POI or node
-        const dest = nodes.find((n) => n.type === 'poi') || nodes[0];
-        setSelectedDestinationNodeId(dest?.id || null);
-
-        console.log('🎯 Selected destination:', dest?.name || dest?.id);
-
-        // Load floorplan image
-        console.log('🖼️ Fetching floorplan image for event...');
-        const { data: floorplan, error: floorplanError } = await supabase
-          .from('floorplans')
-          .select('image_url, image_width, image_height, gps_top_left_lat, gps_top_left_lng, gps_bottom_right_lat, gps_bottom_right_lng')
-          .eq('event_id', eventId)
-          .maybeSingle();
-
-        if (floorplanError) {
-          console.error('❌ Error loading floorplan:', floorplanError);
-        } else if (floorplan?.image_url) {
-          console.log('✅ Floorplan image loaded:', floorplan.image_url);
-          setFloorplanImageUrl(floorplan.image_url);
-
-          // Set dimensions if available
-          if (floorplan.image_width && floorplan.image_height) {
-            setFloorplanDimensions({
-              width: floorplan.image_width,
-              height: floorplan.image_height
-            });
-          }
-
-          // Store GPS calibration if available
-          if (floorplan.gps_top_left_lat && floorplan.gps_bottom_right_lat) {
-            setFloorplanCalibration({
-              topLeft: { lat: floorplan.gps_top_left_lat, lng: floorplan.gps_top_left_lng },
-              bottomRight: { lat: floorplan.gps_bottom_right_lat, lng: floorplan.gps_bottom_right_lng }
-            });
+          if (events && events.length > 0) {
+            targetEventId = events[0].id;
+            setEventData(events[0]);
           }
         } else {
-          console.warn('⚠️ No floorplan image found for event');
+          // Fetch specific event data
+          const { data: event } = await supabase
+            .from('events')
+            .select('*')
+            .eq('id', targetEventId)
+            .single();
+          if (event) setEventData(event);
+        }
+
+        if (!targetEventId) {
+          console.warn('No active event found');
+          setIsLoading(false);
+          return;
+        }
+
+        // 2. Try Fetching Manifest
+        const manifest = await fetchManifest(targetEventId);
+
+        if (manifest) {
+          console.log('🚀 Hydrating app from Manifest');
+
+          // Try to load image from cache first
+          const { get } = await import('idb-keyval');
+          const imageKey = `floorplan_blob_${targetEventId}`;
+          const cachedBlob = await get(imageKey);
+
+          if (cachedBlob) {
+            console.log('📂 Using cached floorplan blob');
+            setFloorplanImageUrl(URL.createObjectURL(cachedBlob));
+          } else {
+            setFloorplanImageUrl(manifest.floorplanUrl);
+          }
+
+          // Set dimensions/calibration from manifest config if available
+          if (manifest.config) {
+            // If manifest has explicit dimensions/calibration, use them
+            // For now, we rely on the floorplan image loading to get dimensions
+            // But we can set calibration if present
+          }
+
+          setEventData({
+            id: manifest.eventId,
+            name: 'Event Map', // Could be added to manifest
+            navigation_mode: 'outdoor', // Default or from manifest
+            gps_fallback_instruction: manifest.gpsFallbackInstruction
+          });
+
+          // Parse nodes
+          const nodes: GraphNode[] = manifest.nodes.map((n: any) => ({
+            id: n.id,
+            x: n.x,
+            y: n.y,
+            name: n.name,
+            type: n.type,
+            is_destination: n.isDestination
+          }));
+
+          // Parse segments from neighbors
+          const segments: GraphSegment[] = [];
+          const processedSegments = new Set<string>();
+
+          manifest.nodes.forEach((n: any) => {
+            if (n.neighbors) {
+              n.neighbors.forEach((nbr: any) => {
+                const segId = [n.id, nbr.id].sort().join('-');
+                if (!processedSegments.has(segId)) {
+                  segments.push({
+                    id: segId,
+                    start_node_id: n.id,
+                    end_node_id: nbr.id
+                    // distance is calculated in buildAdjacency or we can add it to the type if needed
+                    // For now, removing it to satisfy the type definition
+                  });
+                  processedSegments.add(segId);
+                }
+              });
+            }
+          });
+
+          setGraphNodes(nodes);
+          setGraphSegments(segments);
+
+        } else {
+          console.warn('❌ No manifest found. Falling back to direct DB calls.');
+
+          // Legacy DB Fetching
+          const { data: floorplan } = await supabase
+            .from('floorplans')
+            .select('*')
+            .eq('event_id', targetEventId)
+            .maybeSingle();
+
+          if (floorplan) {
+            setFloorplanImageUrl(floorplan.image_url);
+            if (floorplan.image_width && floorplan.image_height) {
+              setFloorplanDimensions({ width: floorplan.image_width, height: floorplan.image_height });
+            }
+            if (floorplan.gps_top_left_lat && floorplan.gps_bottom_right_lat) {
+              setFloorplanCalibration({
+                topLeft: { lat: floorplan.gps_top_left_lat, lng: floorplan.gps_top_left_lng },
+                bottomRight: { lat: floorplan.gps_bottom_right_lat, lng: floorplan.gps_bottom_right_lng }
+              });
+            }
+
+            const { data: points } = await supabase.from('navigation_points').select('*').eq('floorplan_id', floorplan.id);
+            if (points) {
+              setGraphNodes(points.map((p: any) => ({
+                id: p.id,
+                x: p.x_coord,
+                y: p.y_coord,
+                name: p.name,
+                type: p.point_type,
+                is_destination: p.is_destination
+              })));
+            }
+
+            const { data: segs } = await supabase.from('navigation_segments').select('*').eq('floorplan_id', floorplan.id);
+            if (segs) {
+              setGraphSegments(segs.map((s: any) => ({
+                id: s.id,
+                start_node_id: s.start_node_id,
+                end_node_id: s.end_node_id
+                // distance is calculated in buildAdjacency or we can add it to the type if needed
+                // For now, removing it to satisfy the type definition
+              })));
+            }
+          }
         }
 
       } catch (error) {
-        console.error('💥 Failed to load navigation data:', error);
+        console.error('Error loading event data:', error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    loadNavigationData();
+    loadEventData();
   }, [eventId]);
 
   // Auto-recalculate route when GPS position updates or destination changes
@@ -819,7 +994,7 @@ const AttendeePWA: React.FC = () => {
                 <div className={`mt-2 flex items-center text-sm ${gpsEnabled ? 'text-green-600' : 'text-orange-600'}`}>
                   <Satellite className="w-4 h-4 mr-1" />
                   {gpsEnabled ? (
-                    <span>GPS Active • Accuracy: {gpsAccuracy.toFixed(0)}m</span>
+                    <span>GPS Active • Accuracy: {gpsAccuracy ? gpsAccuracy.toFixed(0) : '?'}m</span>
                   ) : (
                     <span>GPS Searching...</span>
                   )}
@@ -845,6 +1020,18 @@ const AttendeePWA: React.FC = () => {
 
             <div className="flex-1 overflow-y-auto p-4">
               <div className="mb-4 w-full relative">
+                {/* Bad Signal Banner */}
+                {badSignal && (
+                  <div className="absolute top-4 left-4 right-4 z-10 bg-red-600 text-white px-4 py-3 rounded-lg shadow-lg flex items-center animate-pulse">
+                    <WifiOff className="w-5 h-5 mr-3 flex-shrink-0" />
+                    <div>
+                      <p className="font-bold text-sm">Weak GPS Signal</p>
+                      <p className="text-xs opacity-90">
+                        {eventData?.gps_fallback_instruction || 'Look for physical landmarks to orient yourself.'}
+                      </p>
+                    </div>
+                  </div>
+                )}
                 <FloorplanCanvas
                   floorplanImageUrl={floorplanImageUrl || ''}
                   nodes={graphNodes}
