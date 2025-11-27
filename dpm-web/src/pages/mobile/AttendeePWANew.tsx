@@ -1193,6 +1193,13 @@ const AttendeePWANew: React.FC = () => {
 
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {(() => { console.log('🎨 Rendering POIs - count:', pois.length, 'data:', pois); return null; })()}
+
+              {/* DEBUG BANNER - REMOVE AFTER TESTING */}
+              <div className="bg-blue-100 border-2 border-blue-500 p-4 rounded-lg text-center">
+                <p className="font-bold text-blue-900">DEBUG: POI Count = {pois.length}</p>
+                <p className="text-xs text-blue-700">If you see this with count > 0 but no POIs below, it's a rendering bug</p>
+              </div>
+
               {pois.length > 0 ? (
                 pois.map((poi) => (
                   <div key={poi.id} className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4">
