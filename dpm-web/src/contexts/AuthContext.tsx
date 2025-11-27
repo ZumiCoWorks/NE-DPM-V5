@@ -21,7 +21,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, fullName: string, role?: 'admin' | 'sponsor' | 'staff' | 'organizer') => Promise<void>;
+  register: (email: string, password: string, fullName: string, role?: 'admin' | 'event_organizer' | 'venue_manager' | 'advertiser' | 'staff') => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
   updateProfile: (updates: Partial<User>) => Promise<void>;
@@ -273,7 +273,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const register = async (email: string, password: string, fullName: string, role: 'admin' | 'sponsor' | 'staff' | 'organizer' = 'organizer') => {
+  const register = async (email: string, password: string, fullName: string, role: 'admin' | 'event_organizer' | 'venue_manager' | 'advertiser' | 'staff' = 'event_organizer') => {
     setLoading(true);
     try {
       if (!supabase) throw new Error('Supabase not initialized');
