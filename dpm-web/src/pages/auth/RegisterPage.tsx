@@ -13,7 +13,7 @@ export const RegisterPage: React.FC = () => {
     password: '',
     confirmPassword: '',
     fullName: '',
-    role: 'organizer' as UserRole, // Default to organizer
+    role: 'event_organizer' as UserRole, // Default to event_organizer
   })
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
@@ -218,8 +218,8 @@ export const RegisterPage: React.FC = () => {
                 onChange={handleChange}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
               >
-                <option value="organizer">Event Organizer</option>
-                <option value="sponsor">Sponsor</option>
+                <option value="event_organizer">Event Organizer</option>
+                <option value="advertiser">Sponsor</option>
                 <option value="staff">Staff Member</option>
               </select>
               <p className="mt-1 text-xs text-gray-500">

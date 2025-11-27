@@ -34,6 +34,8 @@ export const NodeEditModal: React.FC<NodeEditModalProps> = ({ node, onSave, onCl
             setUploading(true);
             const fileName = `landmarks/${eventId}/${node.id}_${Date.now()}.${photoFile.name.split('.').pop()}`;
 
+            if (!supabase) throw new Error('Supabase not initialized');
+
             const { data, error } = await supabase.storage
                 .from('floorplans')
                 .upload(fileName, photoFile, {
@@ -42,6 +44,8 @@ export const NodeEditModal: React.FC<NodeEditModalProps> = ({ node, onSave, onCl
                 });
 
             if (error) throw error;
+
+            if (!supabase) throw new Error('Supabase not initialized');
 
             const { data: urlData } = supabase.storage
                 .from('floorplans')
@@ -71,6 +75,8 @@ export const NodeEditModal: React.FC<NodeEditModalProps> = ({ node, onSave, onCl
                     return;
                 }
             }
+
+            if (!supabase) throw new Error('Supabase not initialized');
 
             // Update database
             const { error } = await supabase
