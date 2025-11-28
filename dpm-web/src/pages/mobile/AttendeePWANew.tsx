@@ -144,8 +144,6 @@ const AttendeePWANew: React.FC = () => {
     const newDistance = calculateDistance(currentGPS, poiGPS);
     const newBearing = calculateBearing(currentGPS, poiGPS);
     
-    console.log('🔄 Recalculating - Distance:', newDistance.toFixed(1) + 'm', 'Bearing:', newBearing.toFixed(0) + '°');
-    
     setDistanceToTarget(newDistance);
     setBearingToTarget(newBearing);
     
@@ -256,9 +254,6 @@ const AttendeePWANew: React.FC = () => {
       
       // Extract POIs
       const poisList = nodes.filter(n => n.type === 'poi');
-      console.log('🔍 All nodes:', nodes.map(n => ({ name: n.name, type: n.type })));
-      console.log('📍 Filtered POIs:', poisList.map(p => ({ name: p.name, type: p.type, hasGPS: !!(p.metadata?.gps_lat && p.metadata?.gps_lng) })));
-      console.log('✨ Setting POIs state with', poisList.length, 'items');
       setPois(poisList);
 
       // Set floorplan image
@@ -671,7 +666,6 @@ const AttendeePWANew: React.FC = () => {
           ) : (
             <p className="text-gray-400 text-sm mt-1">Finding your way...</p>
           )}
-          <p className="text-gray-400 text-sm mt-1">Finding your way...</p>
         </div>
 
         {/* Main compass/direction area */}
@@ -950,7 +944,6 @@ const AttendeePWANew: React.FC = () => {
             )}
             
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
-              {(() => { console.log('🎨 Rendering POIs - count:', pois.length, 'data:', pois); return null; })()}
               {pois.length > 0 ? (
                 pois.map((poi) => (
                   <div key={poi.id} className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4">
