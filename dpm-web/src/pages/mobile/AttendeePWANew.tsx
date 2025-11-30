@@ -900,7 +900,7 @@ const AttendeePWANew: React.FC = () => {
 
             {/* Direction indicator (rotates based on relative bearing) */}
             <div
-              className="absolute inset-0 flex items-center justify-center transition-transform duration-300"
+              className="absolute inset-0 flex items-center justify-center transition-transform duration-700 ease-out"
               style={{ transform: `rotate(${relativeBearing}deg)` }}
             >
               <div className={`w-0 h-0 border-l-[40px] border-l-transparent border-r-[40px] border-r-transparent border-b-[80px] ${isPointingCorrect ? 'border-b-green-400' : 'border-b-brand-red'
