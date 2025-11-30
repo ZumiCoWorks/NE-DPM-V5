@@ -154,11 +154,20 @@ const AttendeePWANew: React.FC = () => {
     setDistanceToTarget(newDistance);
     setBearingToTarget(newBearing);
     
-    // Trigger arrival haptic when very close
+    // Trigger arrival haptic and show modal when very close
     if (newDistance < 3 && distanceToTarget >= 3) {
       triggerHaptic('heavy');
-      displayMessage('🎯 You have arrived!', 3000);
+      setShowArrivalModal(true);
     }
+  // Arrival modal state
+  const [showArrivalModal, setShowArrivalModal] = useState(false);
+    // Debug overlay for GPS and distance
+    const debugOverlay = (
+      <div style={{position:'fixed',top:8,right:8,zIndex:1000,background:'#222',color:'#fff',padding:'8px',borderRadius:'8px',fontSize:'12px',opacity:0.8}}>
+        <div>GPS: {currentGPS ? `${currentGPS.lat.toFixed(6)}, ${currentGPS.lng.toFixed(6)}` : 'N/A'}</div>
+        <div>Distance: {distanceToTarget.toFixed(1)}m</div>
+      </div>
+    );
   }, [currentGPS, selectedPOI, distanceToTarget]);
 
   // Check offline status
@@ -789,6 +798,21 @@ const AttendeePWANew: React.FC = () => {
 
     return (
       <div className="flex flex-col h-screen bg-gradient-to-br from-brand-black to-brand-gray-dark text-white">
+        {debugOverlay}
+        {/* Animated Arrival Modal */}
+        {showArrivalModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+            <div className="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center animate-bounceIn">
+              <CheckCircle className="w-16 h-16 text-green-500 animate-pulse mb-4" />
+              <h2 className="text-2xl font-bold text-green-700 mb-2">Success!</h2>
+              <p className="text-lg text-gray-800 mb-2">You have arrived at <span className="font-semibold">{selectedPOI?.name}</span></p>
+              <button
+                className="mt-4 px-6 py-2 bg-green-500 text-white rounded-lg font-semibold shadow"
+                onClick={() => setShowArrivalModal(false)}
+              >Continue</button>
+            </div>
+          </div>
+        )}
         {/* Header */}
         <div className="p-6 bg-brand-black/50 backdrop-blur-sm">
           <button
@@ -1003,57 +1027,68 @@ const AttendeePWANew: React.FC = () => {
                   className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 cursor-pointer hover:shadow-md hover:border-brand-red transition-all"
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1">
-                      <h3 className="text-gray-900 font-semibold text-lg mb-1">{event.name}</h3>
-                      {event.description && (
-                        <p className="text-gray-600 text-sm mb-3">{event.description}</p>
+                    <div className="text-center max-w-sm">
+                      {isVeryClose ? (
+                        <div>
+                          <p className="text-xl text-green-400 font-semibold">You have arrived!</p>
+                          {currentWaypoint && !isLastWaypoint && (
+                            <p className="text-sm text-gray-400 mt-2">Next: {navigationPath[currentWaypointIndex + 1]?.name}</p>
+                          )}
+                        </div>
+                      ) : currentWaypoint ? (
+                        <div>
+                          <p className="text-lg font-semibold mb-1">
+                            {isPointingCorrect ? (
+                              <span className="text-green-400">Keep going straight</span>
+                            ) : relativeBearing > 0 ? (
+                              <span>Turn right</span>
+                            ) : (
+                              <span>Turn left</span>
+                            )}
+                          </p>
+                          <p className="text-sm text-gray-400">
+                            toward {currentWaypoint.name}
+                          </p>
+                          {!isLastWaypoint && navigationPath[currentWaypointIndex + 1] && (
+                            <p className="text-xs text-gray-500 mt-2">
+                              Then continue to {navigationPath[currentWaypointIndex + 1].name}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="text-lg font-semibold mb-1">
+                            {isPointingCorrect ? (
+                              <span className="text-green-400">Keep going straight</span>
+                            ) : relativeBearing > 0 ? (
+                              <span>Turn right and walk forward</span>
+                            ) : (
+                              <span>Turn left and walk forward</span>
+                            )}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-2">
+                            Direct path to destination
+                          </p>
+                        </div>
                       )}
-                      
-                      {/* Event metadata */}
-                      <div className="flex flex-wrap gap-2">
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-brand-yellow/20 text-brand-gray-dark border border-brand-yellow/30">
-                          {event.navigation_mode === 'outdoor' && '📍 Outdoor GPS'}
-                          {event.navigation_mode === 'indoor' && '🏢 Indoor QR'}
-                          {event.navigation_mode === 'hybrid' && '🌐 Hybrid'}
-                        </span>
-                        {event.start_date && (
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
-                            {new Date(event.start_date).toLocaleDateString()}
-                          </span>
-                        )}
-                      </div>
+                      {/* Step-by-step textual directions */}
+                      {navigationPath.length > 0 && (
+                        <div className="mt-6 text-left bg-white/10 rounded-lg p-3">
+                          <h4 className="text-sm font-bold text-brand-yellow mb-2">Directions:</h4>
+                          <ol className="list-decimal ml-4 text-xs text-gray-200">
+                            {navigationPath.map((node, idx) => (
+                              <li key={node.id || idx}>{node.name}</li>
+                            ))}
+                          </ol>
+                        </div>
+                      )}
+                      {/* Path navigation note */}
+                      {!isVeryClose && navigationPath.length === 0 && (
+                        <p className="text-xs text-gray-500 mt-4 px-4">
+                          ℹ️ This shows the direct path. View the map below for pathways around buildings.
+                        </p>
+                      )}
                     </div>
-                    <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // MAIN APP SCREEN (with tabs)
-  return (
-    <div className="flex flex-col h-screen max-w-md mx-auto bg-white shadow-xl">
-      {/* Message Toast */}
-      {showMessage && (
-        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-brand-black text-brand-yellow px-6 py-3 rounded-full shadow-lg border-2 border-brand-yellow animate-bounce">
-          {message}
-        </div>
-      )}
-
-      {/* Main Content */}
-      <div className="flex-1 overflow-hidden">
-        {/* DIRECTORY TAB */}
-        {activeTab === 'directory' && (
-          <div className="flex flex-col h-full bg-gray-50">
-            <div className="p-4 bg-brand-black border-b-4 border-brand-yellow">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h1 className="text-white text-xl font-bold tracking-tight">NavEaze</h1>
-                  <p className="text-gray-300 text-xs mt-0.5">{selectedEvent?.name || 'Event Navigation'}</p>
                 </div>
                 <div className="flex items-center space-x-2">
                   {offlineMode ? (
