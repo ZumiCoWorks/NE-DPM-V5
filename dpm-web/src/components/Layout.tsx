@@ -105,9 +105,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         <div className="fixed inset-0 bg-gray-600 bg-opacity-75" />
         <div className="fixed inset-y-0 left-0 flex w-64 flex-col bg-white">
           <div className="flex h-16 items-center justify-between px-4">
-            <div className="flex items-center gap-2">
-              <img src="/nav-eaze-logo.svg" alt="NavEaze" className="h-8 w-auto" />
-              <span className="text-xl font-bold text-gray-900">NavEaze</span>
+            <div className="flex items-center">
+              <img src="/nav-eaze-logo.svg" alt="NavEaze" className="h-10 w-auto" />
             </div>
             <button
               onClick={() => setSidebarOpen(false)}
@@ -215,9 +214,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       <div className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0">
         <div className="flex flex-col flex-grow bg-white border-r border-gray-200">
           <div className="flex items-center h-16 px-4 border-b border-gray-200">
-            <div className="flex items-center gap-2">
-              <img src="/nav-eaze-logo.svg" alt="NavEaze" className="h-8 w-auto" />
-              <span className="text-xl font-bold text-gray-900">NavEaze</span>
+            <div className="flex items-center">
+              <img src="/nav-eaze-logo.svg" alt="NavEaze" className="h-10 w-auto" />
             </div>
           </div>
           <nav className="flex-1 space-y-1 px-2 py-4">
