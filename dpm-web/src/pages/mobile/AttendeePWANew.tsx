@@ -147,33 +147,56 @@ const AttendeePWANew: React.FC = () => {
 
   // Update distance/bearing continuously when GPS or target changes
   useEffect(() => {
-    if (!currentGPS || !selectedPOI?.metadata?.gps_lat || !selectedPOI?.metadata?.gps_lng) {
-      return;
+    if (!currentGPS) return;
+
+    // Determine target: current waypoint OR final destination
+    let targetGPS: { lat: number; lng: number } | null = null;
+    let targetName = '';
+
+    if (navigationPath.length > 0 && currentWaypointIndex < navigationPath.length) {
+      const currentWaypoint = navigationPath[currentWaypointIndex];
+      if (currentWaypoint?.metadata?.gps_lat && currentWaypoint?.metadata?.gps_lng) {
+        targetGPS = {
+          lat: currentWaypoint.metadata.gps_lat,
+          lng: currentWaypoint.metadata.gps_lng
+        };
+        targetName = currentWaypoint.name || 'Waypoint';
+      }
     }
 
-    const poiGPS = { lat: selectedPOI.metadata.gps_lat, lng: selectedPOI.metadata.gps_lng };
-    const newDistance = calculateDistance(currentGPS, poiGPS);
-    const newBearing = calculateBearing(currentGPS, poiGPS);
+    if (!targetGPS && selectedPOI?.metadata?.gps_lat && selectedPOI?.metadata?.gps_lng) {
+      targetGPS = { lat: selectedPOI.metadata.gps_lat, lng: selectedPOI.metadata.gps_lng };
+      targetName = selectedPOI.name || 'Destination';
+    }
 
-    // Only update if distance changed by more than 1m (reduces jitter)
+    if (!targetGPS) return;
+
+    const newDistance = calculateDistance(currentGPS, targetGPS);
+    const newBearing = calculateBearing(currentGPS, targetGPS);
+
     if (Math.abs(newDistance - distanceToTarget) > 1) {
       setDistanceToTarget(newDistance);
-      console.log('📍 Distance updated:', newDistance.toFixed(1) + 'm');
+      console.log('📍 Distance to', targetName + ':', newDistance.toFixed(1) + 'm');
     }
 
-    // Smooth bearing updates (interpolate if change is small)
     const bearingDiff = Math.abs(newBearing - bearingToTarget);
     if (bearingDiff > 5) {
       setBearingToTarget(newBearing);
-      console.log('🧭 Bearing updated:', newBearing.toFixed(0) + '°');
+      console.log('🧭 Bearing to', targetName + ':', newBearing.toFixed(0) + '°');
     }
 
-    // Trigger arrival haptic and show modal when very close
-    if (newDistance < 3 && distanceToTarget >= 3) {
+    if (newDistance < 5 && navigationPath.length > 0 && currentWaypointIndex < navigationPath.length - 1) {
+      const nextIndex = currentWaypointIndex + 1;
+      setCurrentWaypointIndex(nextIndex);
+      triggerHaptic('medium');
+      console.log('✅ Reached waypoint! Moving to:', navigationPath[nextIndex].name);
+    }
+
+    if (newDistance < 3 && distanceToTarget >= 3 && currentWaypointIndex === navigationPath.length - 1) {
       triggerHaptic('heavy');
       setShowArrivalModal(true);
     }
-  }, [currentGPS, selectedPOI, distanceToTarget, bearingToTarget]);
+  }, [currentGPS, selectedPOI, navigationPath, currentWaypointIndex, distanceToTarget, bearingToTarget]);
 
   // Check offline status
   useEffect(() => {
