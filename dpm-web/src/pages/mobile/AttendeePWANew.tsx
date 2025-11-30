@@ -61,6 +61,8 @@ type Tab = 'directory' | 'map' | 'scanner';
 const AttendeePWANew: React.FC = () => {
   // Arrival modal state
   const [showArrivalModal, setShowArrivalModal] = useState(false);
+  // Debug mode for testing
+  const [debugMode, setDebugMode] = useState(false);
   // Screen flow state
   const [currentScreen, setCurrentScreen] = useState<Screen>('splash');
   const [activeTab, setActiveTab] = useState<Tab>('directory');
@@ -856,21 +858,29 @@ const AttendeePWANew: React.FC = () => {
         )}
         {/* Header */}
         <div className="p-6 bg-brand-black/50 backdrop-blur-sm">
-          <button
-            onClick={() => {
-              setCurrentScreen('main');
-              setActiveTab('directory');
-              if (headingWatchCleanup) {
-                headingWatchCleanup();
-                setHeadingWatchCleanup(null);
-              }
-              setNavigationPath([]);
-              setCurrentWaypointIndex(0);
-            }}
-            className="text-brand-yellow text-sm mb-2"
-          >
-            ← Back
-          </button>
+          <div className="flex items-center justify-between mb-2">
+            <button
+              onClick={() => {
+                setCurrentScreen('main');
+                setActiveTab('directory');
+                if (headingWatchCleanup) {
+                  headingWatchCleanup();
+                  setHeadingWatchCleanup(null);
+                }
+                setNavigationPath([]);
+                setCurrentWaypointIndex(0);
+              }}
+              className="text-brand-yellow text-sm"
+            >
+              ← Back
+            </button>
+            <button
+              onClick={() => setDebugMode(!debugMode)}
+              className="text-xs text-gray-500 px-2 py-1 border border-gray-600 rounded"
+            >
+              {debugMode ? '🔧 Debug ON' : 'Debug'}
+            </button>
+          </div>
           <h1 className="text-2xl font-bold">{selectedPOI?.name}</h1>
           {currentWaypoint && !isLastWaypoint ? (
             <p className="text-gray-400 text-sm mt-1">Via {currentWaypoint.name} • Step {waypointProgress}</p>
@@ -961,6 +971,45 @@ const AttendeePWANew: React.FC = () => {
                 <p className="text-xs text-gray-500 mt-2">
                   Direct path to destination
                 </p>
+              </div>
+            )}
+
+            {/* Debug Controls */}
+            {debugMode && (
+              <div className="mt-6 p-4 bg-black/50 rounded-lg border border-brand-yellow">
+                <p className="text-xs text-brand-yellow mb-2">🔧 Debug Mode</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      if (currentGPS && selectedPOI?.metadata?.gps_lat) {
+                        const poiGPS = { lat: selectedPOI.metadata.gps_lat, lng: selectedPOI.metadata.gps_lng };
+                        const bearing = calculateBearing(currentGPS, poiGPS);
+                        const distance = Math.max(0, distanceToTarget - 10);
+
+                        // Move 10m closer
+                        const newLat = currentGPS.lat + (10 / 111320) * Math.cos(bearing * Math.PI / 180);
+                        const newLng = currentGPS.lng + (10 / (111320 * Math.cos(currentGPS.lat * Math.PI / 180))) * Math.sin(bearing * Math.PI / 180);
+
+                        setCurrentGPS({ lat: newLat, lng: newLng });
+                      }
+                    }}
+                    className="px-3 py-1 bg-green-500 text-white text-xs rounded"
+                  >
+                    Walk 10m Closer
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (currentGPS && selectedPOI?.metadata?.gps_lat) {
+                        setDistanceToTarget(2);
+                        setShowArrivalModal(true);
+                      }
+                    }}
+                    className="px-3 py-1 bg-brand-red text-white text-xs rounded"
+                  >
+                    Trigger Arrival
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400 mt-2">Distance: {distanceToTarget.toFixed(1)}m</p>
               </div>
             )}
 
