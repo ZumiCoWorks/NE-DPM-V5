@@ -32,7 +32,7 @@ export const LoginPage = () => {
       <div className="hidden lg:flex lg:w-1/2 items-center justify-center p-12">
         <div className="max-w-md text-white">
           <div className="mb-8 flex items-center">
-            <img src="/nav-eaze-logo.svg" alt="NavEaze" className="h-16 mb-4" />
+            <img src="/nav-eaze-logo-dark.svg" alt="NavEaze" className="h-16 mb-4" />
           </div>
           <h2 className="text-3xl font-semibold mb-4">Effortlessly manage your team and operations</h2>
           <p className="text-gray-300 text-lg">
@@ -71,11 +71,11 @@ export const LoginPage = () => {
           <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
             {/* NavEaze Red accent bar */}
             <div className="h-2" style={{ background: 'linear-gradient(90deg, #FFD700 0%, #E63946 50%, #FFD700 100%)' }}></div>
-            
+
             <div className="p-8">
               {/* Mobile logo */}
               <div className="lg:hidden mb-6 text-center">
-                <img src="/nav-eaze-logo.svg" alt="NavEaze" className="h-12 mx-auto mb-2" />
+                <img src="/nav-eaze-logo-dark.svg" alt="NavEaze" className="h-12 mx-auto mb-2" />
                 <p className="text-gray-600">Welcome back</p>
               </div>
 
@@ -130,8 +130,8 @@ export const LoginPage = () => {
                   </div>
                 </div>
 
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   className="w-full text-white font-semibold py-3 px-4 rounded-lg transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-lg"
                   style={{ backgroundColor: '#E63946' }}
                   onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#D62839'}
@@ -158,8 +158,8 @@ export const LoginPage = () => {
                 </div>
 
                 <div className="text-center">
-                  <Link 
-                    to="/register" 
+                  <Link
+                    to="/register"
                     className="inline-block w-full py-3 px-4 border-2 border-black text-black font-semibold rounded-lg hover:bg-black hover:text-white transition-all transform hover:scale-[1.02] active:scale-[0.98]"
                   >
                     Create Account
