@@ -55,7 +55,7 @@ interface LocationData {
   accuracy?: number;
 }
 
-type Screen = 'splash' | 'event-select' | 'main' | 'precision-finding';
+type Screen = 'splash' | 'event-select' | 'main' | 'precision-finding' | 'ar-preview';
 type Tab = 'directory' | 'map' | 'scanner';
 
 const AttendeePWANew: React.FC = () => {
@@ -69,6 +69,10 @@ const AttendeePWANew: React.FC = () => {
   const [bearingToTarget, setBearingToTarget] = useState<number>(0);
   const [relativeBearing, setRelativeBearing] = useState<number>(0);
   const [headingWatchCleanup, setHeadingWatchCleanup] = useState<(() => void) | null>(null);
+  
+  // AR Preview state (Phase 3 demo)
+  const [arCameraStream, setArCameraStream] = useState<MediaStream | null>(null);
+  const arVideoRef = useRef<HTMLVideoElement>(null);
   
   // Event state
   const [events, setEvents] = useState<EventData[]>([]);
@@ -115,11 +119,14 @@ const AttendeePWANew: React.FC = () => {
       if (cameraStream) {
         cameraStream.getTracks().forEach(track => track.stop());
       }
+      if (arCameraStream) {
+        arCameraStream.getTracks().forEach(track => track.stop());
+      }
       if (headingWatchCleanup) {
         headingWatchCleanup();
       }
     };
-  }, [gpsWatchId, cameraStream, headingWatchCleanup]);
+  }, [gpsWatchId, cameraStream, arCameraStream, headingWatchCleanup]);
 
   // Update relative bearing when device heading or target bearing changes
   useEffect(() => {
@@ -628,6 +635,147 @@ const AttendeePWANew: React.FC = () => {
     );
   }
 
+  // AR PREVIEW SCREEN (Phase 3 Demo)
+  if (currentScreen === 'ar-preview') {
+    // Calculate real distance and bearing if we have GPS and a selected POI
+    let arDistance = 45; // fallback
+    let arBearing = 0;
+    let arRelativeBearing = 0;
+    let arDirection = "Walk forward";
+
+    if (currentGPS && selectedPOI?.metadata?.gps_lat && selectedPOI?.metadata?.gps_lng) {
+      const poiGPS = { lat: selectedPOI.metadata.gps_lat, lng: selectedPOI.metadata.gps_lng };
+      arDistance = calculateDistance(currentGPS, poiGPS);
+      arBearing = calculateBearing(currentGPS, poiGPS);
+      arRelativeBearing = calculateRelativeBearing(deviceHeading, arBearing);
+      
+      if (Math.abs(arRelativeBearing) < 20) {
+        arDirection = "Keep going straight";
+      } else if (arRelativeBearing > 0) {
+        arDirection = "Turn right";
+      } else {
+        arDirection = "Turn left";
+      }
+    }
+
+    return (
+      <div className="flex flex-col h-screen bg-gradient-to-br from-black via-gray-900 to-black text-white">
+        {/* Header */}
+        <div className="p-6 bg-black/50 backdrop-blur-sm border-b border-white/10">
+          <button
+            onClick={() => {
+              // Stop AR camera
+              if (arCameraStream) {
+                arCameraStream.getTracks().forEach(track => track.stop());
+                setArCameraStream(null);
+              }
+              setCurrentScreen('main');
+            }}
+            className="text-white text-sm mb-2 flex items-center gap-2"
+          >
+            ← Exit AR Mode
+          </button>
+          <div className="flex items-center justify-between">
+            <h1 className="text-xl font-bold">AR Navigation</h1>
+            <span className="px-3 py-1 text-xs font-semibold bg-purple-600 rounded-full animate-pulse">
+              PHASE 3 PREVIEW
+            </span>
+          </div>
+        </div>
+
+        {/* Main AR Content Area */}
+        <div className="flex-1 flex flex-col items-center justify-center p-8 relative">
+          {/* Centered AR Directional Arrow - Rotates with real bearing */}
+          <div className="relative mb-8">
+            <div
+              className="w-32 h-32 bg-gradient-to-br from-yellow-400/30 to-orange-500/30 rounded-full flex items-center justify-center border-4 border-yellow-400/60 animate-pulse transition-transform duration-500"
+              style={{ transform: `rotate(${arRelativeBearing}deg)` }}
+            >
+              <svg className="w-20 h-20 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 2L4 12h5v8h6v-8h5z" />
+              </svg>
+            </div>
+            {/* Glow effect */}
+            <div className="absolute inset-0 w-32 h-32 bg-yellow-400/20 rounded-full blur-xl -z-10"></div>
+          </div>
+
+          {/* Distance Indicator - Shows real distance */}
+          <div className="bg-black/70 backdrop-blur-sm px-6 py-3 rounded-full border-2 border-yellow-400/50 mb-4">
+            <div className="text-3xl font-bold text-yellow-400">{formatDistance(arDistance)}</div>
+          </div>
+
+          {/* Direction Text - Shows real direction */}
+          <div className="text-center mb-8">
+            <div className="text-xl font-semibold mb-1">{arDirection}</div>
+            <div className="text-gray-300 text-sm">to {selectedPOI?.name || 'destination'}</div>
+            {currentGPS && selectedPOI?.metadata?.gps_lat && (
+              <div className="text-xs text-gray-400 mt-1">
+                {bearingToCardinal(arBearing)} {bearingToArrow(arBearing)}
+              </div>
+            )}
+          </div>
+
+          {/* AR Markers - Simulated POIs in view */}
+          <div className="absolute top-1/3 left-1/4">
+            <div className="bg-blue-500/80 backdrop-blur-sm px-3 py-2 rounded-lg border border-blue-300 flex items-center gap-2">
+              <MapPin className="w-4 h-4" />
+              <span className="text-sm font-medium">Food Court</span>
+              <span className="text-xs opacity-75">120m →</span>
+            </div>
+          </div>
+
+          <div className="absolute top-1/2 right-1/4">
+            <div className="bg-purple-500/80 backdrop-blur-sm px-3 py-2 rounded-lg border border-purple-300 flex items-center gap-2">
+              <MapPin className="w-4 h-4" />
+              <span className="text-sm font-medium">Restrooms</span>
+              <span className="text-xs opacity-75">85m ↗</span>
+            </div>
+          </div>
+
+          {/* Compass indicator */}
+          <div className="absolute top-8 right-8 w-16 h-16 bg-black/70 rounded-full border-2 border-white/30 flex items-center justify-center">
+            <Compass className="w-8 h-8 text-white" style={{ transform: `rotate(${deviceHeading}deg)` }} />
+            <div className="absolute -top-1 left-1/2 transform -translate-x-1/2 text-xs font-bold">N</div>
+          </div>
+
+          {/* GPS Status indicator */}
+          {currentGPS && (
+            <div className="absolute bottom-8 left-8 bg-black/70 backdrop-blur-sm px-3 py-2 rounded-lg border border-green-400/50">
+              <div className="flex items-center gap-2 text-xs">
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                <span className="text-green-400">GPS Active • ±{gpsAccuracy.toFixed(0)}m</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Bottom Info Panel */}
+        <div className="p-6 bg-gradient-to-t from-black/90 to-transparent">
+          <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20">
+            <div className="flex items-start gap-4">
+              <div className="p-2 bg-purple-600 rounded-lg">
+                <Navigation className="w-6 h-6" />
+              </div>
+              <div className="flex-1">
+                <div className="text-sm font-semibold mb-1">Phase 3: AR Wayfinding</div>
+                <div className="text-xs text-gray-300">
+                  Point your camera and see real-time AR arrows guiding you to any booth or stage. No GPS needed indoors.
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => setCurrentScreen('precision-finding')}
+              className="w-full mt-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2"
+            >
+              Switch to GPS Mode
+              <ArrowRight className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // PRECISION FINDING SCREEN (AirTag-style navigation)
   if (currentScreen === 'precision-finding') {
     const isClose = distanceToTarget < 10;
@@ -944,6 +1092,36 @@ const AttendeePWANew: React.FC = () => {
             )}
             
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {/* AR Preview Promo Banner (Phase 3 Demo) */}
+              <div className="p-4">
+                <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl p-4 shadow-lg">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 bg-white/20 rounded-lg">
+                      <Camera className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-white font-bold text-sm">Phase 3: AR Navigation</div>
+                      <div className="text-white/80 text-xs">See the future of event wayfinding</div>
+                    </div>
+                    <span className="px-2 py-1 bg-yellow-400 text-black text-xs font-bold rounded-full">
+                      NEW
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (pois.length > 0) {
+                        setSelectedPOI(pois[0]);
+                        setCurrentScreen('ar-preview');
+                      }
+                    }}
+                    className="w-full bg-white text-purple-600 font-semibold py-2 rounded-lg text-sm flex items-center justify-center gap-2 mt-3"
+                  >
+                    <Camera className="w-4 h-4" />
+                    Try AR Mode
+                  </button>
+                </div>
+              </div>
+
               {pois.length > 0 ? (
                 pois.map((poi) => (
                   <div key={poi.id} className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4">
