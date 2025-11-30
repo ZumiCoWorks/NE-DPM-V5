@@ -981,7 +981,7 @@ const AttendeePWANew: React.FC = () => {
                 <div className="flex gap-2">
                   <button
                     onClick={() => {
-                      if (currentGPS && selectedPOI?.metadata?.gps_lat) {
+                      if (currentGPS && selectedPOI?.metadata?.gps_lat && selectedPOI?.metadata?.gps_lng) {
                         const poiGPS = { lat: selectedPOI.metadata.gps_lat, lng: selectedPOI.metadata.gps_lng };
                         const bearing = calculateBearing(currentGPS, poiGPS);
                         const distance = Math.max(0, distanceToTarget - 10);
