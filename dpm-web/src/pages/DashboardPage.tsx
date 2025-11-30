@@ -492,7 +492,7 @@ export const DashboardPage: React.FC = () => {
                   className="relative group bg-white p-6 focus-within:ring-2 focus-within:ring-inset focus-within:ring-brand-red border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
                 >
                   <div>
-                    <span className={`rounded - lg inline - flex p - 3 ${action.color} text - white`}>
+                    <span className={`rounded-lg inline-flex p-3 ${action.color} text-white`}>
                       <Icon className="h-6 w-6" />
                     </span>
                   </div>
