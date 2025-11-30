@@ -155,15 +155,25 @@ const AttendeePWANew: React.FC = () => {
     const newDistance = calculateDistance(currentGPS, poiGPS);
     const newBearing = calculateBearing(currentGPS, poiGPS);
 
-    setDistanceToTarget(newDistance);
-    setBearingToTarget(newBearing);
+    // Only update if distance changed by more than 1m (reduces jitter)
+    if (Math.abs(newDistance - distanceToTarget) > 1) {
+      setDistanceToTarget(newDistance);
+      console.log('📍 Distance updated:', newDistance.toFixed(1) + 'm');
+    }
+
+    // Smooth bearing updates (interpolate if change is small)
+    const bearingDiff = Math.abs(newBearing - bearingToTarget);
+    if (bearingDiff > 5) {
+      setBearingToTarget(newBearing);
+      console.log('🧭 Bearing updated:', newBearing.toFixed(0) + '°');
+    }
 
     // Trigger arrival haptic and show modal when very close
     if (newDistance < 3 && distanceToTarget >= 3) {
       triggerHaptic('heavy');
       setShowArrivalModal(true);
     }
-  }, [currentGPS, selectedPOI, distanceToTarget]);
+  }, [currentGPS, selectedPOI, distanceToTarget, bearingToTarget]);
 
   // Check offline status
   useEffect(() => {
@@ -478,7 +488,16 @@ const AttendeePWANew: React.FC = () => {
     const fullRoute = [{ x: currentLocation.x, y: currentLocation.y }, ...routeCoords];
     setHighlightPath(fullRoute);
 
+    // CRITICAL FIX: Store the path for turn-by-turn navigation
+    const pathNodes = nodePath.map(nodeId => graphNodes.find(n => n.id === nodeId)!).filter(Boolean);
+    setNavigationPath(pathNodes);
+    setCurrentWaypointIndex(0);
+
     console.log('✅ Route calculated:', nodePath.length, 'waypoints');
+    console.log('📍 Waypoints:', pathNodes.map(n => n.name).join(' → '));
+
+    // Switch to precision finding with path-based navigation
+    setCurrentScreen('precision-finding');
     displayMessage(`Route found! ${nodePath.length} waypoints`, 2000);
   };
 
@@ -910,8 +929,11 @@ const AttendeePWANew: React.FC = () => {
 
             {/* Direction indicator (rotates based on relative bearing) */}
             <div
-              className="absolute inset-0 flex items-center justify-center transition-transform duration-700 ease-out"
-              style={{ transform: `rotate(${relativeBearing}deg)` }}
+              className="absolute inset-0 flex items-center justify-center transition-transform duration-1000 ease-in-out"
+              style={{
+                transform: `rotate(${relativeBearing}deg)`,
+                willChange: 'transform'
+              }}
             >
               <div className={`w-0 h-0 border-l-[40px] border-l-transparent border-r-[40px] border-r-transparent border-b-[80px] ${isPointingCorrect ? 'border-b-green-400' : 'border-b-brand-red'
                 } transition-colors duration-300`}>
