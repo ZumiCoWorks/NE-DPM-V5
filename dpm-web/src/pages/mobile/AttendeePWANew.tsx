@@ -589,7 +589,7 @@ const AttendeePWANew: React.FC = () => {
         <div className="flex-1 flex flex-col items-center justify-center p-8">
           {/* Logo */}
           <div className="mb-8">
-            <img src="/nav-eaze-logo.svg" alt="NavEaze" className="h-24 w-auto" />
+            <img src="/nav-eaze-logo-dark.svg" alt="NavEaze" className="h-24 w-auto" />
           </div>
 
           {/* Tagline */}
