@@ -402,7 +402,20 @@ const AttendeePWANew: React.FC = () => {
             };
 
             if (isWithinBounds(gps, gpsBounds)) {
-              const floorplanCoord = gpsToFloorplan(gps, gpsBounds, { width: 1000, height: 1000 });
+              let floorplanCoord = gpsToFloorplan(gps, gpsBounds, { width: 1000, height: 1000 });
+
+              // Apply GPS snapping if accuracy is good and we have graph data
+              if (isGPSAccuracyGood(accuracy) && graphSegments.length > 0) {
+                const snapped = snapToNearestPathSegment(
+                  floorplanCoord,
+                  graphSegments,
+                  graphNodes,
+                  50 // max 50px (~5m) snap distance
+                );
+                floorplanCoord = snapped;
+                console.log('📍 GPS snapped to path');
+              }
+
               setCurrentLocation({
                 x: floorplanCoord.x,
                 y: floorplanCoord.y,
