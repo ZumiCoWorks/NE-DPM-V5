@@ -242,6 +242,14 @@ const AttendeePWANew: React.FC = () => {
         .order('start_date', { ascending: false });
 
       if (err) throw err;
+
+      // Cache events for offline access (non-blocking)
+      if (data && data.length > 0) {
+        Promise.all(data.map(event => cacheEventData(event.id, event)))
+          .then(() => console.log('📦 Cached', data.length, 'events for offline access'))
+          .catch(err => console.warn('⚠️ Event cache failed:', err));
+      }
+
       setEvents(data || []);
     } catch (err) {
       console.error('Failed to fetch events:', err);
