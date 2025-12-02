@@ -38,7 +38,6 @@ import {
   getNearestLandmark
 } from '../../lib/gpsSnapping';
 
-
 interface EventData {
   id: string;
   name: string;
