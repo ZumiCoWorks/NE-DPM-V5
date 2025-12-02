@@ -228,6 +228,24 @@ const AttendeePWANew: React.FC = () => {
   const fetchEvents = async () => {
     setLoadingEvents(true);
     setError('');
+
+    // Try to load from cache first if offline
+    if (!isOnline()) {
+      console.log('📴 Offline mode - loading events from cache');
+      const cachedEventId = localStorage.getItem('selectedEventId');
+      if (cachedEventId) {
+        const cachedEvent = await getCachedEventData(cachedEventId);
+        if (cachedEvent) {
+          setEvents([cachedEvent]);
+          setLoadingEvents(false);
+          return;
+        }
+      }
+      setError('No cached events available. Please connect to internet.');
+      setLoadingEvents(false);
+      return;
+    }
+
     try {
       const { createClient } = await import('@supabase/supabase-js');
       const supabase = createClient(
