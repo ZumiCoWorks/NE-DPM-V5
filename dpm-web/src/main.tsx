@@ -4,9 +4,18 @@ import { Toaster } from 'sonner'
 import App from './App'
 import './index.css'
 
-// Note: Service Worker registration removed for development
-// PWA features will be available in production builds via vite-plugin-pwa
-
+// Register Service Worker for offline functionality
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then(registration => {
+        console.log('✅ Service Worker registered:', registration.scope);
+      })
+      .catch(error => {
+        console.error('❌ Service Worker registration failed:', error);
+      });
+  });
+}
 
 
 createRoot(document.getElementById('root')!).render(

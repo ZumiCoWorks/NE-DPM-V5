@@ -23,6 +23,21 @@ import {
   triggerHaptic,
   calculateRelativeBearing
 } from '../../lib/gpsUtils';
+import {
+  cacheEventData,
+  getCachedEventData,
+  cachePOIs,
+  getCachedPOIs,
+  cacheGraphData,
+  getCachedGraphData,
+  isOnline
+} from '../../lib/offlineStorage';
+import {
+  snapToNearestPathSegment,
+  isGPSAccuracyGood,
+  getNearestLandmark
+} from '../../lib/gpsSnapping';
+
 
 interface EventData {
   id: string;
