@@ -279,6 +279,26 @@ const AttendeePWANew: React.FC = () => {
 
   // Fetch navigation data for selected event
   const fetchNavigationData = async (eventId: string) => {
+    // Try cache first if offline
+    if (!isOnline()) {
+      console.log('📴 Offline mode - loading navigation data from cache');
+      const [cachedPOIs, cachedGraph] = await Promise.all([
+        getCachedPOIs(eventId),
+        getCachedGraphData(eventId)
+      ]);
+
+      if (cachedPOIs && cachedGraph) {
+        setPois(cachedPOIs);
+        setGraphNodes(cachedGraph.nodes);
+        setGraphSegments(cachedGraph.segments);
+        console.log('✅ Loaded from cache:', cachedGraph.nodes.length, 'nodes,', cachedGraph.segments.length, 'segments,', cachedPOIs.length, 'POIs');
+        return;
+      }
+
+      setError('No cached map data. Please connect to internet.');
+      return;
+    }
+
     try {
       const { createClient } = await import('@supabase/supabase-js');
       const supabase = createClient(
@@ -344,6 +364,13 @@ const AttendeePWANew: React.FC = () => {
       if (floorplan?.image_url) {
         setFloorplanImageUrl(floorplan.image_url);
       }
+
+      // Cache for offline access (non-blocking)
+      Promise.all([
+        cachePOIs(eventId, poisList),
+        cacheGraphData(eventId, nodes, segs)
+      ]).then(() => console.log('📦 Cached navigation data for offline access'))
+        .catch(err => console.warn('⚠️ Navigation cache failed:', err));
 
       console.log('✅ Loaded:', nodes.length, 'nodes,', segs.length, 'segments,', poisList.length, 'POIs');
     } catch (err) {
