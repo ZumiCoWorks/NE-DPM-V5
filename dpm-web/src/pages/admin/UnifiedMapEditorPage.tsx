@@ -2,6 +2,8 @@ import React, { Suspense, useEffect, useState } from 'react'
 import { LoadingSpinner } from '../../components/ui/loadingSpinner'
 import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import { validateGraphConnectivity, ValidationResult } from '../../lib/graphValidation'
+import { GraphNode, GraphSegment } from '../../lib/pathfinding'
 
 // Type definition for the FloorplanEditor component
 interface FloorplanEditorProps {
@@ -21,6 +23,8 @@ export const UnifiedMapEditorPage: React.FC = () => {
   const [eventId, setEventId] = useState<string | null>(initialEventId)
   const [initialFloorplanUrl, setInitialFloorplanUrl] = useState<string | undefined>(undefined)
   const [gpsFallbackInstruction, setGpsFallbackInstruction] = useState<string>('')
+  const [validationResult, setValidationResult] = useState<ValidationResult | null>(null)
+  const [isValidating, setIsValidating] = useState(false)
 
   useEffect(() => {
     if (!floorplanId) return
@@ -44,6 +48,60 @@ export const UnifiedMapEditorPage: React.FC = () => {
       })()
     return () => { mounted = false }
   }, [floorplanId])
+
+  const handleTestConnectivity = async () => {
+    if (!eventId) {
+      alert('No Event ID found. Cannot validate.');
+      return;
+    }
+
+    if (!supabase) {
+      console.error('Supabase client not initialized');
+      return;
+    }
+
+    setIsValidating(true);
+    try {
+      // Fetch navigation data
+      const { data: points } = await supabase.from('navigation_points').select('*').eq('event_id', eventId);
+      const { data: segments } = await supabase.from('navigation_segments').select('*').eq('event_id', eventId);
+
+      const nodes: GraphNode[] = (points || []).map((p: any) => ({
+        id: p.id,
+        x: p.x_coord,
+        y: p.y_coord,
+        name: p.name,
+        type: p.point_type as 'node' | 'poi' | 'entrance' | 'exit',
+        metadata: {
+          gps_lat: p.gps_lat,
+          gps_lng: p.gps_lng,
+          ...p.metadata
+        }
+      }));
+
+      const segs: GraphSegment[] = (segments || []).map((s: any) => ({
+        id: s.id,
+        from_node_id: s.from_node_id,
+        to_node_id: s.to_node_id,
+        bidirectional: s.bidirectional,
+        distance: s.distance_meters
+      }));
+
+      const result = validateGraphConnectivity(nodes, segs);
+      setValidationResult(result);
+
+      if (result.isValid) {
+        alert(`✅ Graph is valid!\n\nAll ${result.totalNodes} nodes are connected.`);
+      } else {
+        alert(`❌ Graph has issues!\n\nFound ${result.orphanNodes.length} orphan nodes.\n\nCheck the validation panel below.`);
+      }
+    } catch (error: any) {
+      console.error('Validation error:', error);
+      alert(`Failed to validate: ${error.message}`);
+    } finally {
+      setIsValidating(false);
+    }
+  };
 
   const handlePublish = async () => {
     if (!eventId) {
@@ -164,6 +222,16 @@ export const UnifiedMapEditorPage: React.FC = () => {
             onChange={(e) => setGpsFallbackInstruction(e.target.value)}
           />
           <button
+            onClick={handleTestConnectivity}
+            disabled={isValidating}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center shadow-sm disabled:opacity-50"
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            {isValidating ? 'Validating...' : 'Test Connectivity'}
+          </button>
+          <button
             onClick={handlePublish}
             className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center shadow-sm"
           >
@@ -174,6 +242,42 @@ export const UnifiedMapEditorPage: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Validation Results Panel */}
+      {validationResult && !validationResult.isValid && (
+        <div className="bg-red-50 border-b border-red-200 px-4 py-3">
+          <div className="flex items-start space-x-3">
+            <svg className="w-5 h-5 text-red-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold text-red-800">Graph Validation Failed</h3>
+              <p className="text-sm text-red-700 mt-1">
+                Found {validationResult.orphanNodes.length} orphan node(s) that are not connected to the graph:
+              </p>
+              <ul className="mt-2 space-y-1">
+                {validationResult.orphanNodes.map((node) => (
+                  <li key={node.id} className="text-sm text-red-600">
+                    • <span className="font-mono">{node.name}</span> (ID: {node.id})
+                  </li>
+                ))}
+              </ul>
+              <p className="text-xs text-red-600 mt-2">
+                Fix these issues before publishing to ensure all POIs are reachable.
+              </p>
+            </div>
+            <button
+              onClick={() => setValidationResult(null)}
+              className="text-red-600 hover:text-red-800"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="flex-1 relative bg-gray-50">
         <Suspense fallback={<div className="flex items-center justify-center h-full"><LoadingSpinner /></div>}>
           <FloorplanEditor
