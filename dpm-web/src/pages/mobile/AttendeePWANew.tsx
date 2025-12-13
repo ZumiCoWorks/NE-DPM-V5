@@ -107,6 +107,11 @@ const AttendeePWANew: React.FC = () => {
   const [navigationPath, setNavigationPath] = useState<GraphNode[]>([]); // Turn-by-turn waypoints
   const [currentWaypointIndex, setCurrentWaypointIndex] = useState<number>(0);
 
+  // Phase 1: Off-path detection and auto re-routing
+  const [isOffPath, setIsOffPath] = useState(false);
+  const [nearestLandmark, setNearestLandmark] = useState<GraphNode | null>(null);
+  const [shouldReroute, setShouldReroute] = useState(false);
+
   // Location state
   const [currentLocation, setCurrentLocation] = useState<LocationData | null>(null);
   const [gpsEnabled, setGpsEnabled] = useState(false);
@@ -211,6 +216,92 @@ const AttendeePWANew: React.FC = () => {
       setShowArrivalModal(true);
     }
   }, [currentGPS, selectedPOI, navigationPath, currentWaypointIndex, distanceToTarget, bearingToTarget]);
+
+  // Phase 1: Off-path detection and auto re-routing
+  useEffect(() => {
+    if (!currentLocation || navigationPath.length === 0 || currentWaypointIndex >= navigationPath.length) {
+      setIsOffPath(false);
+      return;
+    }
+
+    const currentWaypoint = navigationPath[currentWaypointIndex];
+    const nextWaypoint = navigationPath[currentWaypointIndex + 1];
+
+    if (!currentWaypoint || !nextWaypoint) {
+      setIsOffPath(false);
+      return;
+    }
+
+    // Calculate distance from current location to path segment
+    const dx = nextWaypoint.x - currentWaypoint.x;
+    const dy = nextWaypoint.y - currentWaypoint.y;
+    const segmentLength = Math.sqrt(dx * dx + dy * dy);
+
+    if (segmentLength === 0) {
+      setIsOffPath(false);
+      return;
+    }
+
+    // Project current location onto segment
+    const t = Math.max(0, Math.min(1,
+      ((currentLocation.x - currentWaypoint.x) * dx + (currentLocation.y - currentWaypoint.y) * dy) / (segmentLength * segmentLength)
+    ));
+
+    const projX = currentWaypoint.x + t * dx;
+    const projY = currentWaypoint.y + t * dy;
+
+    const distanceFromPath = Math.sqrt(
+      Math.pow(currentLocation.x - projX, 2) + Math.pow(currentLocation.y - projY, 2)
+    );
+
+    // 100px ≈ 10m at typical scale
+    const OFF_PATH_THRESHOLD = 100;
+
+    if (distanceFromPath > OFF_PATH_THRESHOLD) {
+      if (!isOffPath) {
+        console.log('⚠️ User is off path! Distance:', distanceFromPath.toFixed(1), 'px');
+        setIsOffPath(true);
+        setShouldReroute(true);
+      }
+    } else {
+      if (isOffPath) {
+        console.log('✅ Back on path');
+        setIsOffPath(false);
+      }
+    }
+
+    // Update nearest landmark for bad signal UI
+    if (graphNodes.length > 0) {
+      const nearest = getNearestLandmark(currentLocation, graphNodes, 200); // 200px ≈ 20m
+      setNearestLandmark(nearest);
+    }
+  }, [currentLocation, navigationPath, currentWaypointIndex, isOffPath, graphNodes]);
+
+  // Phase 1: Auto re-routing when off path
+  useEffect(() => {
+    if (shouldReroute && selectedPOI && currentLocation) {
+      console.log('🔄 Auto re-routing...');
+      setShouldReroute(false);
+
+      // Recalculate route from current location
+      const nearestNode = nearestNodeToPoint(graphNodes, currentLocation.x, currentLocation.y);
+      if (nearestNode) {
+        const nodePath = findShortestNodePath(graphNodes, graphSegments, nearestNode.id, selectedPOI.id);
+        if (nodePath.length > 0) {
+          const pathNodes = nodePath.map(nodeId => graphNodes.find(n => n.id === nodeId)!).filter(Boolean);
+          setNavigationPath(pathNodes);
+          setCurrentWaypointIndex(0);
+
+          const routeCoords = nodePathToCoords(graphNodes, nodePath);
+          const fullRoute = [{ x: currentLocation.x, y: currentLocation.y }, ...routeCoords];
+          setHighlightPath(fullRoute);
+
+          displayMessage('Route updated', 2000);
+          console.log('✅ Re-routed successfully');
+        }
+      }
+    }
+  }, [shouldReroute, selectedPOI, currentLocation, graphNodes, graphSegments]);
 
   // Check offline status
   useEffect(() => {
@@ -1308,18 +1399,31 @@ const AttendeePWANew: React.FC = () => {
 
             {/* GPS Status Banner */}
             {selectedEvent && (selectedEvent.navigation_mode === 'outdoor' || selectedEvent.navigation_mode === 'hybrid') && (
-              <div className={`px-4 py-2 ${gpsEnabled ? 'bg-green-50 border-b border-green-200' : 'bg-orange-50 border-b border-orange-200'}`}>
+              <div className={`px-4 py-2 ${gpsEnabled && isGPSAccuracyGood(gpsAccuracy)
+                ? 'bg-green-50 border-b border-green-200'
+                : 'bg-orange-50 border-b border-orange-200'
+                }`}>
                 <div className="flex items-center justify-between text-sm">
                   <div className="flex items-center gap-2">
-                    <Satellite className={`w-4 h-4 ${gpsEnabled ? 'text-green-600' : 'text-orange-600'}`} />
-                    <span className={gpsEnabled ? 'text-green-700' : 'text-orange-700'}>
-                      {gpsEnabled ? (
+                    <Satellite className={`w-4 h-4 ${gpsEnabled && isGPSAccuracyGood(gpsAccuracy)
+                      ? 'text-green-600'
+                      : 'text-orange-600'
+                      }`} />
+                    <span className={gpsEnabled && isGPSAccuracyGood(gpsAccuracy) ? 'text-green-700' : 'text-orange-700'}>
+                      {gpsEnabled && isGPSAccuracyGood(gpsAccuracy) ? (
                         <>GPS Active • ±{gpsAccuracy.toFixed(0)}m</>
+                      ) : gpsEnabled ? (
+                        <>Signal Weak • ±{gpsAccuracy.toFixed(0)}m</>
                       ) : (
                         <>Waiting for GPS...</>
                       )}
                     </span>
                   </div>
+                  {!isGPSAccuracyGood(gpsAccuracy) && gpsEnabled && nearestLandmark && (
+                    <span className="text-xs text-orange-600">
+                      Walk to {nearestLandmark.name}
+                    </span>
+                  )}
                   {currentGPS && (
                     <span className="text-xs text-gray-500">
                       {currentGPS.lat.toFixed(6)}, {currentGPS.lng.toFixed(6)}
