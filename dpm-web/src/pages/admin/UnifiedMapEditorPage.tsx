@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { validateGraphConnectivity, ValidationResult } from '../../lib/graphValidation'
 import { GraphNode, GraphSegment } from '../../lib/pathfinding'
+import LeafletMapEditor from '../../components/LeafletMapEditor'
 
 // Type definition for the FloorplanEditor component
 interface FloorplanEditorProps {
@@ -25,6 +26,8 @@ export const UnifiedMapEditorPage: React.FC = () => {
   const [gpsFallbackInstruction, setGpsFallbackInstruction] = useState<string>('')
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null)
   const [isValidating, setIsValidating] = useState(false)
+  const [useLeafletEditor, setUseLeafletEditor] = useState(false)
+  const [gpsBounds, setGpsBounds] = useState<any>(null)
 
   useEffect(() => {
     if (!floorplanId) return
@@ -48,6 +51,26 @@ export const UnifiedMapEditorPage: React.FC = () => {
       })()
     return () => { mounted = false }
   }, [floorplanId])
+
+  // Fetch GPS bounds for Leaflet editor
+  useEffect(() => {
+    if (!eventId || !supabase) return
+
+    (async () => {
+      const { data, error } = await supabase
+        .from('events')
+        .select('gps_bounds_ne_lat, gps_bounds_ne_lng, gps_bounds_sw_lat, gps_bounds_sw_lng')
+        .eq('id', eventId)
+        .single()
+
+      if (!error && data) {
+        setGpsBounds({
+          ne: { lat: data.gps_bounds_ne_lat, lng: data.gps_bounds_ne_lng },
+          sw: { lat: data.gps_bounds_sw_lat, lng: data.gps_bounds_sw_lng }
+        })
+      }
+    })()
+  }, [eventId])
 
   const handleTestConnectivity = async () => {
     if (!eventId) {
@@ -222,6 +245,15 @@ export const UnifiedMapEditorPage: React.FC = () => {
             onChange={(e) => setGpsFallbackInstruction(e.target.value)}
           />
           <button
+            onClick={() => setUseLeafletEditor(!useLeafletEditor)}
+            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center shadow-sm"
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+            </svg>
+            {useLeafletEditor ? 'Classic Editor' : 'Leaflet Editor'}
+          </button>
+          <button
             onClick={handleTestConnectivity}
             disabled={isValidating}
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center shadow-sm disabled:opacity-50"
@@ -279,13 +311,60 @@ export const UnifiedMapEditorPage: React.FC = () => {
       )}
 
       <div className="flex-1 relative bg-gray-50">
-        <Suspense fallback={<div className="flex items-center justify-center h-full"><LoadingSpinner /></div>}>
-          <FloorplanEditor
-            initialFloorplan={initialFloorplanUrl}
-            initialEventId={eventId}
-            onEventChange={(id) => setEventId(id)}
+        {useLeafletEditor && gpsBounds && initialFloorplanUrl ? (
+          <LeafletMapEditor
+            eventId={eventId || ''}
+            floorplanUrl={initialFloorplanUrl}
+            gpsBounds={gpsBounds}
+            onExport={async (nodes, segments) => {
+              if (!supabase || !eventId) return;
+
+              try {
+                // Upload nodes
+                const { error: nodesError } = await supabase
+                  .from('navigation_points')
+                  .insert(nodes.map(n => ({
+                    event_id: eventId,
+                    x_coord: n.x,
+                    y_coord: n.y,
+                    gps_lat: n.metadata?.gps_lat,
+                    gps_lng: n.metadata?.gps_lng,
+                    name: n.name,
+                    point_type: n.type,
+                    is_destination: n.type === 'poi'
+                  })));
+
+                if (nodesError) throw nodesError;
+
+                // Upload segments
+                const { error: segsError } = await supabase
+                  .from('navigation_segments')
+                  .insert(segments.map(s => ({
+                    event_id: eventId,
+                    from_node_id: s.from_node_id,
+                    to_node_id: s.to_node_id,
+                    bidirectional: s.bidirectional,
+                    distance_meters: s.distance
+                  })));
+
+                if (segsError) throw segsError;
+
+                alert(`✅ Exported ${nodes.length} nodes and ${segments.length} segments to database!`);
+              } catch (error: any) {
+                console.error('Export error:', error);
+                alert(`Failed to export: ${error.message}`);
+              }
+            }}
           />
-        </Suspense>
+        ) : (
+          <Suspense fallback={<div className="flex items-center justify-center h-full"><LoadingSpinner /></div>}>
+            <FloorplanEditor
+              initialFloorplan={initialFloorplanUrl}
+              initialEventId={eventId}
+              onEventChange={(id) => setEventId(id)}
+            />
+          </Suspense>
+        )}
       </div>
     </div>
   )

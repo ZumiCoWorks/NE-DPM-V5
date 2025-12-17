@@ -1535,7 +1535,12 @@ const AttendeePWANew: React.FC = () => {
                   segments={graphSegments}
                   pois={pois}
                   highlightPath={highlightPath}
-                  currentLocation={currentLocation ? { x: currentLocation.x, y: currentLocation.y } : undefined}
+                  currentLocation={
+                    currentLocation && (currentLocation.source === 'qr' || isGPSAccuracyGood(gpsAccuracy))
+                      ? { x: currentLocation.x, y: currentLocation.y }
+                      : undefined
+                  }
+
                   fitToContainer={true}
                   containerWidth={window.innerWidth - 32}
                   containerHeight={window.innerHeight * 0.7}
