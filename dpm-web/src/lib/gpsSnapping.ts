@@ -119,9 +119,10 @@ export function isGPSAccuracyGood(accuracy: number, threshold: number = 20): boo
  * Get nearest landmark for "bad signal" fallback
  * @param gpsPoint - Current GPS position
  * @param nodes - All graph nodes
+ * @param maxDistance - Optional maximum distance to consider (unused, for API compatibility)
  * @returns Nearest landmark node
  */
-export function getNearestLandmark(gpsPoint: Point, nodes: GraphNode[]): GraphNode | null {
+export function getNearestLandmark(gpsPoint: Point, nodes: GraphNode[], maxDistance?: number): GraphNode | null {
     if (nodes.length === 0) return null;
 
     let closestNode: GraphNode | null = null;

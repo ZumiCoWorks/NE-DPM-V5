@@ -73,6 +73,7 @@
     "react-dom": "^18.3.1",
     "react-dropzone": "^14.3.8",
     "react-hook-form": "^7.66.0",
+    "react-is": "^19.2.3",
     "react-konva": "^18.2.14",
     "react-leaflet": "^4.2.1",
     "react-resizable-panels": "^3.0.6",

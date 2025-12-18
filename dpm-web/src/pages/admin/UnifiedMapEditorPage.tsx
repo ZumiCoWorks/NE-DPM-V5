@@ -64,9 +64,16 @@ export const UnifiedMapEditorPage: React.FC = () => {
         .single()
 
       if (!error && data) {
+        const eventData = data as {
+          gps_bounds_ne_lat: number;
+          gps_bounds_ne_lng: number;
+          gps_bounds_sw_lat: number;
+          gps_bounds_sw_lng: number;
+        };
+
         setGpsBounds({
-          ne: { lat: data.gps_bounds_ne_lat, lng: data.gps_bounds_ne_lng },
-          sw: { lat: data.gps_bounds_sw_lat, lng: data.gps_bounds_sw_lng }
+          ne: { lat: eventData.gps_bounds_ne_lat, lng: eventData.gps_bounds_ne_lng },
+          sw: { lat: eventData.gps_bounds_sw_lat, lng: eventData.gps_bounds_sw_lng }
         })
       }
     })()
@@ -89,7 +96,7 @@ export const UnifiedMapEditorPage: React.FC = () => {
       const { data: points } = await supabase.from('navigation_points').select('*').eq('event_id', eventId);
       const { data: segments } = await supabase.from('navigation_segments').select('*').eq('event_id', eventId);
 
-      const nodes: GraphNode[] = (points || []).map((p: any) => ({
+      const nodes: GraphNode[] = ((points as any[]) || []).map((p: any) => ({
         id: p.id,
         x: p.x_coord,
         y: p.y_coord,
@@ -102,13 +109,12 @@ export const UnifiedMapEditorPage: React.FC = () => {
         }
       }));
 
-      const segs: GraphSegment[] = (segments || []).map((s: any) => ({
+      const segs: GraphSegment[] = ((segments as any[]) || []).map((s: any) => ({
         id: s.id,
-        from_node_id: s.from_node_id,
-        to_node_id: s.to_node_id,
-        bidirectional: s.bidirectional,
-        distance: s.distance_meters
+        start_node_id: s.from_node_id,
+        end_node_id: s.to_node_id
       }));
+
 
       const result = validateGraphConnectivity(nodes, segs);
       setValidationResult(result);
@@ -341,11 +347,12 @@ export const UnifiedMapEditorPage: React.FC = () => {
                   .from('navigation_segments')
                   .insert(segments.map(s => ({
                     event_id: eventId,
-                    from_node_id: s.from_node_id,
-                    to_node_id: s.to_node_id,
-                    bidirectional: s.bidirectional,
-                    distance_meters: s.distance
+                    from_node_id: s.start_node_id,
+                    to_node_id: s.end_node_id,
+                    bidirectional: true,
+                    distance_meters: 0
                   })));
+
 
                 if (segsError) throw segsError;
 

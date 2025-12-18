@@ -70,8 +70,8 @@ export function validateGraphConnectivity(
                 const path = findShortestNodePath(nodes, segments, nodes[i].id, nodes[j].id);
                 if (path.length === 0) {
                     unreachablePairs.push({
-                        from: nodes[i].name,
-                        to: nodes[j].name
+                        from: nodes[i].name || nodes[i].id,
+                        to: nodes[j].name || nodes[j].id
                     });
                 }
             }
@@ -101,7 +101,7 @@ export function hasOrphanNodes(nodes: GraphNode[], segments: GraphSegment[]): bo
         let hasConnection = false;
 
         for (const segment of segments) {
-            if (segment.from_node_id === node.id || segment.to_node_id === node.id) {
+            if (segment.start_node_id === node.id || segment.end_node_id === node.id) {
                 hasConnection = true;
                 break;
             }

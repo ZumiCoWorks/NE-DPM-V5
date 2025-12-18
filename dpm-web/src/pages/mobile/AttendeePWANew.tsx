@@ -354,9 +354,9 @@ const AttendeePWANew: React.FC = () => {
 
       // Cache events for offline access (non-blocking)
       if (data && data.length > 0) {
-        Promise.all(data.map(event => cacheEventData(event.id, event)))
+        Promise.all(data.map((event: any) => cacheEventData(event.id, event)))
           .then(() => console.log('📦 Cached', data.length, 'events for offline access'))
-          .catch(err => console.warn('⚠️ Event cache failed:', err));
+          .catch((err: any) => console.warn('⚠️ Event cache failed:', err));
       }
 
       setEvents(data || []);

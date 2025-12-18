@@ -7,6 +7,8 @@ import { LandingPage } from './pages/LandingPage';
 import { RoleSelectorPage } from './pages/RoleSelectorPage';
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
+import { ResetPasswordPage } from './pages/auth/ResetPasswordPage';
+import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { SponsorDashboardPage } from './pages/SponsorDashboardPage';
 import ROIDashboardPage from './pages/ROIDashboardPage';
@@ -24,9 +26,8 @@ import SponsorLeadsPage from './pages/sponsor/SponsorLeadsPage';
 const SponsorManagementPage = SponsorLeadsPage;
 import { ProfilePage } from './pages/profile/ProfilePage';
 import { RegisterPage as VendorSignupPage } from './pages/auth/RegisterPage';
-import { AttendeePWA } from './pages/mobile/AttendeePWA';
 import AttendeePWANew from './pages/mobile/AttendeePWANew';
-import StaffPWA from './pages/mobile/StaffPWA';
+import StaffPWA from './pages/mobile/StaffPWA-new';
 
 
 export default function App() {
@@ -39,6 +40,8 @@ export default function App() {
             <Route path="/role-selector" element={<RoleSelectorPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/signup" element={<VendorSignupPage />} />
 
             <Route
@@ -219,7 +222,6 @@ export default function App() {
 
             {/* Attendee Mobile PWA - No auth required */}
             <Route path="/attendee" element={<AttendeePWANew />} />
-            <Route path="/attendee-old" element={<AttendeePWA />} />
 
             {/* Staff Mobile PWA - No auth required */}
             <Route path="/staff" element={<StaffPWA />} />

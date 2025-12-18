@@ -160,10 +160,8 @@ const LeafletMapEditor: React.FC<LeafletMapEditorProps> = ({
 
             return {
                 id: seg.id,
-                from_node_id: seg.fromNodeId,
-                to_node_id: seg.toNodeId,
-                bidirectional: true,
-                distance: distance
+                start_node_id: seg.fromNodeId,
+                end_node_id: seg.toNodeId
             };
         });
 
@@ -193,8 +191,8 @@ const LeafletMapEditor: React.FC<LeafletMapEditorProps> = ({
                         <button
                             onClick={() => setDrawMode(drawMode === 'point' ? null : 'point')}
                             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${drawMode === 'point'
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                 }`}
                         >
                             📍 Add Node
@@ -202,8 +200,8 @@ const LeafletMapEditor: React.FC<LeafletMapEditorProps> = ({
                         <button
                             onClick={() => setDrawMode(drawMode === 'poi' ? null : 'poi')}
                             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${drawMode === 'poi'
-                                    ? 'bg-red-600 text-white'
-                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                ? 'bg-red-600 text-white'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                 }`}
                         >
                             🎯 Add POI
@@ -214,8 +212,8 @@ const LeafletMapEditor: React.FC<LeafletMapEditorProps> = ({
                                 setSelectedNodeForLine(null);
                             }}
                             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${drawMode === 'line'
-                                    ? 'bg-purple-600 text-white'
-                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                ? 'bg-purple-600 text-white'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                 }`}
                         >
                             ➖ Draw Path
@@ -223,8 +221,8 @@ const LeafletMapEditor: React.FC<LeafletMapEditorProps> = ({
                         <button
                             onClick={() => setDrawMode(drawMode === 'delete' ? null : 'delete')}
                             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${drawMode === 'delete'
-                                    ? 'bg-red-600 text-white'
-                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                ? 'bg-red-600 text-white'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                 }`}
                         >
                             🗑️ Delete
