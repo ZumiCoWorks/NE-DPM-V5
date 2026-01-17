@@ -34,6 +34,8 @@ interface SupabaseAuthLike {
   signInWithPassword(_opts?: unknown): Promise<{ data: { user: any; session: any }; error: null }>
   signUp(_opts?: unknown): Promise<{ data: { user: any; session: any }; error: null }>
   signOut(): Promise<{ error: null }>
+  resetPasswordForEmail(email: string, options?: { redirectTo?: string }): Promise<{ data: any; error: any }>
+  updateUser(attributes: { password?: string; email?: string; data?: any }): Promise<{ data: { user: any }; error: any }>
 }
 
 interface SupabaseStorageLike {
@@ -86,6 +88,8 @@ if (demoMode) {
     signInWithPassword: async (_opts?: unknown) => { void _opts; return { data: { user: null, session: null }, error: null } },
     signUp: async (_opts?: unknown) => { void _opts; return { data: { user: null, session: null }, error: null } },
     signOut: async () => ({ error: null }),
+    resetPasswordForEmail: async (_email: string, _options?: { redirectTo?: string }) => { void _email; void _options; return { data: {}, error: null } },
+    updateUser: async (_attributes: { password?: string; email?: string; data?: any }) => { void _attributes; return { data: { user: null }, error: null } },
   }
   const mockStorage: SupabaseStorageLike = {
     from: (bucket: string) => ({

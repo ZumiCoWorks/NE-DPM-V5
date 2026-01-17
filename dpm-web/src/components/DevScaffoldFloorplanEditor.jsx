@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 
 const MODES = ['poi', 'node', 'draw-path'];
 
-const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = null, initialNodes = [], initialSegments = [], initialPois = [], initialZones = [], onEventChange }) => {
+const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = null, initialNodes = [], initialSegments = [], initialPois = [], initialZones = [], onEventChange, hideToolbar = false }) => {
   const demoMode = false // Disabled demo mode for production testing
   const [floorplanUrl, setFloorplanUrl] = useState(initialFloorplan);
   const [nodes, setNodes] = useState(initialNodes);
@@ -781,33 +781,35 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
             ))}
           </div>
 
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
-            <button onClick={() => setShowSetupModal(true)}>Change floorplan</button>
-            {floorplanUrl && currentFloorplan && (
-              <button
-                onClick={() => setShowCalibrationWizard(true)}
-                style={{
-                  background: currentFloorplan?.is_calibrated ? '#10b981' : '#f59e0b',
-                  color: 'white',
-                  border: 'none',
-                  padding: '6px 12px',
-                  borderRadius: 6,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4
-                }}
-              >
-                {currentFloorplan?.is_calibrated ? '✓ Calibrated' : '⚠️ Calibrate GPS'}
-              </button>
-            )}
-            <button onClick={handleSaveMap}>Save (server)</button>
-            {lastSavedMapUrl && (
-              <span style={{ fontSize: 12, color: '#6b7280' }}>
-                Export URL: <a href={lastSavedMapUrl} target="_blank" rel="noreferrer">{lastSavedMapUrl}</a>
-                <button onClick={async () => { try { const r = await fetch(lastSavedMapUrl); const blob = await r.blob(); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'map.json'; a.click(); } catch { } }} style={{ marginLeft: 6, padding: '2px 6px', border: '1px solid #e5e7eb', borderRadius: 4 }}>Download JSON</button>
-              </span>
-            )}
-          </div>
+          {!hideToolbar && (
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+              <button onClick={() => setShowSetupModal(true)}>Change floorplan</button>
+              {floorplanUrl && currentFloorplan && (
+                <button
+                  onClick={() => setShowCalibrationWizard(true)}
+                  style={{
+                    background: currentFloorplan?.is_calibrated ? '#10b981' : '#f59e0b',
+                    color: 'white',
+                    border: 'none',
+                    padding: '6px 12px',
+                    borderRadius: 6,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4
+                  }}
+                >
+                  {currentFloorplan?.is_calibrated ? '✓ Calibrated' : '⚠️ Calibrate GPS'}
+                </button>
+              )}
+              <button onClick={handleSaveMap}>Save (server)</button>
+              {lastSavedMapUrl && (
+                <span style={{ fontSize: 12, color: '#6b7280' }}>
+                  Export URL: <a href={lastSavedMapUrl} target="_blank" rel="noreferrer">{lastSavedMapUrl}</a>
+                  <button onClick={async () => { try { const r = await fetch(lastSavedMapUrl); const blob = await r.blob(); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'map.json'; a.click(); } catch { } }} style={{ marginLeft: 6, padding: '2px 6px', border: '1px solid #e5e7eb', borderRadius: 4 }}>Download JSON</button>
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Calibration panel */}

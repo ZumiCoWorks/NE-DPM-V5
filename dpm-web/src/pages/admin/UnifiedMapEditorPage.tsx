@@ -5,12 +5,14 @@ import { supabase } from '../../lib/supabase'
 import { validateGraphConnectivity, ValidationResult } from '../../lib/graphValidation'
 import { GraphNode, GraphSegment } from '../../lib/pathfinding'
 import LeafletMapEditor from '../../components/LeafletMapEditor'
+import { GPSCalibrationWizard } from '../../components/GPSCalibrationWizard'
 
 // Type definition for the FloorplanEditor component
 interface FloorplanEditorProps {
   initialFloorplan?: string | null
   initialEventId?: string | null
   onEventChange?: (eventId: string | null) => void
+  hideToolbar?: boolean
 }
 
 // Lazy-load the unified FloorplanEditor merged into src/components
@@ -19,62 +21,164 @@ const FloorplanEditor = React.lazy(() => import('../../components/FloorplanEdito
 
 export const UnifiedMapEditorPage: React.FC = () => {
   const [searchParams] = useSearchParams()
-  const floorplanId = searchParams.get('floorplanId')
+  const floorplanIdParam = searchParams.get('floorplanId')
   const initialEventId = searchParams.get('eventId')
   const [eventId, setEventId] = useState<string | null>(initialEventId)
+  const [floorplanId, setFloorplanId] = useState<string | null>(floorplanIdParam)
   const [initialFloorplanUrl, setInitialFloorplanUrl] = useState<string | undefined>(undefined)
+  const [floorplanDimensions, setFloorplanDimensions] = useState<{ width: number; height: number } | null>(null)
   const [gpsFallbackInstruction, setGpsFallbackInstruction] = useState<string>('')
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null)
   const [isValidating, setIsValidating] = useState(false)
   const [useLeafletEditor, setUseLeafletEditor] = useState(false)
   const [gpsBounds, setGpsBounds] = useState<any>(null)
+  const [showCalibrationWizard, setShowCalibrationWizard] = useState(false)
+  const [calibrationStatus, setCalibrationStatus] = useState<{ scale: number; rotation: number } | null>(null)
 
+  // Load floorplan by event_id (same as Classic Editor)
   useEffect(() => {
-    if (!floorplanId) return
-    let mounted = true
-      ; (async () => {
-        try {
-          if (!supabase) {
-            console.warn('Supabase client not initialized for UnifiedMapEditor')
-            return
-          }
-          const { data, error } = await supabase.from('floorplans').select('image_url').eq('id', floorplanId).single()
-          if (error) {
-            console.warn('Could not fetch floorplan for unified editor:', error)
-            return
-          }
-          const row = (data as { image_url?: string } | null)
-          if (mounted) setInitialFloorplanUrl(row?.image_url ?? undefined)
-        } catch (err) {
-          console.warn('UnifiedMapEditor fetch failed', err)
-        }
-      })()
-    return () => { mounted = false }
-  }, [floorplanId])
+    if (!eventId || !supabase) return;
 
-  // Fetch GPS bounds for Leaflet editor
+    let mounted = true;
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('floorplans')
+          .select('id, image_url, image_width, image_height, scale_meters_per_pixel, rotation_degrees, is_calibrated')
+          .eq('event_id', eventId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (error) {
+          console.warn('Could not fetch floorplan for event:', error);
+          return;
+        }
+
+        if (mounted && data) {
+          const floorplanData = data as {
+            id: string;
+            image_url: string;
+            image_width?: number | null;
+            image_height?: number | null;
+            scale_meters_per_pixel?: number | null;
+            rotation_degrees?: number | null;
+            is_calibrated?: boolean | null;
+          };
+
+          if (!floorplanData.image_url) return;
+
+          setFloorplanId(floorplanData.id);
+          setInitialFloorplanUrl(floorplanData.image_url);
+
+          // Set dimensions if available
+          if (floorplanData.image_width && floorplanData.image_height) {
+            setFloorplanDimensions({
+              width: floorplanData.image_width,
+              height: floorplanData.image_height
+            });
+          } else {
+            // Load image to get dimensions
+            const img = new Image();
+            img.onload = () => {
+              setFloorplanDimensions({ width: img.naturalWidth, height: img.naturalHeight });
+            };
+            img.src = floorplanData.image_url;
+          }
+
+          // Set calibration status if available
+          if (floorplanData.is_calibrated && floorplanData.scale_meters_per_pixel !== null && floorplanData.rotation_degrees !== null) {
+            setCalibrationStatus({
+              scale: floorplanData.scale_meters_per_pixel as number,
+              rotation: floorplanData.rotation_degrees as number
+            });
+          }
+
+          console.log('✅ Loaded floorplan for event:', eventId);
+        }
+      } catch (err) {
+        console.warn('Floorplan fetch failed:', err);
+      }
+    })();
+
+    return () => { mounted = false };
+  }, [eventId]);
+
+
+  // Fetch GPS bounds for Leaflet editor - use calibrated bounds from floorplan
   useEffect(() => {
     if (!eventId || !supabase) return
 
     (async () => {
-      const { data, error } = await supabase
-        .from('events')
-        .select('gps_bounds_ne_lat, gps_bounds_ne_lng, gps_bounds_sw_lat, gps_bounds_sw_lng')
-        .eq('id', eventId)
+      // First, try to get calibrated bounds from floorplans table
+      const { data: floorplanData, error: floorplanError } = await supabase
+        .from('floorplans')
+        .select('is_calibrated, gps_top_left_lat, gps_top_left_lng, gps_top_right_lat, gps_top_right_lng, gps_bottom_left_lat, gps_bottom_left_lng, gps_bottom_right_lat, gps_bottom_right_lng')
+        .eq('event_id', eventId)
+        .order('created_at', { ascending: false })
+        .limit(1)
         .single()
 
-      if (!error && data) {
-        const eventData = data as {
-          gps_bounds_ne_lat: number;
-          gps_bounds_ne_lng: number;
-          gps_bounds_sw_lat: number;
-          gps_bounds_sw_lng: number;
-        };
+      if (!floorplanError && floorplanData) {
+        const data = floorplanData as Record<string, any>;
+        if (data.is_calibrated) {
+          // Use calibrated 4-corner bounds for accurate alignment
+          // Calculate the bounding box from the 4 corners
+          const calibratedData = data as {
+            is_calibrated: boolean;
+            gps_top_left_lat: number;
+            gps_top_left_lng: number;
+            gps_top_right_lat: number;
+            gps_top_right_lng: number;
+            gps_bottom_left_lat: number;
+            gps_bottom_left_lng: number;
+            gps_bottom_right_lat: number;
+            gps_bottom_right_lng: number;
+          };
 
-        setGpsBounds({
-          ne: { lat: eventData.gps_bounds_ne_lat, lng: eventData.gps_bounds_ne_lng },
-          sw: { lat: eventData.gps_bounds_sw_lat, lng: eventData.gps_bounds_sw_lng }
-        })
+          const lats = [
+            calibratedData.gps_top_left_lat,
+            calibratedData.gps_top_right_lat,
+            calibratedData.gps_bottom_left_lat,
+            calibratedData.gps_bottom_right_lat
+          ];
+          const lngs = [
+            calibratedData.gps_top_left_lng,
+            calibratedData.gps_top_right_lng,
+            calibratedData.gps_bottom_left_lng,
+            calibratedData.gps_bottom_right_lng
+          ];
+
+          setGpsBounds({
+            ne: { lat: Math.max(...lats), lng: Math.max(...lngs) },
+            sw: { lat: Math.min(...lats), lng: Math.min(...lngs) }
+          });
+
+          console.log('✅ Using calibrated GPS bounds from floorplan');
+        }
+      } else {
+        // Fallback to event-level bounds if no calibration exists
+        const { data: eventData, error: eventError } = await supabase
+          .from('events')
+          .select('gps_bounds_ne_lat, gps_bounds_ne_lng, gps_bounds_sw_lat, gps_bounds_sw_lng')
+          .eq('id', eventId)
+          .single()
+
+        if (!eventError && eventData) {
+          const bounds = eventData as {
+            gps_bounds_ne_lat: number;
+            gps_bounds_ne_lng: number;
+            gps_bounds_sw_lat: number;
+            gps_bounds_sw_lng: number;
+          };
+
+          setGpsBounds({
+            ne: { lat: bounds.gps_bounds_ne_lat, lng: bounds.gps_bounds_ne_lng },
+            sw: { lat: bounds.gps_bounds_sw_lat, lng: bounds.gps_bounds_sw_lng }
+          });
+
+          console.log('⚠️ Using event-level GPS bounds (no calibration found)');
+        }
       }
     })()
   }, [eventId])
@@ -252,12 +356,26 @@ export const UnifiedMapEditorPage: React.FC = () => {
           />
           <button
             onClick={() => setUseLeafletEditor(!useLeafletEditor)}
-            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center shadow-sm"
+            disabled={!gpsBounds || !initialFloorplanUrl}
+            className="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            title={!gpsBounds ? 'Event needs GPS bounds configured' : !initialFloorplanUrl ? 'Event needs floorplan uploaded' : 'Toggle between editors'}
           >
             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
             </svg>
             {useLeafletEditor ? 'Classic Editor' : 'Leaflet Editor'}
+          </button>
+          <button
+            onClick={() => setShowCalibrationWizard(true)}
+            disabled={!initialFloorplanUrl}
+            className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            title={!initialFloorplanUrl ? 'Upload floorplan first' : 'Calibrate GPS coordinates'}
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            {gpsBounds ? 'Recalibrate GPS' : 'Calibrate GPS'}
           </button>
           <button
             onClick={handleTestConnectivity}
@@ -280,6 +398,32 @@ export const UnifiedMapEditorPage: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Calibration Status Banner */}
+      {calibrationStatus && (
+        <div className="bg-green-50 border-b border-green-200 px-4 py-2 flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center">
+              <svg className="w-4 h-4 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="text-sm font-medium text-green-800">Map Calibrated</span>
+            </div>
+            <div className="text-xs text-green-700">
+              Scale: <span className="font-mono font-semibold">{calibrationStatus.scale.toFixed(3)} m/px</span>
+            </div>
+            <div className="text-xs text-green-700">
+              Rotation: <span className="font-mono font-semibold">{calibrationStatus.rotation.toFixed(1)}°</span>
+            </div>
+          </div>
+          <button
+            onClick={() => setShowCalibrationWizard(true)}
+            className="text-xs text-green-700 hover:text-green-900 underline"
+          >
+            Recalibrate
+          </button>
+        </div>
+      )}
 
       {/* Validation Results Panel */}
       {validationResult && !validationResult.isValid && (
@@ -316,7 +460,109 @@ export const UnifiedMapEditorPage: React.FC = () => {
         </div>
       )}
 
+      {/* GPS Calibration Wizard Modal */}
+      {showCalibrationWizard && initialFloorplanUrl && floorplanId && floorplanDimensions && (
+        <GPSCalibrationWizard
+          floorplanUrl={initialFloorplanUrl}
+          floorplanId={floorplanId}
+          imageWidth={floorplanDimensions.width}
+          imageHeight={floorplanDimensions.height}
+          onComplete={async (calibrationData) => {
+            if (!supabase || !eventId || !floorplanId) {
+              alert('❌ Cannot save: Missing Supabase client, event ID, or floorplan ID');
+              return;
+            }
+
+            try {
+              // Save GPS bounds to events table (for backward compatibility)
+              const { error: eventsError } = await supabase
+                .from('events')
+                .update({
+                  gps_bounds_ne_lat: calibrationData.gpsBounds.ne.lat,
+                  gps_bounds_ne_lng: calibrationData.gpsBounds.ne.lng,
+                  gps_bounds_sw_lat: calibrationData.gpsBounds.sw.lat,
+                  gps_bounds_sw_lng: calibrationData.gpsBounds.sw.lng
+                })
+                .eq('id', eventId);
+
+              if (eventsError) throw eventsError;
+
+              // Save full calibration data to floorplans table
+              const { error: floorplansError } = await supabase
+                .from('floorplans')
+                .update({
+                  image_width: floorplanDimensions.width,
+                  image_height: floorplanDimensions.height,
+                  scale_meters_per_pixel: calibrationData.scale_meters_per_pixel,
+                  rotation_degrees: calibrationData.rotation_degrees,
+                  north_bearing_degrees: calibrationData.rotation_degrees, // Same as rotation for now
+                  gps_top_left_lat: calibrationData.gps_top_left_lat,
+                  gps_top_left_lng: calibrationData.gps_top_left_lng,
+                  gps_top_right_lat: calibrationData.gps_top_right_lat,
+                  gps_top_right_lng: calibrationData.gps_top_right_lng,
+                  gps_bottom_left_lat: calibrationData.gps_bottom_left_lat,
+                  gps_bottom_left_lng: calibrationData.gps_bottom_left_lng,
+                  gps_bottom_right_lat: calibrationData.gps_bottom_right_lat,
+                  gps_bottom_right_lng: calibrationData.gps_bottom_right_lng,
+                  calibration_method: 'gps_corners',
+                  is_calibrated: true
+                })
+                .eq('id', floorplanId);
+
+              if (floorplansError) throw floorplansError;
+
+              // Update local state
+              setGpsBounds(calibrationData.gpsBounds);
+              setCalibrationStatus({
+                scale: calibrationData.scale_meters_per_pixel,
+                rotation: calibrationData.rotation_degrees
+              });
+              setShowCalibrationWizard(false);
+
+              alert(`✅ Calibration saved successfully!\n\nScale: ${calibrationData.scale_meters_per_pixel.toFixed(3)} m/px\nRotation: ${calibrationData.rotation_degrees.toFixed(1)}°\nAccuracy: ±${calibrationData.estimated_accuracy_meters.toFixed(1)}m\n\nRefresh the page to enable Leaflet Editor.`);
+            } catch (err: any) {
+              console.error('Failed to save calibration:', err);
+              alert(`❌ Failed to save calibration: ${err.message}`);
+            }
+          }}
+          onCancel={() => setShowCalibrationWizard(false)}
+        />
+      )}
+
       <div className="flex-1 relative bg-gray-50">
+        {/* GPS Bounds Missing Warning */}
+        {useLeafletEditor && (!gpsBounds || !initialFloorplanUrl) && (
+          <div className="absolute inset-0 flex items-center justify-center bg-gray-50 z-10">
+            <div className="max-w-md p-8 bg-white rounded-lg shadow-lg border-2 border-yellow-400">
+              <div className="flex items-center mb-4">
+                <svg className="w-8 h-8 text-yellow-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <h3 className="text-lg font-semibold text-gray-900">Leaflet Editor Unavailable</h3>
+              </div>
+              <div className="space-y-2 text-sm text-gray-600">
+                {!gpsBounds && (
+                  <p className="flex items-start">
+                    <span className="text-red-500 mr-2">✗</span>
+                    <span><strong>GPS Bounds Missing:</strong> Configure GPS bounds for this event (ne_lat, ne_lng, sw_lat, sw_lng)</span>
+                  </p>
+                )}
+                {!initialFloorplanUrl && (
+                  <p className="flex items-start">
+                    <span className="text-red-500 mr-2">✗</span>
+                    <span><strong>Floorplan Missing:</strong> Upload a floorplan image for this event</span>
+                  </p>
+                )}
+              </div>
+              <div className="mt-6 p-4 bg-blue-50 rounded-md">
+                <p className="text-xs text-blue-800">
+                  <strong>Tip:</strong> Use the Classic Editor below to set up your event, then switch to Leaflet for GPS-aligned editing.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {useLeafletEditor && gpsBounds && initialFloorplanUrl ? (
           <LeafletMapEditor
             eventId={eventId || ''}
@@ -369,6 +615,7 @@ export const UnifiedMapEditorPage: React.FC = () => {
               initialFloorplan={initialFloorplanUrl}
               initialEventId={eventId}
               onEventChange={(id) => setEventId(id)}
+              hideToolbar={true}
             />
           </Suspense>
         )}

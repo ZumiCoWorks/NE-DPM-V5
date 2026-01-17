@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tsconfigPaths from "vite-tsconfig-paths";
+import { VitePWA } from 'vite-plugin-pwa';
 // https://vite.dev/config/
 export default defineConfig({
     plugins: [
@@ -12,6 +13,43 @@ export default defineConfig({
             },
         }),
         tsconfigPaths(),
+        VitePWA({
+            registerType: 'autoUpdate',
+            devOptions: {
+                enabled: true
+            },
+            workbox: {
+                globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+                maximumFileSizeToCacheInBytes: 3 * 1024 * 1024 // 3MB limit for large bundles
+            },
+            includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+            manifest: {
+                name: 'NavEase',
+                short_name: 'NavEase',
+                description: 'The Ultimate Event Navigation Experience',
+                theme_color: '#ed1c24',
+                background_color: '#ffffff',
+                display: 'standalone',
+                icons: [
+                    {
+                        src: 'pwa-192x192.png',
+                        sizes: '192x192',
+                        type: 'image/png'
+                    },
+                    {
+                        src: 'pwa-512x512.png',
+                        sizes: '512x512',
+                        type: 'image/png'
+                    },
+                    {
+                        src: 'pwa-512x512.png',
+                        sizes: '512x512',
+                        type: 'image/png',
+                        purpose: 'any maskable'
+                    }
+                ]
+            }
+        })
     ],
     server: {
         proxy: {

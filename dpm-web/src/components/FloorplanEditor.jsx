@@ -6,12 +6,13 @@ import DevScaffoldFloorplanEditor from './DevScaffoldFloorplanEditor';
 
 export default DevScaffoldFloorplanEditor;
 
-export const FloorplanEditor = ({ initialFloorplan, initialEventId, onEventChange }) => {
+export const FloorplanEditor = ({ initialFloorplan, initialEventId, onEventChange, hideToolbar }) => {
   return (
     <DevScaffoldFloorplanEditor
       initialFloorplan={initialFloorplan}
       initialEventId={initialEventId}
       onEventChange={onEventChange}
+      hideToolbar={hideToolbar}
     />
   );
 };

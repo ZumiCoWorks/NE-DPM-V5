@@ -124,7 +124,7 @@ export const LoginPage = () => {
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
                   />
                   <div className="mt-2 text-right">
-                    <Link to="/auth/forgot-password" className="text-sm text-gray-600 hover:text-accent transition-colors">
+                    <Link to="/forgot-password" className="text-sm text-gray-600 hover:text-accent transition-colors">
                       Forgot password?
                     </Link>
                   </div>

@@ -38,6 +38,10 @@ export function ResetPasswordPage() {
         setLoading(true);
 
         try {
+            if (!supabase) {
+                throw new Error('Supabase client not initialized');
+            }
+
             const { error: updateError } = await supabase.auth.updateUser({
                 password: password
             });

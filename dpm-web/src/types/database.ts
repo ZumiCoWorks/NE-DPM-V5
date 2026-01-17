@@ -218,42 +218,72 @@ export interface Database {
       floorplans: {
         Row: {
           id: string
-          venue_id: string
+          event_id: string
+          user_id: string
           name: string
-          floor_level: number
-          image_url: string | null
-          svg_data: string | null
-          scale_factor: number | null
-          dimensions: Json | null
-          is_active: boolean
+          image_url: string
+          image_width: number | null
+          image_height: number | null
+          scale_meters_per_pixel: number | null
+          rotation_degrees: number | null
+          north_bearing_degrees: number | null
+          gps_top_left_lat: number | null
+          gps_top_left_lng: number | null
+          gps_top_right_lat: number | null
+          gps_top_right_lng: number | null
+          gps_bottom_left_lat: number | null
+          gps_bottom_left_lng: number | null
+          gps_bottom_right_lat: number | null
+          gps_bottom_right_lng: number | null
+          calibration_method: 'manual' | 'gps_corners' | 'qr_points' | 'auto' | null
+          is_calibrated: boolean | null
           created_at: string
-          updated_at: string
         }
         Insert: {
           id?: string
-          venue_id: string
+          event_id: string
+          user_id: string
           name: string
-          floor_level?: number
-          image_url?: string | null
-          svg_data?: string | null
-          scale_factor?: number | null
-          dimensions?: Json | null
-          is_active?: boolean
+          image_url: string
+          image_width?: number | null
+          image_height?: number | null
+          scale_meters_per_pixel?: number | null
+          rotation_degrees?: number | null
+          north_bearing_degrees?: number | null
+          gps_top_left_lat?: number | null
+          gps_top_left_lng?: number | null
+          gps_top_right_lat?: number | null
+          gps_top_right_lng?: number | null
+          gps_bottom_left_lat?: number | null
+          gps_bottom_left_lng?: number | null
+          gps_bottom_right_lat?: number | null
+          gps_bottom_right_lng?: number | null
+          calibration_method?: 'manual' | 'gps_corners' | 'qr_points' | 'auto' | null
+          is_calibrated?: boolean | null
           created_at?: string
-          updated_at?: string
         }
         Update: {
           id?: string
-          venue_id?: string
+          event_id?: string
+          user_id?: string
           name?: string
-          floor_level?: number
-          image_url?: string | null
-          svg_data?: string | null
-          scale_factor?: number | null
-          dimensions?: Json | null
-          is_active?: boolean
+          image_url?: string
+          image_width?: number | null
+          image_height?: number | null
+          scale_meters_per_pixel?: number | null
+          rotation_degrees?: number | null
+          north_bearing_degrees?: number | null
+          gps_top_left_lat?: number | null
+          gps_top_left_lng?: number | null
+          gps_top_right_lat?: number | null
+          gps_top_right_lng?: number | null
+          gps_bottom_left_lat?: number | null
+          gps_bottom_left_lng?: number | null
+          gps_bottom_right_lat?: number | null
+          gps_bottom_right_lng?: number | null
+          calibration_method?: 'manual' | 'gps_corners' | 'qr_points' | 'auto' | null
+          is_calibrated?: boolean | null
           created_at?: string
-          updated_at?: string
         }
       }
       navigation_points: {

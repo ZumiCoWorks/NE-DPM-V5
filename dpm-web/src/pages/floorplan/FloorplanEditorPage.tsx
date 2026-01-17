@@ -15,6 +15,7 @@ import {
   RotateCcw,
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
+import { GPSCalibrationWizard } from '../../components/GPSCalibrationWizard'
 // Removed unused lazy import of UnifiedFloorplanEditor to reduce bundle and fix diagnostics
 
 interface NavigationPoint {
@@ -52,6 +53,11 @@ export const FloorplanEditorPage: React.FC = () => {
   const [selectedPoint, setSelectedPoint] = useState<string | null>(null)
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
+  // Calibration state
+  const [showCalibrationWizard, setShowCalibrationWizard] = useState(false)
+  const [eventId, setEventId] = useState<string | null>(null)
+  const [floorplanDimensions, setFloorplanDimensions] = useState<{ width: number; height: number } | null>(null)
+  const [calibrationStatus, setCalibrationStatus] = useState<{ scale: number; rotation: number } | null>(null)
   // Removed unused drag state variables
 
   const fetchFloorplan = useCallback(async () => {
@@ -63,11 +69,11 @@ export const FloorplanEditorPage: React.FC = () => {
         setLoading(false)
         return
       }
-      
+
       // Fetch floorplan
       const { data: floorplanData, error: floorplanError } = await supabase
         .from('floorplans')
-        .select('id, name, image_url')
+        .select('id, name, image_url, event_id, image_width, image_height, scale_meters_per_pixel, rotation_degrees, is_calibrated')
         .eq('id', id)
         .single()
 
@@ -76,17 +82,50 @@ export const FloorplanEditorPage: React.FC = () => {
         return
       }
 
-      const fp = floorplanData as Partial<Floorplan> | null
+      const fp = floorplanData as Partial<Floorplan & {
+        event_id?: string;
+        image_width?: number | null;
+        image_height?: number | null;
+        scale_meters_per_pixel?: number | null;
+        rotation_degrees?: number | null;
+        is_calibrated?: boolean | null;
+      }> | null
+
       if (fp) {
         setFloorplan({
           id: String(fp.id),
           name: String(fp.name || 'Floorplan'),
           venue_id: '',
           image_url: fp.image_url ?? null,
-          width: 800,
-          height: 600,
+          width: fp.image_width || 800,
+          height: fp.image_height || 600,
           scale: 1,
         })
+
+        // Set event ID for calibration
+        if (fp.event_id) {
+          setEventId(fp.event_id)
+        }
+
+        // Set dimensions
+        if (fp.image_width && fp.image_height) {
+          setFloorplanDimensions({ width: fp.image_width, height: fp.image_height })
+        } else if (fp.image_url) {
+          // Load image to get dimensions
+          const img = new Image()
+          img.onload = () => {
+            setFloorplanDimensions({ width: img.naturalWidth, height: img.naturalHeight })
+          }
+          img.src = fp.image_url
+        }
+
+        // Set calibration status
+        if (fp.is_calibrated && fp.scale_meters_per_pixel !== null && fp.rotation_degrees !== null) {
+          setCalibrationStatus({
+            scale: fp.scale_meters_per_pixel as number,
+            rotation: fp.rotation_degrees as number
+          })
+        }
       } else {
         setFloorplan(null)
       }
@@ -110,13 +149,13 @@ export const FloorplanEditorPage: React.FC = () => {
           x: Number(point['x_coordinate'] ?? 0),
           y: Number(point['y_coordinate'] ?? 0),
           type: (point['point_type'] === 'landmark' ? 'stage' :
-                 point['point_type'] === 'amenity' ? 'restroom' :
-                 (point['point_type'] as NavigationPoint['type'] || 'booth')) as NavigationPoint['type'],
+            point['point_type'] === 'amenity' ? 'restroom' :
+              (point['point_type'] as NavigationPoint['type'] || 'booth')) as NavigationPoint['type'],
           label: String(point['name'] ?? ''),
           description: point['description'] ? String(point['description']) : undefined
         }
       })
-      
+
       setNavigationPoints(mappedPoints)
     } catch (error) {
       console.error('Error fetching floorplan data:', error)
@@ -158,7 +197,7 @@ export const FloorplanEditorPage: React.FC = () => {
       ctx.fillRect(0, 0, floorplan.width, floorplan.height)
       ctx.strokeStyle = '#d1d5db'
       ctx.strokeRect(0, 0, floorplan.width, floorplan.height)
-      
+
       // Draw placeholder text
       ctx.fillStyle = '#6b7280'
       ctx.font = '16px Arial'
@@ -296,11 +335,11 @@ export const FloorplanEditorPage: React.FC = () => {
       const pointsToSave = navigationPoints.map(point => ({
         floorplan_id: id,
         name: point.label,
-        point_type: point.type === 'stage' ? 'landmark' : 
-                   point.type === 'restroom' ? 'amenity' : 
-                   point.type === 'food' ? 'amenity' : 
-                   point.type === 'info' ? 'landmark' : 
-                   point.type as 'entrance' | 'exit' | 'booth',
+        point_type: point.type === 'stage' ? 'landmark' :
+          point.type === 'restroom' ? 'amenity' :
+            point.type === 'food' ? 'amenity' :
+              point.type === 'info' ? 'landmark' :
+                point.type as 'entrance' | 'exit' | 'booth',
         x_coordinate: point.x,
         y_coordinate: point.y,
         description: point.description || null,
@@ -313,7 +352,7 @@ export const FloorplanEditorPage: React.FC = () => {
         alert('Database connection not available')
         return
       }
-      
+
       await supabase
         .from('navigation_points')
         .delete()
@@ -405,6 +444,18 @@ export const FloorplanEditorPage: React.FC = () => {
         </div>
         <div className="flex items-center space-x-2">
           <button
+            onClick={() => setShowCalibrationWizard(true)}
+            disabled={!floorplan?.image_url}
+            className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            title={!floorplan?.image_url ? 'Upload floorplan first' : 'Calibrate GPS coordinates'}
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            {calibrationStatus ? 'Recalibrate GPS' : 'Calibrate GPS'}
+          </button>
+          <button
             onClick={saveFloorplan}
             disabled={saving}
             className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
@@ -418,15 +469,109 @@ export const FloorplanEditorPage: React.FC = () => {
           </button>
           {/* Link to unified editor for advanced Konva-based editing */}
           {id && (
-          <Link
-            to={`/admin/unified-map-editor?floorplanId=${id}`}
-            className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 ml-2"
-          >
-            Open Unified Editor
-          </Link>
+            <Link
+              to={`/map-editor?floorplanId=${id}`}
+              className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+            >
+              Open Unified Editor
+            </Link>
           )}
         </div>
       </div>
+
+      {/* Calibration Status Banner */}
+      {calibrationStatus && (
+        <div className="bg-green-50 border-b border-green-200 px-4 py-2 flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center">
+              <svg className="w-4 h-4 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="text-sm font-medium text-green-800">Map Calibrated</span>
+            </div>
+            <div className="text-xs text-green-700">
+              Scale: <span className="font-mono font-semibold">{calibrationStatus.scale.toFixed(3)} m/px</span>
+            </div>
+            <div className="text-xs text-green-700">
+              Rotation: <span className="font-mono font-semibold">{calibrationStatus.rotation.toFixed(1)}°</span>
+            </div>
+          </div>
+          <button
+            onClick={() => setShowCalibrationWizard(true)}
+            className="text-xs text-green-700 hover:text-green-900 underline"
+          >
+            Recalibrate
+          </button>
+        </div>
+      )}
+
+      {/* GPS Calibration Wizard Modal */}
+      {showCalibrationWizard && floorplan?.image_url && id && eventId && floorplanDimensions && (
+        <GPSCalibrationWizard
+          floorplanUrl={floorplan.image_url}
+          floorplanId={id}
+          imageWidth={floorplanDimensions.width}
+          imageHeight={floorplanDimensions.height}
+          onComplete={async (calibrationData) => {
+            if (!supabase || !eventId || !id) {
+              alert('❌ Cannot save: Missing required data');
+              return;
+            }
+
+            try {
+              // Save GPS bounds to events table (for backward compatibility)
+              const { error: eventsError } = await supabase
+                .from('events')
+                .update({
+                  gps_bounds_ne_lat: calibrationData.gpsBounds.ne.lat,
+                  gps_bounds_ne_lng: calibrationData.gpsBounds.ne.lng,
+                  gps_bounds_sw_lat: calibrationData.gpsBounds.sw.lat,
+                  gps_bounds_sw_lng: calibrationData.gpsBounds.sw.lng
+                })
+                .eq('id', eventId);
+
+              if (eventsError) throw eventsError;
+
+              // Save full calibration data to floorplans table
+              const { error: floorplansError } = await supabase
+                .from('floorplans')
+                .update({
+                  image_width: floorplanDimensions.width,
+                  image_height: floorplanDimensions.height,
+                  scale_meters_per_pixel: calibrationData.scale_meters_per_pixel,
+                  rotation_degrees: calibrationData.rotation_degrees,
+                  north_bearing_degrees: calibrationData.rotation_degrees,
+                  gps_top_left_lat: calibrationData.gps_top_left_lat,
+                  gps_top_left_lng: calibrationData.gps_top_left_lng,
+                  gps_top_right_lat: calibrationData.gps_top_right_lat,
+                  gps_top_right_lng: calibrationData.gps_top_right_lng,
+                  gps_bottom_left_lat: calibrationData.gps_bottom_left_lat,
+                  gps_bottom_left_lng: calibrationData.gps_bottom_left_lng,
+                  gps_bottom_right_lat: calibrationData.gps_bottom_right_lat,
+                  gps_bottom_right_lng: calibrationData.gps_bottom_right_lng,
+                  calibration_method: 'gps_corners',
+                  is_calibrated: true
+                })
+                .eq('id', id);
+
+              if (floorplansError) throw floorplansError;
+
+              // Update local state
+              setCalibrationStatus({
+                scale: calibrationData.scale_meters_per_pixel,
+                rotation: calibrationData.rotation_degrees
+              });
+              setShowCalibrationWizard(false);
+
+              alert(`✅ Calibration saved successfully!\n\nScale: ${calibrationData.scale_meters_per_pixel.toFixed(3)} m/px\nRotation: ${calibrationData.rotation_degrees.toFixed(1)}°\nAccuracy: ±${calibrationData.estimated_accuracy_meters.toFixed(1)}m`);
+            } catch (err: any) {
+              console.error('Failed to save calibration:', err);
+              alert(`❌ Failed to save calibration: ${err.message}`);
+            }
+          }}
+          onCancel={() => setShowCalibrationWizard(false)}
+        />
+      )}
 
       <div className="flex flex-1 overflow-hidden">
         {/* Toolbar */}
