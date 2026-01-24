@@ -169,7 +169,7 @@ export const EditEventPage: React.FC = () => {
     if (formData.start_date && formData.end_date) {
       const startDate = new Date(formData.start_date)
       const endDate = new Date(formData.end_date)
-      
+
       if (startDate >= endDate) {
         newErrors.end_date = 'End date must be after start date'
       }
@@ -189,7 +189,7 @@ export const EditEventPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!validateForm() || !id) return
 
     try {
@@ -242,7 +242,7 @@ export const EditEventPage: React.FC = () => {
 
   const handleInputChange = (field: keyof EventFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
-    
+
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: undefined }))
@@ -270,10 +270,20 @@ export const EditEventPage: React.FC = () => {
             Back to Events
           </Link>
         </div>
-        <h1 className="text-2xl font-bold text-gray-900">Edit Event</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Update event details and settings.
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Edit Event</h1>
+            <p className="mt-1 text-sm text-gray-500">
+              Update event details and settings.
+            </p>
+          </div>
+          <Link
+            to={`/events/${id}/sponsors`}
+            className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            👥 Manage Sponsors
+          </Link>
+        </div>
       </div>
 
       {/* Form */}
@@ -299,9 +309,8 @@ export const EditEventPage: React.FC = () => {
                 id="name"
                 value={formData.name}
                 onChange={(e) => handleInputChange('name', e.target.value)}
-                className={`block w-full pl-10 pr-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
-                  errors.name ? 'border-red-300' : 'border-gray-300'
-                }`}
+                className={`block w-full pl-10 pr-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.name ? 'border-red-300' : 'border-gray-300'
+                  }`}
                 placeholder="Enter event name"
               />
             </div>
@@ -324,9 +333,8 @@ export const EditEventPage: React.FC = () => {
                 rows={4}
                 value={formData.description}
                 onChange={(e) => handleInputChange('description', e.target.value)}
-                className={`block w-full pl-10 pr-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
-                  errors.description ? 'border-red-300' : 'border-gray-300'
-                }`}
+                className={`block w-full pl-10 pr-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.description ? 'border-red-300' : 'border-gray-300'
+                  }`}
                 placeholder="Enter event description"
               />
             </div>
@@ -367,9 +375,8 @@ export const EditEventPage: React.FC = () => {
                   id="start_date"
                   value={formData.start_date}
                   onChange={(e) => handleInputChange('start_date', e.target.value)}
-                  className={`block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
-                    errors.start_date ? 'border-red-300' : 'border-gray-300'
-                  }`}
+                  className={`block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.start_date ? 'border-red-300' : 'border-gray-300'
+                    }`}
                 />
               </div>
               {errors.start_date && (
@@ -387,9 +394,8 @@ export const EditEventPage: React.FC = () => {
                   id="end_date"
                   value={formData.end_date}
                   onChange={(e) => handleInputChange('end_date', e.target.value)}
-                  className={`block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
-                    errors.end_date ? 'border-red-300' : 'border-gray-300'
-                  }`}
+                  className={`block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.end_date ? 'border-red-300' : 'border-gray-300'
+                    }`}
                 />
               </div>
               {errors.end_date && (
@@ -411,9 +417,8 @@ export const EditEventPage: React.FC = () => {
                 id="venue_id"
                 value={formData.venue_id}
                 onChange={(e) => handleInputChange('venue_id', e.target.value)}
-                className={`block w-full pl-10 pr-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
-                  errors.venue_id ? 'border-red-300' : 'border-gray-300'
-                }`}
+                className={`block w-full pl-10 pr-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.venue_id ? 'border-red-300' : 'border-gray-300'
+                  }`}
               >
                 <option value="">Select a venue</option>
                 {venues.map((venue) => (
@@ -443,9 +448,8 @@ export const EditEventPage: React.FC = () => {
                 min="1"
                 value={formData.max_attendees}
                 onChange={(e) => handleInputChange('max_attendees', e.target.value)}
-                className={`block w-full pl-10 pr-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
-                  errors.max_attendees ? 'border-red-300' : 'border-gray-300'
-                }`}
+                className={`block w-full pl-10 pr-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.max_attendees ? 'border-red-300' : 'border-gray-300'
+                  }`}
                 placeholder="Leave empty for unlimited"
               />
             </div>
@@ -551,9 +555,8 @@ export const EditEventPage: React.FC = () => {
                     step="0.000001"
                     value={formData.gps_center_lat}
                     onChange={(e) => handleInputChange('gps_center_lat', e.target.value)}
-                    className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
-                      errors.gps_center_lat ? 'border-red-300' : 'border-gray-300'
-                    }`}
+                    className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.gps_center_lat ? 'border-red-300' : 'border-gray-300'
+                      }`}
                     placeholder="-25.7461"
                   />
                   {errors.gps_center_lat && (
@@ -570,9 +573,8 @@ export const EditEventPage: React.FC = () => {
                     step="0.000001"
                     value={formData.gps_center_lng}
                     onChange={(e) => handleInputChange('gps_center_lng', e.target.value)}
-                    className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
-                      errors.gps_center_lng ? 'border-red-300' : 'border-gray-300'
-                    }`}
+                    className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.gps_center_lng ? 'border-red-300' : 'border-gray-300'
+                      }`}
                     placeholder="28.1881"
                   />
                   {errors.gps_center_lng && (

@@ -22,8 +22,8 @@ import { EditVenuePage } from './pages/venues/EditVenuePage';
 import { ARCampaignsPage } from './pages/ar/ARCampaignsPage';
 import { CreateARCampaignPage } from './pages/ar/CreateARCampaignPage';
 import { EditARCampaignPage } from './pages/ar/EditARCampaignPage';
-import SponsorLeadsPage from './pages/sponsor/SponsorLeadsPage';
-const SponsorManagementPage = SponsorLeadsPage;
+import { SponsorManagementPage } from './pages/admin/SponsorManagementPage';
+import { SponsorSignupPage } from './pages/sponsor/SponsorSignupPage';
 import { ProfilePage } from './pages/profile/ProfilePage';
 import { RegisterPage as VendorSignupPage } from './pages/auth/RegisterPage';
 import AttendeePWANew from './pages/mobile/AttendeePWANew';
@@ -43,6 +43,7 @@ export default function App() {
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/signup" element={<VendorSignupPage />} />
+            <Route path="/sponsor/signup" element={<SponsorSignupPage />} />
 
             <Route
               path="/dashboard"
