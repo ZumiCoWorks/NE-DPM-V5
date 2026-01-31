@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { formatDate } from '../lib/utils'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { OnboardingChecklist } from '../features/onboarding/components/OnboardingChecklist';
 
 interface DashboardStats {
   totalEvents: number
@@ -343,6 +344,9 @@ export const DashboardPage: React.FC = () => {
           {user?.role?.replace('_', ' ')} Dashboard
         </p>
       </div>
+
+      {/* Onboarding Checklist */}
+      {user?.role === 'admin' && <OnboardingChecklist />}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">

@@ -170,11 +170,22 @@ const DevScaffoldFloorplanEditor = ({ initialFloorplan = null, initialEventId = 
 
       console.log(`✅ Loaded ${data.length} navigation points from database`);
 
+      // Filter out points WITH GPS coordinates (Leaflet Editor nodes)
+      // Classic Editor nodes have pixel coords but NO GPS coords
+      const classicEditorPoints = data.filter(point =>
+        (point.gps_lat === null || point.gps_lat === undefined) &&
+        (point.gps_lng === null || point.gps_lng === undefined)
+      );
+
+      if (classicEditorPoints.length < data.length) {
+        console.warn(`⚠️ Filtered out ${data.length - classicEditorPoints.length} nodes with GPS coordinates (Leaflet Editor nodes)`);
+      }
+
       // Separate POIs (destinations) from nodes (waypoints)
       const loadedPois = [];
       const loadedNodes = [];
 
-      data.forEach(point => {
+      classicEditorPoints.forEach(point => {
         // POIs have poi_name or are marked as destinations
         if (point.poi_name || point.is_destination) {
           loadedPois.push({

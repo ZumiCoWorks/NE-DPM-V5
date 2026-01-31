@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { LoadingSpinner } from '../../components/ui/loadingSpinner'
 import { ArrowLeft, Calendar, MapPin, Users, FileText } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { onboardingService } from '../../features/onboarding/services/OnboardingService'
 
 interface Venue {
   id: string
@@ -64,7 +65,7 @@ export const CreateEventPage: React.FC = () => {
         setVenues([])
         return
       }
-      
+
       const { data, error } = await supabase
         .from('venues')
         .select('id, name, address')
@@ -102,11 +103,11 @@ export const CreateEventPage: React.FC = () => {
     if (formData.start_date && formData.end_date) {
       const startDate = new Date(formData.start_date)
       const endDate = new Date(formData.end_date)
-      
+
       if (startDate >= endDate) {
         newErrors.end_date = 'End date must be after start date'
       }
-      
+
       if (startDate < new Date()) {
         newErrors.start_date = 'Start date cannot be in the past'
       }
@@ -126,7 +127,7 @@ export const CreateEventPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!validateForm() || !user) {
       return
     }
@@ -137,7 +138,7 @@ export const CreateEventPage: React.FC = () => {
         navigate('/events')
         return
       }
-      
+
       const startISO = new Date(formData.start_date).toISOString()
       const endISO = new Date(formData.end_date).toISOString()
       const eventData = {
@@ -167,6 +168,15 @@ export const CreateEventPage: React.FC = () => {
         console.error('Error creating event:', error)
         alert('Failed to create event. Please try again.')
         return
+      }
+
+      // Update onboarding checklist
+      if (user?.id) {
+        try {
+          await onboardingService.updateChecklistItem(user.id, 'event_created', true);
+        } catch (err) {
+          console.error('Failed to update onboarding:', err);
+        }
       }
 
       navigate('/events')
@@ -207,7 +217,7 @@ export const CreateEventPage: React.FC = () => {
 
   const handleInputChange = (field: keyof EventFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
-    
+
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: undefined }))
@@ -249,9 +259,8 @@ export const CreateEventPage: React.FC = () => {
                 id="name"
                 value={formData.name}
                 onChange={(e) => handleInputChange('name', e.target.value)}
-                className={`block w-full pl-10 pr-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
-                  errors.name ? 'border-red-300' : 'border-gray-300'
-                }`}
+                className={`block w-full pl-10 pr-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.name ? 'border-red-300' : 'border-gray-300'
+                  }`}
                 placeholder="Enter event name"
               />
             </div>
@@ -260,40 +269,40 @@ export const CreateEventPage: React.FC = () => {
             )}
           </div>
 
-        {/* Description */}
-        <div>
-          <label htmlFor="description" className="block text-sm font-medium text-gray-700">
-            Description
-          </label>
-          <div className="mt-1 relative">
-            <div className="absolute top-3 left-3 pointer-events-none">
-              <FileText className="h-5 w-5 text-gray-400" />
+          {/* Description */}
+          <div>
+            <label htmlFor="description" className="block text-sm font-medium text-gray-700">
+              Description
+            </label>
+            <div className="mt-1 relative">
+              <div className="absolute top-3 left-3 pointer-events-none">
+                <FileText className="h-5 w-5 text-gray-400" />
+              </div>
+              <textarea
+                id="description"
+                rows={4}
+                value={formData.description}
+                onChange={(e) => handleInputChange('description', e.target.value)}
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Describe your event..."
+              />
             </div>
-            <textarea
-              id="description"
-              rows={4}
-              value={formData.description}
-              onChange={(e) => handleInputChange('description', e.target.value)}
-              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Describe your event..."
+          </div>
+
+          {/* Quicket Event ID (optional) */}
+          <div>
+            <label htmlFor="quicket_event_id" className="block text-sm font-medium text-gray-700">
+              Quicket Event ID (optional)
+            </label>
+            <input
+              type="text"
+              id="quicket_event_id"
+              value={formData.quicket_event_id}
+              onChange={(e) => handleInputChange('quicket_event_id', e.target.value)}
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Link to an external Quicket event"
             />
           </div>
-        </div>
-
-        {/* Quicket Event ID (optional) */}
-        <div>
-          <label htmlFor="quicket_event_id" className="block text-sm font-medium text-gray-700">
-            Quicket Event ID (optional)
-          </label>
-          <input
-            type="text"
-            id="quicket_event_id"
-            value={formData.quicket_event_id}
-            onChange={(e) => handleInputChange('quicket_event_id', e.target.value)}
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Link to an external Quicket event"
-          />
-        </div>
 
           {/* Date Range */}
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
@@ -307,9 +316,8 @@ export const CreateEventPage: React.FC = () => {
                   id="start_date"
                   value={formData.start_date}
                   onChange={(e) => handleInputChange('start_date', e.target.value)}
-                  className={`block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
-                    errors.start_date ? 'border-red-300' : 'border-gray-300'
-                  }`}
+                  className={`block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.start_date ? 'border-red-300' : 'border-gray-300'
+                    }`}
                 />
               </div>
               {errors.start_date && (
@@ -327,9 +335,8 @@ export const CreateEventPage: React.FC = () => {
                   id="end_date"
                   value={formData.end_date}
                   onChange={(e) => handleInputChange('end_date', e.target.value)}
-                  className={`block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
-                    errors.end_date ? 'border-red-300' : 'border-gray-300'
-                  }`}
+                  className={`block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.end_date ? 'border-red-300' : 'border-gray-300'
+                    }`}
                 />
               </div>
               {errors.end_date && (
@@ -352,9 +359,8 @@ export const CreateEventPage: React.FC = () => {
                 value={formData.venue_id}
                 onChange={(e) => handleInputChange('venue_id', e.target.value)}
                 disabled={venuesLoading}
-                className={`block w-full pl-10 pr-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
-                  errors.venue_id ? 'border-red-300' : 'border-gray-300'
-                }`}
+                className={`block w-full pl-10 pr-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.venue_id ? 'border-red-300' : 'border-gray-300'
+                  }`}
               >
                 <option value="">
                   {venuesLoading ? 'Loading venues...' : 'Select a venue'}
@@ -431,9 +437,8 @@ export const CreateEventPage: React.FC = () => {
                 min="1"
                 value={formData.max_attendees}
                 onChange={(e) => handleInputChange('max_attendees', e.target.value)}
-                className={`block w-full pl-10 pr-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
-                  errors.max_attendees ? 'border-red-300' : 'border-gray-300'
-                }`}
+                className={`block w-full pl-10 pr-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.max_attendees ? 'border-red-300' : 'border-gray-300'
+                  }`}
                 placeholder="Leave empty for unlimited"
               />
             </div>
