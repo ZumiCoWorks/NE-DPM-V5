@@ -149,7 +149,31 @@ const LeafletMapEditor: React.FC<LeafletMapEditorProps> = ({
                             isPOI: point.is_destination || point.point_type === 'poi'
                         }));
                     setNodes(loadedNodes);
-                    console.log(`✅ Loaded ${loadedNodes.length} nodes with valid GPS:`, loadedNodes.slice(0, 3));
+
+                    // Enhanced logging to identify duplicates
+                    console.log(`✅ Loaded ${loadedNodes.length} nodes with valid GPS`);
+                    console.log('📊 Node breakdown:', {
+                        total: loadedNodes.length,
+                        pois: loadedNodes.filter(n => n.isPOI).length,
+                        regularNodes: loadedNodes.filter(n => !n.isPOI).length
+                    });
+
+                    // Check for duplicate GPS coordinates
+                    const coordMap = new Map();
+                    loadedNodes.forEach(node => {
+                        const coordKey = `${node.lat.toFixed(6)},${node.lng.toFixed(6)}`;
+                        if (!coordMap.has(coordKey)) {
+                            coordMap.set(coordKey, []);
+                        }
+                        coordMap.get(coordKey).push({ id: node.id, name: node.name, isPOI: node.isPOI });
+                    });
+
+                    // Log any duplicate coordinates
+                    coordMap.forEach((nodes, coords) => {
+                        if (nodes.length > 1) {
+                            console.warn(`⚠️ Multiple nodes at ${coords}:`, nodes);
+                        }
+                    });
                 }
 
                 // Fetch segments
@@ -365,6 +389,25 @@ const LeafletMapEditor: React.FC<LeafletMapEditorProps> = ({
         shadowSize: [41, 41]
     });
 
+    // Static icons for regular nodes to prevent duplicate markers
+    const nodeIcon = new L.Icon({
+        iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+        shadowSize: [41, 41]
+    });
+
+    const nodeIconSmall = new L.Icon({
+        iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+        iconSize: [15, 25],
+        iconAnchor: [7, 25],
+        popupAnchor: [1, -34],
+        shadowSize: [25, 25]
+    });
+
     return (
         <div className="flex flex-col h-full">
             {/* Toolbar */}
@@ -486,42 +529,44 @@ const LeafletMapEditor: React.FC<LeafletMapEditorProps> = ({
                     />
 
                     {/* Nodes */}
-                    {nodes.map(node => {
-                        // Make nodes smaller and less intrusive when placing POIs
-                        const isPlacingPOI = drawMode === 'poi';
+                    {(() => {
+                        const poiNodes = nodes.filter(n => n.isPOI);
+                        console.log(`🎨 Rendering ${nodes.length} nodes:`, {
+                            pois: poiNodes.length,
+                            regular: nodes.filter(n => !n.isPOI).length,
+                            poiIds: poiNodes.map(n => n.id),
+                            poiNames: poiNodes.map(n => n.name)
+                        });
+                        return nodes.map(node => {
+                            // Make nodes smaller and less intrusive when placing POIs
+                            const isPlacingPOI = drawMode === 'poi';
 
-                        // Always use red icon for POIs, blue for nodes
-                        const nodeIcon = node.isPOI
-                            ? poiIcon
-                            : new L.Icon({
-                                iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-                                shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-                                iconSize: isPlacingPOI ? [15, 25] : [25, 41],
-                                iconAnchor: isPlacingPOI ? [7, 25] : [12, 41],
-                                popupAnchor: [1, -34],
-                                shadowSize: isPlacingPOI ? [25, 25] : [41, 41]
-                            });
+                            // Use static icon instances to prevent duplicate markers
+                            const markerIcon = node.isPOI
+                                ? poiIcon
+                                : (isPlacingPOI ? nodeIconSmall : nodeIcon);
 
-                        return (
-                            <Marker
-                                key={node.id}
-                                position={[node.lat, node.lng]}
-                                icon={nodeIcon}
-                                opacity={isPlacingPOI ? 0.4 : 1}
-                                eventHandlers={{
-                                    click: (e) => {
-                                        // Stop event from bubbling to map
-                                        L.DomEvent.stopPropagation(e.originalEvent);
+                            return (
+                                <Marker
+                                    key={node.id}
+                                    position={[node.lat, node.lng]}
+                                    icon={markerIcon}
+                                    opacity={isPlacingPOI ? 0.4 : 1}
+                                    eventHandlers={{
+                                        click: (e) => {
+                                            // Stop event from bubbling to map
+                                            L.DomEvent.stopPropagation(e.originalEvent);
 
-                                        // Disable node clicks when placing POIs
-                                        if (!isPlacingPOI) {
-                                            handleMarkerClick(node.id);
+                                            // Disable node clicks when placing POIs
+                                            if (!isPlacingPOI) {
+                                                handleMarkerClick(node.id);
+                                            }
                                         }
-                                    }
-                                }}
-                            />
-                        );
-                    })}
+                                    }}
+                                />
+                            );
+                        });
+                    })()}
 
                     {/* Segments */}
                     {segments.map(seg => {
