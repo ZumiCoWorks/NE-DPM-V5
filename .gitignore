@@ -5,3 +5,4 @@ mobile_analysis/
 
 # macOS
 .DS_Store
+dpm-web/dev-dist/sw.js
