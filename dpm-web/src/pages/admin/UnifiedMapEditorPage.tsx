@@ -30,7 +30,7 @@ export const UnifiedMapEditorPage: React.FC = () => {
   const [gpsFallbackInstruction, setGpsFallbackInstruction] = useState<string>('')
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null)
   const [isValidating, setIsValidating] = useState(false)
-  const [useLeafletEditor, setUseLeafletEditor] = useState(false)
+  const [useLeafletEditor, setUseLeafletEditor] = useState(true) // Default to Leaflet Editor (Classic Editor disabled)
   const [gpsBounds, setGpsBounds] = useState<any>(null)
   const [showCalibrationWizard, setShowCalibrationWizard] = useState(false)
   const [calibrationStatus, setCalibrationStatus] = useState<{ scale: number; rotation: number } | null>(null)
@@ -354,7 +354,8 @@ export const UnifiedMapEditorPage: React.FC = () => {
             value={gpsFallbackInstruction}
             onChange={(e) => setGpsFallbackInstruction(e.target.value)}
           />
-          <button
+          {/* Classic Editor toggle disabled - Leaflet Editor is now the default */}
+          {/* <button
             onClick={() => setUseLeafletEditor(!useLeafletEditor)}
             disabled={!gpsBounds || !initialFloorplanUrl}
             className="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
@@ -364,7 +365,7 @@ export const UnifiedMapEditorPage: React.FC = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
             </svg>
             {useLeafletEditor ? 'Classic Editor' : 'Leaflet Editor'}
-          </button>
+          </button> */}
           <button
             onClick={() => setShowCalibrationWizard(true)}
             disabled={!initialFloorplanUrl}
@@ -566,6 +567,7 @@ export const UnifiedMapEditorPage: React.FC = () => {
         {useLeafletEditor && gpsBounds && initialFloorplanUrl ? (
           <LeafletMapEditor
             eventId={eventId || ''}
+            floorplanId={floorplanId || ''}
             floorplanUrl={initialFloorplanUrl}
             gpsBounds={gpsBounds}
             onExport={async (nodes, segments) => {
@@ -593,10 +595,10 @@ export const UnifiedMapEditorPage: React.FC = () => {
                   .from('navigation_segments')
                   .insert(segments.map(s => ({
                     event_id: eventId,
-                    from_node_id: s.start_node_id,
-                    to_node_id: s.end_node_id,
-                    bidirectional: true,
-                    distance_meters: 0
+                    floorplan_id: floorplanId,
+                    start_node_id: s.start_node_id,
+                    end_node_id: s.end_node_id,
+                    is_bidirectional: true
                   })));
 
 
