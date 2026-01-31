@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { List, Map, Scan, Navigation, MapPin, Camera, WifiOff, ArrowRight, Trophy, CheckCircle, Satellite, ChevronRight, Compass } from 'lucide-react';
 import jsQR from 'jsqr';
 import FloorplanCanvas from '../../components/FloorplanCanvas.jsx';
-import { findShortestNodePath, nearestNodeToPoint, nodePathToCoords, GraphNode, GraphSegment } from '../../lib/pathfinding';
+import { findShortestNodePath, nearestNodeToPoint, nodePathToCoords, generateTurnByTurnDirections, GraphNode, GraphSegment } from '../../lib/pathfinding';
 import {
   getCurrentGPSPosition,
   watchGPSPosition,
@@ -106,6 +106,7 @@ const AttendeePWANew: React.FC = () => {
   const [highlightPath, setHighlightPath] = useState<Array<{ x: number; y: number }>>([]);
   const [navigationPath, setNavigationPath] = useState<GraphNode[]>([]); // Turn-by-turn waypoints
   const [currentWaypointIndex, setCurrentWaypointIndex] = useState<number>(0);
+  const [turnByTurnDirections, setTurnByTurnDirections] = useState<string[]>([]); // NEW: Text directions
 
   // Phase 1: Off-path detection and auto re-routing
   const [isOffPath, setIsOffPath] = useState(false);
@@ -687,8 +688,13 @@ const AttendeePWANew: React.FC = () => {
     setNavigationPath(pathNodes);
     setCurrentWaypointIndex(0);
 
+    // Generate turn-by-turn text directions
+    const directions = generateTurnByTurnDirections(graphNodes, nodePath);
+    setTurnByTurnDirections(directions);
+
     console.log('✅ Route calculated:', nodePath.length, 'waypoints');
     console.log('📍 Waypoints:', pathNodes.map(n => n.name).join(' → '));
+    console.log('🧭 Directions:', directions);
 
     // Switch to precision finding with path-based navigation
     setCurrentScreen('precision-finding');

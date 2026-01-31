@@ -346,7 +346,7 @@ export const DashboardPage: React.FC = () => {
       </div>
 
       {/* Onboarding Checklist */}
-      {user?.role === 'admin' && <OnboardingChecklist />}
+      {user?.role === 'admin' && <OnboardingChecklist key={Date.now()} />}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">

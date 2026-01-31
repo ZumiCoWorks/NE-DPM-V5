@@ -20,11 +20,16 @@ export const useOnboarding = () => {
     const loadOnboarding = async () => {
         if (!user?.id) return;
 
+        console.log('🎯 Loading onboarding for user:', user.id);
+
         try {
             const [progress, isDismissed] = await Promise.all([
                 onboardingService.getProgress(user.id),
                 onboardingService.isDismissed(user.id)
             ]);
+
+            console.log('📋 Onboarding progress:', progress);
+            console.log('❌ Onboarding dismissed:', isDismissed);
 
             setChecklist(progress);
             setDismissed(isDismissed);
