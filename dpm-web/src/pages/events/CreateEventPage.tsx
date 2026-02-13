@@ -170,6 +170,16 @@ export const CreateEventPage: React.FC = () => {
         return
       }
 
+      // Get the created event ID
+      const { data: createdEvent } = await supabase
+        .from('events')
+        .select('id')
+        .eq('name', eventData.name)
+        .eq('organizer_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+
       // Update onboarding checklist
       if (user?.id) {
         try {
@@ -179,7 +189,12 @@ export const CreateEventPage: React.FC = () => {
         }
       }
 
-      navigate('/events')
+      // Redirect to Event Setup Dashboard
+      if (createdEvent?.id) {
+        navigate(`/events/${createdEvent.id}/setup`)
+      } else {
+        navigate('/events')
+      }
     } catch (error) {
       console.error('Error creating event:', error)
       alert('Failed to create event. Please try again.')

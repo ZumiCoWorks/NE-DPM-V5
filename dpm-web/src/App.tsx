@@ -18,6 +18,7 @@ import MapEditorPage from './pages/admin/UnifiedMapEditorPage';
 import { EventsPage } from './pages/events/EventsPage';
 import { CreateEventPage } from './pages/events/CreateEventPage';
 import { EditEventPage as EventDetailPage } from './pages/events/EditEventPage';
+import { EventSetupPage } from './pages/events/EventSetupPage';
 import { VenuesPage } from './pages/venues/VenuesPage';
 import { CreateVenuePage } from './pages/venues/CreateVenuePage';
 import { EditVenuePage } from './pages/venues/EditVenuePage';
@@ -88,6 +89,17 @@ export default function App() {
                 <ProtectedRoute>
                   <AdminLayout>
                     <EventDetailPage />
+                  </AdminLayout>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/events/:eventId/setup"
+              element={
+                <ProtectedRoute>
+                  <AdminLayout>
+                    <EventSetupPage />
                   </AdminLayout>
                 </ProtectedRoute>
               }
