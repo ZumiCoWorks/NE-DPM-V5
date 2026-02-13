@@ -52,7 +52,7 @@ export const EventSetupPage: React.FC = () => {
             // Check for floorplan
             const { data: floorplanData, error: floorplanError } = await supabase
                 .from('floorplans')
-                .select('id, gps_bounds')
+                .select('id, is_calibrated')
                 .eq('event_id', eventId)
                 .maybeSingle()
 
@@ -61,7 +61,7 @@ export const EventSetupPage: React.FC = () => {
             }
 
             setHasFloorplan(!!floorplanData)
-            setHasGPSBounds(!!floorplanData?.gps_bounds)
+            setHasGPSBounds(!!floorplanData?.is_calibrated)
 
             // Check for navigation points (using floorplan-centric schema)
             if (floorplanData?.id) {
