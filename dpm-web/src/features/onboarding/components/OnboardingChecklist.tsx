@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useOnboarding } from '../hooks/useOnboarding';
 import { CheckCircle2, Circle, X } from 'lucide-react';
+import { supabase } from '../../../lib/supabase';
+import { useAuth } from '../../../contexts/AuthContext';
 
 interface ChecklistItem {
     id: keyof import('../services/OnboardingService').OnboardingChecklist;
@@ -10,40 +12,67 @@ interface ChecklistItem {
     icon: string;
 }
 
-const CHECKLIST_ITEMS: ChecklistItem[] = [
-    {
-        id: 'event_created',
-        label: 'Create your first event',
-        href: '/events/create',
-        icon: '📅'
-    },
-    {
-        id: 'floorplan_uploaded',
-        label: 'Upload floorplan',
-        href: '/map-editor',
-        icon: '🗺️'
-    },
-    {
-        id: 'sponsors_added',
-        label: 'Add sponsors',
-        href: '/events',
-        icon: '👥'
-    },
-    {
-        id: 'event_published',
-        label: 'Publish event',
-        href: '/events',
-        icon: '🚀'
-    }
-];
-
 export const OnboardingChecklist: React.FC = () => {
     const { checklist, shouldShow, dismiss } = useOnboarding();
+    const { user } = useAuth();
+    const [mostRecentEventId, setMostRecentEventId] = useState<string | null>(null);
+
+    useEffect(() => {
+        const fetchMostRecentEvent = async () => {
+            if (!user?.id) return;
+
+            try {
+                const { data, error } = await supabase
+                    .from('events')
+                    .select('id')
+                    .eq('organizer_id', user.id)
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .single();
+
+                if (!error && data && typeof data === 'object' && data !== null) {
+                    setMostRecentEventId((data as any).id);
+                }
+            } catch (err) {
+                // Silently fail if no events exist
+                console.log('No events found for user');
+            }
+        };
+
+        fetchMostRecentEvent();
+    }, [user?.id]);
 
     if (!shouldShow || !checklist) return null;
 
     const completedCount = Object.values(checklist).filter(Boolean).length;
     const totalCount = Object.keys(checklist).length;
+
+    const CHECKLIST_ITEMS: ChecklistItem[] = [
+        {
+            id: 'event_created',
+            label: 'Create your first event',
+            href: '/events/create',
+            icon: '📅'
+        },
+        {
+            id: 'floorplan_uploaded',
+            label: 'Complete event setup',
+            href: mostRecentEventId ? `/events/${mostRecentEventId}/setup` : '/events',
+            icon: '⚙️'
+        },
+        {
+            id: 'sponsors_added',
+            label: 'Add sponsors',
+            href: '/events',
+            icon: '👥'
+        },
+        {
+            id: 'event_published',
+            label: 'Publish event',
+            href: '/events',
+            icon: '🚀'
+        }
+    ];
 
     return (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -89,8 +118,8 @@ export const OnboardingChecklist: React.FC = () => {
                             key={item.id}
                             to={item.href}
                             className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${isCompleted
-                                    ? 'bg-green-50 border-green-200'
-                                    : 'bg-gray-50 border-gray-200 hover:bg-gray-100 hover:border-gray-300'
+                                ? 'bg-green-50 border-green-200'
+                                : 'bg-gray-50 border-gray-200 hover:bg-gray-100 hover:border-gray-300'
                                 }`}
                         >
                             <div className="flex-shrink-0">
