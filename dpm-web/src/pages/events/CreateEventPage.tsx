@@ -158,7 +158,7 @@ export const CreateEventPage: React.FC = () => {
         gps_center_lng: formData.gps_center_lng ? parseFloat(formData.gps_center_lng) : null,
       }
 
-      const { error } = await supabase
+      const { data: createdEvent, error } = await supabase
         .from('events')
         .insert([eventData])
         .select()
@@ -170,15 +170,7 @@ export const CreateEventPage: React.FC = () => {
         return
       }
 
-      // Get the created event ID
-      const { data: createdEvent } = await supabase
-        .from('events')
-        .select('id')
-        .eq('name', eventData.name)
-        .eq('organizer_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single()
+      console.log('✅ Event created:', createdEvent)
 
       // Update onboarding checklist
       if (user?.id) {
@@ -191,8 +183,10 @@ export const CreateEventPage: React.FC = () => {
 
       // Redirect to Event Setup Dashboard
       if (createdEvent?.id) {
+        console.log('🔄 Redirecting to setup dashboard:', `/events/${createdEvent.id}/setup`)
         navigate(`/events/${createdEvent.id}/setup`)
       } else {
+        console.warn('⚠️ No event ID, redirecting to events list')
         navigate('/events')
       }
     } catch (error) {
