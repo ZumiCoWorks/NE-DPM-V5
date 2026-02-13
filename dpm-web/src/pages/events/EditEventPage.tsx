@@ -537,56 +537,12 @@ export const EditEventPage: React.FC = () => {
             </p>
           </div>
 
-          {/* GPS Center Coordinates - Show if outdoor or hybrid */}
-          {(formData.navigation_mode === 'outdoor' || formData.navigation_mode === 'hybrid') && (
+          {/* GPS Center Coordinates - Removed as per user request (redundant with Map Editor calibration) */}
+          {/* {(formData.navigation_mode === 'outdoor' || formData.navigation_mode === 'hybrid') && (
             <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
-              <h3 className="text-sm font-medium text-gray-900 mb-3">GPS Event Center</h3>
-              <p className="text-sm text-gray-600 mb-3">
-                Set the center point for your outdoor event venue. Attendees will use GPS for navigation.
-              </p>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="gps_center_lat" className="block text-sm font-medium text-gray-700">
-                    Latitude
-                  </label>
-                  <input
-                    type="number"
-                    id="gps_center_lat"
-                    step="0.000001"
-                    value={formData.gps_center_lat}
-                    onChange={(e) => handleInputChange('gps_center_lat', e.target.value)}
-                    className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.gps_center_lat ? 'border-red-300' : 'border-gray-300'
-                      }`}
-                    placeholder="-25.7461"
-                  />
-                  {errors.gps_center_lat && (
-                    <p className="mt-1 text-sm text-red-600">{errors.gps_center_lat}</p>
-                  )}
-                </div>
-                <div>
-                  <label htmlFor="gps_center_lng" className="block text-sm font-medium text-gray-700">
-                    Longitude
-                  </label>
-                  <input
-                    type="number"
-                    id="gps_center_lng"
-                    step="0.000001"
-                    value={formData.gps_center_lng}
-                    onChange={(e) => handleInputChange('gps_center_lng', e.target.value)}
-                    className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.gps_center_lng ? 'border-red-300' : 'border-gray-300'
-                      }`}
-                    placeholder="28.1881"
-                  />
-                  {errors.gps_center_lng && (
-                    <p className="mt-1 text-sm text-red-600">{errors.gps_center_lng}</p>
-                  )}
-                </div>
-              </div>
-              <p className="mt-2 text-xs text-gray-500">
-                💡 Tip: Right-click on Google Maps and copy the coordinates, or use your phone's GPS app.
-              </p>
+              ... GPS Event Center UI removed ...
             </div>
-          )}
+          )} */}
 
           {/* Form Actions */}
           <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">

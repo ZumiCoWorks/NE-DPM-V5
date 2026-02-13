@@ -17,7 +17,6 @@ L.Icon.Default.mergeOptions({
 });
 
 interface LeafletMapEditorProps {
-    eventId: string;
     floorplanId: string;
     floorplanUrl: string;
     gpsBounds: GPSBounds;
@@ -63,7 +62,7 @@ function MapClickHandler({
 }
 
 const LeafletMapEditor: React.FC<LeafletMapEditorProps> = ({
-    eventId,
+
     floorplanId,
     floorplanUrl,
     gpsBounds,
@@ -79,22 +78,35 @@ const LeafletMapEditor: React.FC<LeafletMapEditorProps> = ({
     const [editingNode, setEditingNode] = useState<LeafletNode | null>(null);
     const [showEditModal, setShowEditModal] = useState(false);
 
-    // Calculate map bounds from GPS bounds
-    const bounds: [[number, number], [number, number]] = [
-        [gpsBounds.sw.lat, gpsBounds.sw.lng],
-        [gpsBounds.ne.lat, gpsBounds.ne.lng]
-    ];
+    // Calculate map bounds from GPS bounds with safety check
+    const safelyGetBounds = () => {
+        if (!gpsBounds || !gpsBounds.sw || !gpsBounds.ne ||
+            typeof gpsBounds.sw.lat !== 'number' || typeof gpsBounds.sw.lng !== 'number' ||
+            typeof gpsBounds.ne.lat !== 'number' || typeof gpsBounds.ne.lng !== 'number') {
+            // Default fallback bounds if data is missing
+            return [
+                [-26.0, 28.0], // Default SW
+                [-25.9, 28.1]  // Default NE
+            ] as [[number, number], [number, number]];
+        }
+        return [
+            [gpsBounds.sw.lat, gpsBounds.sw.lng],
+            [gpsBounds.ne.lat, gpsBounds.ne.lng]
+        ] as [[number, number], [number, number]];
+    };
+
+    const bounds = safelyGetBounds();
 
     const center: [number, number] = [
-        (gpsBounds.sw.lat + gpsBounds.ne.lat) / 2,
-        (gpsBounds.sw.lng + gpsBounds.ne.lng) / 2
+        (bounds[0][0] + bounds[1][0]) / 2,
+        (bounds[0][1] + bounds[1][1]) / 2
     ];
 
     // Load existing navigation data from database
     useEffect(() => {
         const loadNavigationData = async () => {
-            if (!eventId || !floorplanId) {
-                console.log('⏭️ Skipping load: missing eventId or floorplanId');
+            if (!floorplanId) {
+                console.log('⏭️ Skipping load: missing floorplanId');
                 return;
             }
 
@@ -103,14 +115,14 @@ const LeafletMapEditor: React.FC<LeafletMapEditorProps> = ({
                 return;
             }
 
-            console.log(`🔄 Loading navigation data for event ${eventId}, floorplan ${floorplanId}`);
+            console.log(`🔄 Loading navigation data for floorplan ${floorplanId}`);
 
             try {
                 // Fetch navigation points
                 const { data: points, error: pointsError } = await supabase
                     .from('navigation_points')
                     .select('*')
-                    .eq('event_id', eventId)
+
                     .eq('floorplan_id', floorplanId);
 
                 if (pointsError) throw pointsError;
@@ -180,7 +192,7 @@ const LeafletMapEditor: React.FC<LeafletMapEditorProps> = ({
                 const { data: segs, error: segsError } = await supabase
                     .from('navigation_segments')
                     .select('*')
-                    .eq('event_id', eventId)
+
                     .eq('floorplan_id', floorplanId);
 
                 if (segsError) throw segsError;
@@ -228,7 +240,7 @@ const LeafletMapEditor: React.FC<LeafletMapEditorProps> = ({
         };
 
         loadNavigationData();
-    }, [eventId, floorplanId]);
+    }, [floorplanId]);
 
     const showMessage = (msg: string) => {
         setMessage(msg);
@@ -239,6 +251,8 @@ const LeafletMapEditor: React.FC<LeafletMapEditorProps> = ({
         if (drawMode === 'point' || drawMode === 'poi') {
             const nodeName = drawMode === 'poi' ? `POI ${nodes.filter(n => n.isPOI).length + 1}` : `Node ${nodes.length + 1}`;
 
+            if (!supabase) return;
+
             try {
                 // Convert GPS to floorplan coordinates
                 const floorplanCoords = gpsToFloorplan(lat, lng, gpsBounds, floorplanSize);
@@ -247,7 +261,7 @@ const LeafletMapEditor: React.FC<LeafletMapEditorProps> = ({
                 const { data, error } = await supabase
                     .from('navigation_points')
                     .insert({
-                        event_id: eventId,
+
                         floorplan_id: floorplanId,
                         name: nodeName,
                         x_coord: Math.round(floorplanCoords.x),
@@ -261,10 +275,11 @@ const LeafletMapEditor: React.FC<LeafletMapEditorProps> = ({
                     .single();
 
                 if (error) throw error;
+                if (!data) throw new Error('No data returned');
 
                 // Use real UUID from database
                 const newNode: LeafletNode = {
-                    id: data.id,
+                    id: (data as any).id,
                     lat,
                     lng,
                     name: nodeName,
@@ -280,7 +295,7 @@ const LeafletMapEditor: React.FC<LeafletMapEditorProps> = ({
         }
     };
 
-    const handleMarkerClick = (nodeId: string) => {
+    const handleMarkerClick = async (nodeId: string) => {
         // Open edit modal when clicking node (unless in specific modes)
         if (drawMode === 'delete') {
             // Delete handled by modal now
@@ -294,19 +309,43 @@ const LeafletMapEditor: React.FC<LeafletMapEditorProps> = ({
                 setSelectedNodeForLine(nodeId);
                 showMessage('Click another node to connect');
             } else if (selectedNodeForLine !== nodeId) {
-                // Create segment
+                // Create segment and save to database immediately
                 const fromNode = nodes.find(n => n.id === selectedNodeForLine);
                 const toNode = nodes.find(n => n.id === nodeId);
 
                 if (fromNode && toNode) {
-                    const newSegment: LeafletSegment = {
-                        id: `seg-${Date.now()}`,
-                        fromNodeId: selectedNodeForLine,
-                        toNodeId: nodeId,
-                        path: [[fromNode.lat, fromNode.lng], [toNode.lat, toNode.lng]]
-                    };
-                    setSegments([...segments, newSegment]);
-                    showMessage('Segment created');
+                    if (!supabase) return;
+
+                    try {
+                        // Save to database immediately
+                        const { data, error } = await supabase
+                            .from('navigation_segments')
+                            .insert({
+
+                                floorplan_id: floorplanId,
+                                start_node_id: selectedNodeForLine,
+                                end_node_id: nodeId,
+                                is_bidirectional: true
+                            })
+                            .select()
+                            .single();
+
+                        if (error) throw error;
+                        if (!data) throw new Error('No data returned');
+
+                        // Use real UUID from database
+                        const newSegment: LeafletSegment = {
+                            id: (data as any).id,
+                            fromNodeId: selectedNodeForLine,
+                            toNodeId: nodeId,
+                            path: [[fromNode.lat, fromNode.lng], [toNode.lat, toNode.lng]]
+                        };
+                        setSegments([...segments, newSegment]);
+                        showMessage('Path created and saved');
+                    } catch (err) {
+                        console.error('Error saving segment:', err);
+                        showMessage('Failed to save path');
+                    }
                 }
                 setSelectedNodeForLine(null);
             }
@@ -482,13 +521,6 @@ const LeafletMapEditor: React.FC<LeafletMapEditorProps> = ({
                         <span className="text-sm text-gray-600 px-3 py-2 border-l border-gray-300">
                             {nodes.length} nodes • {segments.length} paths
                         </span>
-                        <button
-                            onClick={handleExport}
-                            disabled={nodes.length === 0}
-                            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            💾 Export to Database
-                        </button>
                     </div>
                 </div>
 

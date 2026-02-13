@@ -21,6 +21,10 @@ export default {
           },
           yellow: '#FFD700',
         },
+        // NavEaze Landing Page Colors
+        'naveaze-red': '#FF4D32',
+        'logic-blue': '#3B82F6',
+        'ultra-dark': '#0A0A0A',
         // Primary color scheme
         primary: {
           DEFAULT: '#ed1c24', // NavEase Red
@@ -38,6 +42,11 @@ export default {
           DEFAULT: '#FFD700',
           foreground: '#000000',
         },
+      },
+      fontFamily: {
+        mono: ['JetBrains Mono', 'Courier New', 'monospace'],
+        poppins: ['Poppins', 'sans-serif'],
+        inter: ['Inter', 'sans-serif'],
       },
     },
   },

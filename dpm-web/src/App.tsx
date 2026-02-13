@@ -4,6 +4,8 @@ import { DemoModeProvider } from './contexts/DemoModeContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Layout as AdminLayout } from './components/Layout';
 import { LandingPage } from './pages/LandingPage';
+import { NavEazeLandingPage } from './pages/NavEazeLandingPage';
+import { WaitlistPage } from './pages/WaitlistPage';
 import { RoleSelectorPage } from './pages/RoleSelectorPage';
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
@@ -37,6 +39,8 @@ export default function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<LandingPage />} />
+            <Route path="/naveaze-landing" element={<NavEazeLandingPage />} />
+            <Route path="/waitlist" element={<WaitlistPage />} />
             <Route path="/role-selector" element={<RoleSelectorPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />

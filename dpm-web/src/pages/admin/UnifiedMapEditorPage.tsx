@@ -178,6 +178,13 @@ export const UnifiedMapEditorPage: React.FC = () => {
           });
 
           console.log('⚠️ Using event-level GPS bounds (no calibration found)');
+        } else {
+          // No bounds found - use default so editor can load
+          console.log('🌍 No GPS bounds found. Using default bounds.');
+          setGpsBounds({
+            ne: { lat: -25.746, lng: 28.188 },
+            sw: { lat: -25.748, lng: 28.186 }
+          });
         }
       }
     })()
@@ -564,21 +571,41 @@ export const UnifiedMapEditorPage: React.FC = () => {
           </div>
         )}
 
-        {useLeafletEditor && gpsBounds && initialFloorplanUrl ? (
+        {gpsBounds && initialFloorplanUrl ? (
           <LeafletMapEditor
-            eventId={eventId || ''}
             floorplanId={floorplanId || ''}
             floorplanUrl={initialFloorplanUrl}
             gpsBounds={gpsBounds}
             onExport={async (nodes, segments) => {
-              if (!supabase || !eventId) return;
+              if (!supabase || !floorplanId) return;
 
               try {
-                // Upload nodes
+                console.log('🗑️ Deleting existing navigation data...');
+
+                // Delete existing segments first (foreign key constraint)
+                const { error: deleteSegsError } = await supabase
+                  .from('navigation_segments')
+                  .delete()
+                  .eq('floorplan_id', floorplanId);
+
+                if (deleteSegsError) throw deleteSegsError;
+
+                // Delete existing nodes
+                const { error: deleteNodesError } = await supabase
+                  .from('navigation_points')
+                  .delete()
+                  .eq('floorplan_id', floorplanId);
+
+                if (deleteNodesError) throw deleteNodesError;
+
+                console.log('📤 Inserting new navigation data...');
+
+                // Insert new nodes
                 const { error: nodesError } = await supabase
                   .from('navigation_points')
                   .insert(nodes.map(n => ({
-                    event_id: eventId,
+                    id: n.id, // Include ID to maintain references
+                    floorplan_id: floorplanId,
                     x_coord: n.x,
                     y_coord: n.y,
                     gps_lat: n.metadata?.gps_lat,
@@ -590,36 +617,112 @@ export const UnifiedMapEditorPage: React.FC = () => {
 
                 if (nodesError) throw nodesError;
 
-                // Upload segments
+                // Insert new segments
                 const { error: segsError } = await supabase
                   .from('navigation_segments')
                   .insert(segments.map(s => ({
-                    event_id: eventId,
+                    id: s.id, // Include ID to maintain references
                     floorplan_id: floorplanId,
                     start_node_id: s.start_node_id,
                     end_node_id: s.end_node_id,
                     is_bidirectional: true
                   })));
 
-
                 if (segsError) throw segsError;
 
+                console.log('✅ Export complete!');
                 alert(`✅ Exported ${nodes.length} nodes and ${segments.length} segments to database!`);
               } catch (error: any) {
-                console.error('Export error:', error);
+                console.error('❌ Export error:', error);
                 alert(`Failed to export: ${error.message}`);
               }
             }}
           />
         ) : (
-          <Suspense fallback={<div className="flex items-center justify-center h-full"><LoadingSpinner /></div>}>
-            <FloorplanEditor
-              initialFloorplan={initialFloorplanUrl}
-              initialEventId={eventId}
-              onEventChange={(id) => setEventId(id)}
-              hideToolbar={true}
-            />
-          </Suspense>
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center max-w-md p-6">
+              {!eventId ? (
+                <>
+                  <svg className="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Select an Event</h3>
+                  <p className="text-gray-500">Choose an event to start editing its navigation map.</p>
+                </>
+              ) : !initialFloorplanUrl ? (
+                <>
+                  <svg className="w-16 h-16 mx-auto text-blue-100 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Upload Floorplan</h3>
+                  <p className="text-gray-500 mb-6">This event doesn't have a floorplan yet. Upload an image to get started.</p>
+                  <label className="inline-flex flex-col items-center px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg cursor-pointer transition-colors">
+                    <svg className="w-8 h-8 mb-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M16.88 9.1A4 4 0 0 1 16 17H5a5 5 0 0 1-1-9.9V7a3 3 0 0 1 4.52-2.59A4.98 4.98 0 0 1 17 8c0 .38-.04.74-.12 1.1zM11 11h3l-4-4-4 4h3v3h2v-3z" />
+                    </svg>
+                    <span className="font-semibold">Select Floorplan Image</span>
+                    <input type='file' className="hidden" accept="image/*" onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file || !eventId || !supabase) return;
+
+                      try {
+                        const fileName = `${eventId}/${Date.now()}_${file.name}`;
+                        const { data, error } = await supabase.storage
+                          .from('floorplans')
+                          .upload(fileName, file);
+
+                        if (error) throw error;
+
+                        const { data: publicUrlData } = supabase.storage
+                          .from('floorplans')
+                          .getPublicUrl(fileName);
+
+                        if (!publicUrlData.publicUrl) throw new Error('Failed to get public URL');
+
+                        // Create floorplan record
+                        const { data: fpData, error: fpError } = await supabase
+                          .from('floorplans')
+                          .insert({
+                            event_id: eventId,
+                            name: file.name,
+                            image_url: publicUrlData.publicUrl,
+                            file_path: fileName
+                          })
+                          .select()
+                          .single();
+
+                        if (fpError) throw fpError;
+
+                        // Reload page state
+                        setFloorplanId((fpData as any).id);
+                        setInitialFloorplanUrl(publicUrlData.publicUrl);
+
+                        // Load image dimensions
+                        const img = new Image();
+                        img.onload = () => {
+                          setFloorplanDimensions({ width: img.naturalWidth, height: img.naturalHeight });
+                        };
+                        img.src = publicUrlData.publicUrl;
+
+                      } catch (err: any) {
+                        console.error('Upload failed:', err);
+                        alert(`Upload failed: ${err.message}`);
+                      }
+                    }} />
+                  </label>
+                </>
+              ) : (
+                <>
+                  <svg className="w-16 h-16 mx-auto text-orange-200 mb-4 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Ready to Calibrate</h3>
+                  <p className="text-gray-500 mb-6">Floorplan loaded! Click the button above to set GPS coordinates.</p>
+                </>
+              )}
+            </div>
+          </div>
         )}
       </div>
     </div>
