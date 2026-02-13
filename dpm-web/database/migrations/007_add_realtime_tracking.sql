@@ -26,9 +26,8 @@ CREATE INDEX idx_attendee_locations_event_timestamp
 CREATE INDEX idx_attendee_locations_session 
   ON attendee_locations(session_id, timestamp DESC);
 
-CREATE INDEX idx_attendee_locations_recent 
-  ON attendee_locations(event_id, timestamp DESC) 
-  WHERE timestamp > NOW() - INTERVAL '5 minutes';
+-- Note: Removed partial index with NOW() due to immutability constraint
+-- Query recent data using: WHERE timestamp > NOW() - INTERVAL '5 minutes' in application
 
 -- Enable Realtime for live tracking
 ALTER PUBLICATION supabase_realtime ADD TABLE attendee_locations;
@@ -63,6 +62,7 @@ CREATE TABLE IF NOT EXISTS emergency_alerts (
 CREATE INDEX idx_emergency_alerts_event_status 
   ON emergency_alerts(event_id, status, created_at DESC);
 
+-- Partial index for active alerts (status-based, not time-based)
 CREATE INDEX idx_emergency_alerts_active 
   ON emergency_alerts(event_id, created_at DESC) 
   WHERE status IN ('active', 'acknowledged', 'responding');
