@@ -1,6 +1,6 @@
-// Service Worker for NavEaze PWA - CACHE-FIRST Strategy
-const CACHE_NAME = 'naveaze-v3-offline';
-const RUNTIME_CACHE = 'naveaze-runtime';
+// Service Worker for NavEaze PWA - CACHE-FIRST Strategy (PWA routes only)
+const CACHE_NAME = 'naveaze-v4-offline';
+const RUNTIME_CACHE = 'naveaze-runtime-v4';
 
 // Critical assets to precache
 const PRECACHE_URLS = [
@@ -14,7 +14,7 @@ const PRECACHE_URLS = [
 
 // Install event - precache critical assets
 self.addEventListener('install', (event) => {
-  console.log('SW: Installing v3...');
+  console.log('SW: Installing v4...');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
@@ -27,7 +27,7 @@ self.addEventListener('install', (event) => {
 
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
-  console.log('SW: Activating v3...');
+  console.log('SW: Activating v4...');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
@@ -42,7 +42,7 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch event - CACHE-FIRST strategy
+// Fetch event - CACHE-FIRST strategy (PWA routes only)
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
@@ -54,6 +54,19 @@ self.addEventListener('fetch', (event) => {
 
   // Skip Supabase API calls (always fetch fresh)
   if (url.hostname.includes('supabase')) {
+    return;
+  }
+
+  // ⚠️ CRITICAL: Only cache PWA routes (/attendee, /staff)
+  // DO NOT cache admin/organizer routes to avoid breaking development
+  const isPWARoute = url.pathname.startsWith('/attendee') ||
+    url.pathname.startsWith('/staff') ||
+    url.pathname === '/' ||
+    url.pathname === '/index.html';
+
+  // For non-PWA routes, just fetch normally (no caching)
+  if (!isPWARoute && !url.pathname.includes('.')) {
+    // Navigation requests for admin routes - fetch fresh, no cache
     return;
   }
 
@@ -73,27 +86,35 @@ self.addEventListener('fetch', (event) => {
               return networkResponse;
             }
 
-            // Clone the response
-            const responseToCache = networkResponse.clone();
+            // Only cache if it's a PWA route or static asset
+            const shouldCache = isPWARoute ||
+              url.pathname.includes('.') || // Static assets
+              url.pathname.includes('attendee-manifest') ||
+              url.pathname.includes('staff-manifest');
 
-            // Cache the fetched resource
-            caches.open(RUNTIME_CACHE)
-              .then((cache) => {
-                console.log('SW: Caching new resource:', url.pathname);
-                cache.put(request, responseToCache);
-              });
+            if (shouldCache) {
+              // Clone the response
+              const responseToCache = networkResponse.clone();
+
+              // Cache the fetched resource
+              caches.open(RUNTIME_CACHE)
+                .then((cache) => {
+                  console.log('SW: Caching new resource:', url.pathname);
+                  cache.put(request, responseToCache);
+                });
+            }
 
             return networkResponse;
           })
           .catch((error) => {
             console.error('SW: Fetch failed, serving offline fallback:', error);
-            
-            // If it's a navigation request, return index.html from cache
-            if (request.mode === 'navigate') {
+
+            // Only serve offline fallback for PWA routes
+            if (isPWARoute && request.mode === 'navigate') {
               return caches.match('/index.html');
             }
 
-            // For other requests, return a basic offline response
+            // For admin routes, let it fail naturally
             return new Response('Offline - Resource not cached', {
               status: 503,
               statusText: 'Service Unavailable',
@@ -111,7 +132,7 @@ self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
-  
+
   if (event.data && event.data.type === 'CLEAR_CACHE') {
     event.waitUntil(
       caches.keys().then((cacheNames) => {
