@@ -6,6 +6,7 @@ import { validateGraphConnectivity, ValidationResult } from '../../lib/graphVali
 import { GraphNode, GraphSegment } from '../../lib/pathfinding'
 import LeafletMapEditor from '../../components/LeafletMapEditor'
 import { GPSCalibrationWizard } from '../../components/GPSCalibrationWizard'
+import { QRCodeGenerator } from '../../components/QRCodeGenerator'
 
 // Type definition for the FloorplanEditor component
 interface FloorplanEditorProps {
@@ -34,6 +35,8 @@ export const UnifiedMapEditorPage: React.FC = () => {
   const [gpsBounds, setGpsBounds] = useState<any>(null)
   const [showCalibrationWizard, setShowCalibrationWizard] = useState(false)
   const [calibrationStatus, setCalibrationStatus] = useState<{ scale: number; rotation: number } | null>(null)
+  const [navigationPoints, setNavigationPoints] = useState<any[]>([])
+  const [showQRGenerator, setShowQRGenerator] = useState(false)
 
   // Load floorplan by event_id (same as Classic Editor)
   useEffect(() => {
@@ -186,6 +189,27 @@ export const UnifiedMapEditorPage: React.FC = () => {
             sw: { lat: -25.748, lng: 28.186 }
           });
         }
+      }
+    })()
+  }, [eventId])
+
+  // Load navigation points for QR code generation
+  useEffect(() => {
+    if (!eventId || !supabase) return
+
+    (async () => {
+      try {
+        const { data: points, error } = await supabase
+          .from('navigation_points')
+          .select('id, name, x_coord, y_coord, point_type')
+          .eq('event_id', eventId)
+
+        if (error) throw error
+
+        setNavigationPoints((points as any[]) || [])
+        console.log(`✅ Loaded ${(points as any[] || []).length} navigation points for QR generation`)
+      } catch (err) {
+        console.error('Failed to load navigation points:', err)
       }
     })()
   }, [eventId])
@@ -384,6 +408,17 @@ export const UnifiedMapEditorPage: React.FC = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
             {gpsBounds ? 'Recalibrate GPS' : 'Calibrate GPS'}
+          </button>
+          <button
+            onClick={() => setShowQRGenerator(!showQRGenerator)}
+            disabled={navigationPoints.length === 0}
+            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            title={navigationPoints.length === 0 ? 'Add navigation points first' : 'Generate QR codes for navigation points'}
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+            </svg>
+            {showQRGenerator ? 'Hide QR Generator' : 'Generate QR Codes'}
           </button>
           <button
             onClick={handleTestConnectivity}
@@ -725,6 +760,17 @@ export const UnifiedMapEditorPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* QR Code Generator Section */}
+      {showQRGenerator && eventId && (
+        <div className="border-t border-gray-200 bg-gray-50 p-6">
+          <QRCodeGenerator
+            eventId={eventId}
+            eventName={`Event ${eventId.substring(0, 8)}`}
+            navigationPoints={navigationPoints}
+          />
+        </div>
+      )}
     </div>
   )
 }
