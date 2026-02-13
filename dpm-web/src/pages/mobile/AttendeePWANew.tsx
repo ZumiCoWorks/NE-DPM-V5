@@ -764,7 +764,42 @@ const AttendeePWANew: React.FC = () => {
       // Parse QR data
       const parsed = JSON.parse(qrData);
 
-      // Set location from QR code
+      // NEW: Support anchor_id format from qrGenerator.ts
+      if (parsed.anchor_id && parsed.event_id) {
+        console.log('🔍 Looking up navigation point:', parsed.anchor_id);
+
+        // Query navigation_points table
+        const { createClient } = await import('@supabase/supabase-js');
+        const supabase = createClient(
+          import.meta.env.VITE_SUPABASE_URL,
+          import.meta.env.VITE_SUPABASE_ANON_KEY
+        );
+
+        const { data: point, error } = await supabase
+          .from('navigation_points')
+          .select('x_coord, y_coord, name')
+          .eq('id', parsed.anchor_id)
+          .eq('event_id', parsed.event_id)
+          .single();
+
+        if (error || !point) {
+          console.error('Navigation point not found:', error);
+          displayMessage('QR code location not found', 3000);
+          return;
+        }
+
+        console.log('✅ Found navigation point:', point.name);
+        setCurrentLocation({
+          x: point.x_coord,
+          y: point.y_coord,
+          source: 'qr'
+        });
+        displayMessage(`Location set: ${point.name}`, 2000);
+        setActiveTab('map');
+        return;
+      }
+
+      // LEGACY: Support direct x/y format (for backward compatibility)
       if (parsed.x !== undefined && parsed.y !== undefined) {
         setCurrentLocation({
           x: parsed.x,
@@ -773,7 +808,11 @@ const AttendeePWANew: React.FC = () => {
         });
         displayMessage('Location updated from QR code!', 2000);
         setActiveTab('map');
+        return;
       }
+
+      // Invalid format
+      displayMessage('Invalid QR code format', 3000);
     } catch (err) {
       console.error('QR parse error:', err);
       displayMessage('Invalid QR code format', 3000);
