@@ -50,23 +50,35 @@ export const EventSetupPage: React.FC = () => {
             setEvent(eventData)
 
             // Check for floorplan
-            const { data: floorplanData } = await supabase
+            const { data: floorplanData, error: floorplanError } = await supabase
                 .from('floorplans')
                 .select('id, gps_bounds')
                 .eq('event_id', eventId)
-                .single()
+                .maybeSingle()
+
+            if (floorplanError && floorplanError.code !== 'PGRST116') {
+                console.error('Error loading floorplan:', floorplanError)
+            }
 
             setHasFloorplan(!!floorplanData)
             setHasGPSBounds(!!floorplanData?.gps_bounds)
 
-            // Check for navigation points
-            const { data: navPoints } = await supabase
-                .from('navigation_points')
-                .select('id')
-                .eq('event_id', eventId)
-                .limit(1)
+            // Check for navigation points (using floorplan-centric schema)
+            if (floorplanData?.id) {
+                const { data: navPoints, error: navError } = await supabase
+                    .from('navigation_points')
+                    .select('id')
+                    .eq('floorplan_id', floorplanData.id)
+                    .limit(1)
 
-            setHasNavigationPoints((navPoints?.length || 0) > 0)
+                if (navError && navError.code !== 'PGRST116') {
+                    console.error('Error loading navigation points:', navError)
+                }
+
+                setHasNavigationPoints((navPoints?.length || 0) > 0)
+            } else {
+                setHasNavigationPoints(false)
+            }
 
         } catch (error) {
             console.error('Error loading event data:', error)
@@ -178,10 +190,10 @@ export const EventSetupPage: React.FC = () => {
                     <div
                         key={step.id}
                         className={`bg-white shadow rounded-lg p-6 border-2 transition-all ${step.completed
-                                ? 'border-green-200 bg-green-50'
-                                : step.locked
-                                    ? 'border-gray-200 bg-gray-50 opacity-60'
-                                    : 'border-blue-200 bg-blue-50'
+                            ? 'border-green-200 bg-green-50'
+                            : step.locked
+                                ? 'border-gray-200 bg-gray-50 opacity-60'
+                                : 'border-blue-200 bg-blue-50'
                             }`}
                     >
                         <div className="flex items-start space-x-4">
