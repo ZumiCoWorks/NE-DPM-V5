@@ -18,7 +18,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       devOptions: {
-        enabled: true
+        enabled: false  // Disable SW in development - only enable for production PWA testing
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
