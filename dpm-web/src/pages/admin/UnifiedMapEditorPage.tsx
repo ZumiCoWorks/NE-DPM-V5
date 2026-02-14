@@ -2,6 +2,7 @@ import React, { Suspense, useEffect, useState } from 'react'
 import { LoadingSpinner } from '../../components/ui/loadingSpinner'
 import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import { useAuth } from '../../contexts/AuthContext'
 import { validateGraphConnectivity, ValidationResult } from '../../lib/graphValidation'
 import { GraphNode, GraphSegment } from '../../lib/pathfinding'
 import LeafletMapEditor from '../../components/LeafletMapEditor'
@@ -21,6 +22,7 @@ interface FloorplanEditorProps {
 const FloorplanEditor = React.lazy(() => import('../../components/FloorplanEditor')) as unknown as React.FC<FloorplanEditorProps>
 
 export const UnifiedMapEditorPage: React.FC = () => {
+  const { user } = useAuth()
   const [searchParams] = useSearchParams()
   const floorplanIdParam = searchParams.get('floorplanId')
   const initialEventId = searchParams.get('eventId')
@@ -598,9 +600,72 @@ export const UnifiedMapEditorPage: React.FC = () => {
                 )}
               </div>
               <div className="mt-6 p-4 bg-blue-50 rounded-md">
-                <p className="text-xs text-blue-800">
-                  <strong>Tip:</strong> Use the Classic Editor below to set up your event, then switch to Leaflet for GPS-aligned editing.
-                </p>
+                {!initialFloorplanUrl ? (
+                  <div className="space-y-4">
+                    <p className="text-sm text-blue-800 font-medium">
+                      📤 Upload a floorplan to get started
+                    </p>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file || !eventId || !supabase) return;
+
+                        try {
+                          // Show loading state
+                          const fileName = `floorplan_${eventId}_${Date.now()}.${file.name.split('.').pop()}`;
+
+                          // Upload to Supabase Storage
+                          const { data: uploadData, error: uploadError } = await supabase.storage
+                            .from('floorplans')
+                            .upload(fileName, file, { upsert: true });
+
+                          if (uploadError) throw uploadError;
+
+                          // Get public URL
+                          const { data: urlData } = supabase.storage
+                            .from('floorplans')
+                            .getPublicUrl(fileName);
+
+                          if (!urlData?.publicUrl) throw new Error('Failed to get public URL');
+
+                          // Get image dimensions
+                          const img = new Image();
+                          img.src = URL.createObjectURL(file);
+                          await new Promise((resolve) => { img.onload = resolve; });
+
+                          // Create floorplan record
+                          const { data: floorplanData, error: dbError } = await supabase
+                            .from('floorplans')
+                            .insert({
+                              event_id: eventId,
+                              user_id: user?.id,
+                              image_url: urlData.publicUrl,
+                              image_width: img.width,
+                              image_height: img.height,
+                              is_calibrated: false
+                            })
+                            .select()
+                            .single();
+
+                          if (dbError) throw dbError;
+
+                          alert('✅ Floorplan uploaded successfully! Reloading...');
+                          window.location.reload();
+                        } catch (err: any) {
+                          console.error('Upload failed:', err);
+                          alert(`❌ Upload failed: ${err.message}`);
+                        }
+                      }}
+                      className="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 file:mr-4 file:py-2 file:px-4 file:rounded-l-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700"
+                    />
+                  </div>
+                ) : (
+                  <p className="text-xs text-blue-800">
+                    <strong>Tip:</strong> Use the "Recalibrate GPS" button above to set GPS bounds for this floorplan.
+                  </p>
+                )}
               </div>
             </div>
           </div>
