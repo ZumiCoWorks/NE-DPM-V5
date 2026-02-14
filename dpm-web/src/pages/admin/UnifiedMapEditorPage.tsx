@@ -41,6 +41,15 @@ export const UnifiedMapEditorPage: React.FC = () => {
   const [navigationPoints, setNavigationPoints] = useState<any[]>([])
   const [showQRGenerator, setShowQRGenerator] = useState(false)
 
+  // Floorplan naming modal state
+  const [showNamingModal, setShowNamingModal] = useState(false)
+  const [pendingUpload, setPendingUpload] = useState<{
+    file: File;
+    publicUrl: string;
+    dimensions: { width: number; height: number };
+  } | null>(null)
+  const [floorplanName, setFloorplanName] = useState('')
+
   // Load event data
   useEffect(() => {
     if (!eventId || !supabase) return;
@@ -399,6 +408,55 @@ export const UnifiedMapEditorPage: React.FC = () => {
     }
   };
 
+  // Handle saving floorplan with name
+  const handleSaveFloorplan = async () => {
+    if (!pendingUpload || !eventId || !user) return;
+
+    try {
+      const { data: floorplanData, error: dbError } = await supabase
+        .from('floorplans')
+        .insert({
+          event_id: eventId,
+          user_id: user.id,
+          name: floorplanName.trim(),
+          image_url: pendingUpload.publicUrl,
+          image_width: pendingUpload.dimensions.width,
+          image_height: pendingUpload.dimensions.height,
+          is_calibrated: false
+        })
+        .select()
+        .single();
+
+      if (dbError) throw dbError;
+      if (!floorplanData) throw new Error('No floorplan data returned');
+
+      console.log('✅ Floorplan saved:', floorplanData);
+
+      // Update state (no reload!)
+      setFloorplanId((floorplanData as any).id);
+      setInitialFloorplanUrl((floorplanData as any).image_url);
+      setFloorplanDimensions({
+        width: (floorplanData as any).image_width,
+        height: (floorplanData as any).image_height
+      });
+
+      // Close modal and reset state
+      setShowNamingModal(false);
+      setPendingUpload(null);
+      setFloorplanName('');
+    } catch (err: any) {
+      console.error('Save failed:', err);
+      alert(`❌ Save failed: ${err.message}`);
+    }
+  };
+
+  // Handle canceling naming
+  const handleCancelNaming = () => {
+    setShowNamingModal(false);
+    setPendingUpload(null);
+    setFloorplanName('');
+  };
+
   return (
     <div className="h-screen flex flex-col">
       <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between shadow-sm z-10">
@@ -675,25 +733,18 @@ export const UnifiedMapEditorPage: React.FC = () => {
                           img.src = URL.createObjectURL(file);
                           await new Promise((resolve) => { img.onload = resolve; });
 
-                          // Create floorplan record
-                          const { data: floorplanData, error: dbError } = await supabase
-                            .from('floorplans')
-                            .insert({
-                              event_id: eventId,
-                              user_id: user?.id,
-                              name: file.name.split('.')[0] || 'Floorplan',
-                              image_url: urlData.publicUrl,
-                              image_width: img.width,
-                              image_height: img.height,
-                              is_calibrated: false
-                            })
-                            .select()
-                            .single();
+                          // Store upload data and show naming modal
+                          setPendingUpload({
+                            file,
+                            publicUrl: urlData.publicUrl,
+                            dimensions: { width: img.width, height: img.height }
+                          });
 
-                          if (dbError) throw dbError;
+                          // Auto-populate name from filename (without extension)
+                          setFloorplanName(file.name.split('.')[0] || 'Floorplan');
 
-                          alert('✅ Floorplan uploaded successfully! Reloading...');
-                          window.location.reload();
+                          // Show naming modal
+                          setShowNamingModal(true);
                         } catch (err: any) {
                           console.error('Upload failed:', err);
                           alert(`❌ Upload failed: ${err.message}`);
@@ -875,6 +926,46 @@ export const UnifiedMapEditorPage: React.FC = () => {
             eventName={`Event ${eventId.substring(0, 8)}`}
             navigationPoints={navigationPoints}
           />
+        </div>
+      )}
+
+      {/* Floorplan Naming Modal */}
+      {showNamingModal && pendingUpload && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Name Your Floorplan</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Give this floorplan a descriptive name (e.g., "Main Arena Floor", "Upper Concourse")
+            </p>
+            <input
+              type="text"
+              value={floorplanName}
+              onChange={(e) => setFloorplanName(e.target.value)}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 mb-4 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="e.g., Main Arena Floor"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && floorplanName.trim()) {
+                  handleSaveFloorplan();
+                }
+              }}
+            />
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={handleCancelNaming}
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveFloorplan}
+                disabled={!floorplanName.trim()}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Save Floorplan
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
