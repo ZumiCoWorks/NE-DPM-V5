@@ -101,7 +101,7 @@ export const EventSetupPage: React.FC = () => {
             description: 'Upload a floor plan image to enable GPS calibration',
             completed: hasFloorplan,
             locked: false,
-            action: () => navigate(`/events/${eventId}/edit`),
+            action: () => navigate(`/admin/map-editor?eventId=${eventId}`),
         },
         {
             id: 'calibrate-gps',
