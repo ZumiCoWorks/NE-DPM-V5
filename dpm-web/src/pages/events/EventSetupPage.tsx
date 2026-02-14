@@ -227,16 +227,30 @@ export const EventSetupPage: React.FC = () => {
                                 </div>
                                 <p className="mt-1 text-sm text-gray-600">{step.description}</p>
 
-                                {/* Action Button */}
-                                {!step.completed && !step.locked && step.action && (
+                                {/* Action Button - Show for both incomplete and completed steps */}
+                                {!step.locked && step.action && (
                                     <button
                                         onClick={step.action}
-                                        className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                        className={`mt-4 inline-flex items-center px-4 py-2 border text-sm font-medium rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 ${step.completed
+                                                ? 'border-green-600 text-green-700 bg-white hover:bg-green-50 focus:ring-green-500'
+                                                : 'border-transparent text-white bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'
+                                            }`}
                                     >
-                                        {step.id === 'upload-floorplan' && 'Upload Floorplan'}
-                                        {step.id === 'calibrate-gps' && 'Calibrate GPS'}
-                                        {step.id === 'add-navigation' && 'Add Navigation Points'}
-                                        {step.id === 'generate-qr' && 'Generate QR Codes'}
+                                        {step.completed ? (
+                                            <>
+                                                <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                </svg>
+                                                Edit
+                                            </>
+                                        ) : (
+                                            <>
+                                                {step.id === 'upload-floorplan' && 'Upload Floorplan'}
+                                                {step.id === 'calibrate-gps' && 'Calibrate GPS'}
+                                                {step.id === 'add-navigation' && 'Add Navigation Points'}
+                                                {step.id === 'generate-qr' && 'Generate QR Codes'}
+                                            </>
+                                        )}
                                     </button>
                                 )}
 
