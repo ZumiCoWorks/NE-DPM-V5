@@ -457,6 +457,58 @@ export const UnifiedMapEditorPage: React.FC = () => {
     setFloorplanName('');
   };
 
+  // Show event selection prompt if no eventId
+  if (!eventId) {
+    return (
+      <div className="h-screen flex flex-col">
+        <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between shadow-sm">
+          <div className="flex items-center space-x-4">
+            <Link
+              to="/events"
+              className="inline-flex items-center p-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+              title="Back to Events"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+            </Link>
+            <h1 className="text-lg font-semibold text-gray-900">Map Editor</h1>
+          </div>
+        </div>
+        <div className="flex-1 flex items-center justify-center bg-gray-50">
+          <div className="max-w-md p-8 bg-white rounded-lg shadow-lg border-2 border-blue-400">
+            <div className="flex items-center mb-4">
+              <svg className="w-8 h-8 text-blue-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+              </svg>
+              <h3 className="text-lg font-semibold text-gray-900">No Event Selected</h3>
+            </div>
+            <p className="text-sm text-gray-600 mb-6">
+              To use the Map Editor, you need to select an event first. The Map Editor allows you to upload floorplans, calibrate GPS coordinates, and add navigation points.
+            </p>
+            <div className="space-y-3">
+              <Link
+                to="/events"
+                className="block w-full px-4 py-3 bg-blue-600 text-white text-center rounded-md hover:bg-blue-700 font-medium transition-colors"
+              >
+                📋 Select an Event
+              </Link>
+              <Link
+                to="/events/create"
+                className="block w-full px-4 py-3 border-2 border-blue-600 text-blue-600 text-center rounded-md hover:bg-blue-50 font-medium transition-colors"
+              >
+                ✨ Create New Event
+              </Link>
+            </div>
+            <p className="mt-4 text-xs text-gray-500 text-center">
+              Or access Map Editor from an event's setup page
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-screen flex flex-col">
       <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between shadow-sm z-10">
