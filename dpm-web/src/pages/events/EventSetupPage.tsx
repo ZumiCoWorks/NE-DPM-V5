@@ -101,7 +101,7 @@ export const EventSetupPage: React.FC = () => {
             description: 'Upload a floor plan image to enable GPS calibration',
             completed: hasFloorplan,
             locked: false,
-            action: () => navigate(`/admin/map-editor?eventId=${eventId}`),
+            action: () => navigate(`/map-editor?eventId=${eventId}`),
         },
         {
             id: 'calibrate-gps',
@@ -109,7 +109,7 @@ export const EventSetupPage: React.FC = () => {
             description: 'Set GPS bounds for accurate positioning',
             completed: hasGPSBounds,
             locked: !hasFloorplan,
-            action: () => navigate(`/admin/map-editor?eventId=${eventId}`),
+            action: () => navigate(`/map-editor?eventId=${eventId}`),
         },
         {
             id: 'add-navigation',
@@ -117,7 +117,7 @@ export const EventSetupPage: React.FC = () => {
             description: 'Place POIs and waypoints on the map',
             completed: hasNavigationPoints,
             locked: !hasGPSBounds,
-            action: () => navigate(`/admin/map-editor?eventId=${eventId}`),
+            action: () => navigate(`/map-editor?eventId=${eventId}`),
         },
         {
             id: 'generate-qr',
@@ -125,7 +125,7 @@ export const EventSetupPage: React.FC = () => {
             description: 'Create printable QR codes for indoor positioning',
             completed: false,
             locked: !hasNavigationPoints,
-            action: () => navigate(`/admin/map-editor?eventId=${eventId}`),
+            action: () => navigate(`/map-editor?eventId=${eventId}`),
         },
     ]
 
@@ -265,7 +265,7 @@ export const EventSetupPage: React.FC = () => {
                     </div>
                     <div className="mt-4 flex space-x-3">
                         <Link
-                            to={`/admin/map-editor?eventId=${eventId}`}
+                            to={`/map-editor?eventId=${eventId}`}
                             className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700"
                         >
                             View Map Editor
