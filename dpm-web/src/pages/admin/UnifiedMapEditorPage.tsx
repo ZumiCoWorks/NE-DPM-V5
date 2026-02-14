@@ -641,6 +641,7 @@ export const UnifiedMapEditorPage: React.FC = () => {
                             .insert({
                               event_id: eventId,
                               user_id: user?.id,
+                              name: file.name.split('.')[0] || 'Floorplan',
                               image_url: urlData.publicUrl,
                               image_width: img.width,
                               image_height: img.height,
