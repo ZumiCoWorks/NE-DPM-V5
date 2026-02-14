@@ -1,6 +1,6 @@
 import React, { Suspense, useEffect, useState } from 'react'
 import { LoadingSpinner } from '../../components/ui/loadingSpinner'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { validateGraphConnectivity, ValidationResult } from '../../lib/graphValidation'
@@ -27,6 +27,7 @@ export const UnifiedMapEditorPage: React.FC = () => {
   const floorplanIdParam = searchParams.get('floorplanId')
   const initialEventId = searchParams.get('eventId')
   const [eventId, setEventId] = useState<string | null>(initialEventId)
+  const [event, setEvent] = useState<{ id: string; name: string } | null>(null)
   const [floorplanId, setFloorplanId] = useState<string | null>(floorplanIdParam)
   const [initialFloorplanUrl, setInitialFloorplanUrl] = useState<string | undefined>(undefined)
   const [floorplanDimensions, setFloorplanDimensions] = useState<{ width: number; height: number } | null>(null)
@@ -39,6 +40,32 @@ export const UnifiedMapEditorPage: React.FC = () => {
   const [calibrationStatus, setCalibrationStatus] = useState<{ scale: number; rotation: number } | null>(null)
   const [navigationPoints, setNavigationPoints] = useState<any[]>([])
   const [showQRGenerator, setShowQRGenerator] = useState(false)
+
+  // Load event data
+  useEffect(() => {
+    if (!eventId || !supabase) return;
+
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('events')
+          .select('id, name')
+          .eq('id', eventId)
+          .single();
+
+        if (error) {
+          console.warn('Could not fetch event:', error);
+          return;
+        }
+
+        if (data) {
+          setEvent(data as { id: string; name: string });
+        }
+      } catch (err) {
+        console.warn('Event fetch failed:', err);
+      }
+    })();
+  }, [eventId]);
 
   // Load floorplan by event_id (same as Classic Editor)
   useEffect(() => {
@@ -376,8 +403,21 @@ export const UnifiedMapEditorPage: React.FC = () => {
     <div className="h-screen flex flex-col">
       <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between shadow-sm z-10">
         <div className="flex items-center space-x-4">
-          <h1 className="text-lg font-semibold text-gray-900">Unified Map Editor</h1>
-          {eventId && <span className="text-sm text-gray-500 font-mono bg-gray-100 px-2 py-1 rounded">Event: {eventId}</span>}
+          <Link
+            to="/events"
+            className="inline-flex items-center p-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+            title="Back to Events"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+          </Link>
+          <div>
+            <h1 className="text-lg font-semibold text-gray-900">
+              {event ? `Editing: ${event.name}` : 'Map Editor'}
+            </h1>
+            {eventId && !event && <span className="text-xs text-gray-500 font-mono">Event ID: {eventId}</span>}
+          </div>
         </div>
         <div className="flex items-center space-x-3">
           <input
@@ -603,7 +643,7 @@ export const UnifiedMapEditorPage: React.FC = () => {
                 {!initialFloorplanUrl ? (
                   <div className="space-y-4">
                     <p className="text-sm text-blue-800 font-medium">
-                      📤 Upload a floorplan to get started
+                      📤 Upload a floorplan {event && `for "${event.name}"`}
                     </p>
                     <input
                       type="file"
