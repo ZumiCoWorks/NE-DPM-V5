@@ -15,11 +15,9 @@ export default defineConfig({
       },
     }),
     tsconfigPaths(),
-    VitePWA({
+    // Only enable PWA in production builds
+    ...(process.env.NODE_ENV === 'production' ? [VitePWA({
       registerType: 'autoUpdate',
-      devOptions: {
-        enabled: false  // Disable SW in development - only enable for production PWA testing
-      },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024 // 3MB limit for large bundles
@@ -51,7 +49,7 @@ export default defineConfig({
           }
         ]
       }
-    })
+    })] : []),
   ],
   server: {
     proxy: {
