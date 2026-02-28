@@ -182,9 +182,9 @@ export const CreateEventPage: React.FC = () => {
       }
 
       // Redirect to Event Setup Dashboard
-      if (createdEvent?.id) {
-        console.log('🔄 Redirecting to setup dashboard:', `/events/${createdEvent.id}/setup`)
-        navigate(`/events/${createdEvent.id}/setup`)
+      if ((createdEvent as any)?.id) {
+        console.log('🔄 Redirecting to setup dashboard:', `/events/${(createdEvent as any).id}/setup`)
+        navigate(`/events/${(createdEvent as any).id}/setup`)
       } else {
         console.warn('⚠️ No event ID, redirecting to events list')
         navigate('/events')

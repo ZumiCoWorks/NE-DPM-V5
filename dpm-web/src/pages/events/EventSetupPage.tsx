@@ -39,6 +39,7 @@ export const EventSetupPage: React.FC = () => {
         try {
             setLoading(true)
 
+            if (!supabase) throw new Error('Supabase client not initialized');
             // Load event details
             const { data: eventData, error: eventError } = await supabase
                 .from('events')
@@ -47,35 +48,39 @@ export const EventSetupPage: React.FC = () => {
                 .single()
 
             if (eventError) throw eventError
-            setEvent(eventData)
+            setEvent(eventData as unknown as Event)
 
+            if (!supabase) throw new Error('Supabase client not initialized');
             // Check for floorplan
             const { data: floorplanData, error: floorplanError } = await supabase
                 .from('floorplans')
                 .select('id, is_calibrated')
                 .eq('event_id', eventId)
-                .maybeSingle()
+                .limit(1)
+                .single()
 
-            if (floorplanError && floorplanError.code !== 'PGRST116') {
+            if (floorplanError && (floorplanError as any).code !== 'PGRST116') {
                 console.error('Error loading floorplan:', floorplanError)
             }
 
-            setHasFloorplan(!!floorplanData)
-            setHasGPSBounds(!!floorplanData?.is_calibrated)
+            const plan = floorplanData as any;
+            setHasFloorplan(!!plan)
+            setHasGPSBounds(!!plan?.is_calibrated)
 
             // Check for navigation points (using floorplan-centric schema)
-            if (floorplanData?.id) {
+            if (plan?.id) {
+                if (!supabase) throw new Error('Supabase client not initialized');
                 const { data: navPoints, error: navError } = await supabase
                     .from('navigation_points')
                     .select('id')
-                    .eq('floorplan_id', floorplanData.id)
+                    .eq('floorplan_id', plan.id)
                     .limit(1)
 
-                if (navError && navError.code !== 'PGRST116') {
+                if (navError && (navError as any).code !== 'PGRST116') {
                     console.error('Error loading navigation points:', navError)
                 }
 
-                setHasNavigationPoints((navPoints?.length || 0) > 0)
+                setHasNavigationPoints(Array.isArray(navPoints) && navPoints.length > 0)
             } else {
                 setHasNavigationPoints(false)
             }
@@ -232,8 +237,8 @@ export const EventSetupPage: React.FC = () => {
                                     <button
                                         onClick={step.action}
                                         className={`mt-4 inline-flex items-center px-4 py-2 border text-sm font-medium rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 ${step.completed
-                                                ? 'border-green-600 text-green-700 bg-white hover:bg-green-50 focus:ring-green-500'
-                                                : 'border-transparent text-white bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'
+                                            ? 'border-green-600 text-green-700 bg-white hover:bg-green-50 focus:ring-green-500'
+                                            : 'border-transparent text-white bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'
                                             }`}
                                     >
                                         {step.completed ? (

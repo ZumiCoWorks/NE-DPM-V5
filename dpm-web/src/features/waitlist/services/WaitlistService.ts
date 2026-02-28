@@ -24,6 +24,7 @@ export class WaitlistService {
         error?: string;
     }> {
         try {
+            if (!supabase) throw new Error('Supabase client not initialized');
             const { data, error } = await supabase
                 .from('waitlist')
                 .insert([
@@ -38,7 +39,7 @@ export class WaitlistService {
 
             if (error) {
                 // Check for duplicate email
-                if (error.code === '23505') {
+                if ((error as any).code === '23505') {
                     return {
                         success: false,
                         error: 'This email is already on the waitlist.',
@@ -69,6 +70,7 @@ export class WaitlistService {
         error?: string;
     }> {
         try {
+            if (!supabase) throw new Error('Supabase client not initialized');
             const { data, error } = await supabase
                 .from('waitlist')
                 .select('*')
@@ -98,13 +100,15 @@ export class WaitlistService {
         error?: string;
     }> {
         try {
+            if (!supabase) throw new Error('Supabase client not initialized');
             const { data, error } = await supabase
                 .from('waitlist')
                 .select('email')
                 .eq('email', email)
-                .maybeSingle();
+                .limit(1)
+                .single();
 
-            if (error) throw error;
+            if (error && (error as any).code !== 'PGRST116') throw error;
 
             return {
                 success: true,

@@ -10,6 +10,10 @@
     "preview": "vite preview",
     "check": "tsc --noEmit",
     "server:dev": "tsx watch api/server.ts",
+    "dev:admin": "npm run client:dev",
+    "dev:attendee": "VITE_APP_TYPE=attendee npm run client:dev -- --port 5174",
+    "dev:staff": "VITE_APP_TYPE=staff npm run client:dev -- --port 5175",
+    "dev:all": "concurrently \"npm run dev:admin\" \"npm run dev:attendee\" \"npm run dev:staff\"",
     "dev": "concurrently \"npm run client:dev\" \"npm run server:dev\"",
     "demo": "node generate-demo-cdv-simple.cjs",
     "smoke-test": "node scripts/smoke-test.js"

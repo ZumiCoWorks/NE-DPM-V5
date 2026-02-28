@@ -12,6 +12,7 @@ export class OnboardingService {
      * Get user's onboarding progress
      */
     async getProgress(userId: string): Promise<OnboardingChecklist | null> {
+        if (!supabase) return null;
         const { data, error } = await supabase
             .from('profiles')
             .select('onboarding_checklist, onboarding_dismissed')
@@ -20,13 +21,14 @@ export class OnboardingService {
 
         if (error || !data) return null;
 
-        return data.onboarding_checklist as OnboardingChecklist;
+        return (data as any).onboarding_checklist as OnboardingChecklist;
     }
 
     /**
      * Check if onboarding is dismissed
      */
     async isDismissed(userId: string): Promise<boolean> {
+        if (!supabase) return false;
         const { data, error } = await supabase
             .from('profiles')
             .select('onboarding_dismissed')
@@ -34,7 +36,7 @@ export class OnboardingService {
             .single();
 
         if (error || !data) return false;
-        return data.onboarding_dismissed || false;
+        return (data as any).onboarding_dismissed || false;
     }
 
     /**
@@ -45,6 +47,7 @@ export class OnboardingService {
         item: keyof OnboardingChecklist,
         completed: boolean
     ): Promise<void> {
+        if (!supabase) throw new Error('Supabase client not initialized');
         const progress = await this.getProgress(userId);
         if (!progress) return;
 
@@ -52,7 +55,7 @@ export class OnboardingService {
 
         const { error } = await supabase
             .from('profiles')
-            .update({ onboarding_checklist: updated })
+            .update({ onboarding_checklist: updated } as any)
             .eq('id', userId);
 
         if (error) throw error;
@@ -62,9 +65,10 @@ export class OnboardingService {
      * Dismiss onboarding checklist
      */
     async dismissOnboarding(userId: string): Promise<void> {
+        if (!supabase) throw new Error('Supabase client not initialized');
         const { error } = await supabase
             .from('profiles')
-            .update({ onboarding_dismissed: true })
+            .update({ onboarding_dismissed: true } as any)
             .eq('id', userId);
 
         if (error) throw error;

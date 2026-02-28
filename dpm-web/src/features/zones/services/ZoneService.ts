@@ -19,6 +19,7 @@ export class ZoneService {
      */
     async createZone(data: CreateZoneData): Promise<Zone> {
         const style = data.style || this.getZoneStyle(data.zone_type);
+        if (!supabase) throw new Error('Supabase client not initialized');
 
         const { data: zone, error } = await supabase
             .from('zones')
@@ -30,13 +31,14 @@ export class ZoneService {
             .single();
 
         if (error) throw error;
-        return zone;
+        return zone as unknown as Zone;
     }
 
     /**
      * Get all zones for an event
      */
     async getEventZones(eventId: string): Promise<Zone[]> {
+        if (!supabase) throw new Error('Supabase client not initialized');
         const { data, error } = await supabase
             .from('zones')
             .select('*')
@@ -44,13 +46,14 @@ export class ZoneService {
             .order('created_at', { ascending: false });
 
         if (error) throw error;
-        return data || [];
+        return (data || []) as unknown as Zone[];
     }
 
     /**
      * Get zones for a specific floorplan
      */
     async getFloorplanZones(floorplanId: string): Promise<Zone[]> {
+        if (!supabase) throw new Error('Supabase client not initialized');
         const { data, error } = await supabase
             .from('zones')
             .select('*')
@@ -58,13 +61,14 @@ export class ZoneService {
             .order('created_at', { ascending: false });
 
         if (error) throw error;
-        return data || [];
+        return (data || []) as unknown as Zone[];
     }
 
     /**
      * Update zone
      */
     async updateZone(zoneId: string, updates: Partial<Zone>): Promise<Zone> {
+        if (!supabase) throw new Error('Supabase client not initialized');
         const { data, error } = await supabase
             .from('zones')
             .update(updates)
@@ -73,13 +77,14 @@ export class ZoneService {
             .single();
 
         if (error) throw error;
-        return data;
+        return data as unknown as Zone;
     }
 
     /**
      * Delete zone
      */
     async deleteZone(zoneId: string): Promise<void> {
+        if (!supabase) throw new Error('Supabase client not initialized');
         const { error } = await supabase
             .from('zones')
             .delete()
@@ -92,7 +97,7 @@ export class ZoneService {
      * Link zone to sponsor
      */
     async linkZoneToSponsor(zoneId: string, sponsorId: string | null): Promise<Zone> {
-        return this.updateZone(zoneId, { sponsor_id: sponsorId });
+        return this.updateZone(zoneId, { sponsor_id: sponsorId === null ? undefined : sponsorId });
     }
 }
 

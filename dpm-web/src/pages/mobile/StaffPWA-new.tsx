@@ -122,9 +122,8 @@ const StaffPWA: React.FC = () => {
     setSafetyLoading(true);
     const client = supabase;
     if (client) {
-      const { data, error } = await client
-        .from('safety_alerts')
-        .select('*')
+      const query = client.from('safety_alerts').select('*') as any;
+      const { data, error } = await query
         .neq('status', 'resolved') // Only active alerts for staff on ground
         .order('created_at', { ascending: false });
       if (data) setAlerts(data);

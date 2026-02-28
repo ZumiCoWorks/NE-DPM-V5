@@ -6,6 +6,7 @@ export class SponsorService {
    * Register a new sponsor for an event
    */
   async registerSponsor(data: CreateSponsorData): Promise<Sponsor> {
+    if (!supabase) throw new Error('Supabase client not initialized');
     const { data: sponsor, error } = await supabase
       .from('sponsors')
       .insert({
@@ -17,13 +18,14 @@ export class SponsorService {
       .single();
 
     if (error) throw error;
-    return sponsor;
+    return sponsor as unknown as Sponsor;
   }
 
   /**
    * Get all sponsors for an event
    */
   async getEventSponsors(eventId: string): Promise<Sponsor[]> {
+    if (!supabase) throw new Error('Supabase client not initialized');
     const { data, error } = await supabase
       .from('sponsors')
       .select('*')
@@ -31,7 +33,7 @@ export class SponsorService {
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    return data || [];
+    return (data || []) as unknown as Sponsor[];
   }
 
   /**
@@ -46,6 +48,7 @@ export class SponsorService {
    * Verify sponsor signup token
    */
   async verifySponsorToken(token: string): Promise<Sponsor | null> {
+    if (!supabase) return null;
     const { data, error } = await supabase
       .from('sponsors')
       .select('*')
@@ -54,7 +57,7 @@ export class SponsorService {
       .single();
 
     if (error) return null;
-    return data;
+    return data as unknown as Sponsor;
   }
 
   /**
@@ -63,6 +66,7 @@ export class SponsorService {
   async completeSponsorSignup(data: SponsorSignupData): Promise<Sponsor> {
     const sponsor = await this.verifySponsorToken(data.token);
     if (!sponsor) throw new Error('Invalid or expired signup token');
+    if (!supabase) throw new Error('Supabase client not initialized');
 
     const { data: updatedSponsor, error } = await supabase
       .from('sponsors')
@@ -77,13 +81,14 @@ export class SponsorService {
       .single();
 
     if (error) throw error;
-    return updatedSponsor;
+    return updatedSponsor as unknown as Sponsor;
   }
 
   /**
    * Update sponsor details
    */
   async updateSponsor(sponsorId: string, updates: Partial<Sponsor>): Promise<Sponsor> {
+    if (!supabase) throw new Error('Supabase client not initialized');
     const { data, error } = await supabase
       .from('sponsors')
       .update(updates)
@@ -92,13 +97,14 @@ export class SponsorService {
       .single();
 
     if (error) throw error;
-    return data;
+    return data as unknown as Sponsor;
   }
 
   /**
    * Delete sponsor
    */
   async deleteSponsor(sponsorId: string): Promise<void> {
+    if (!supabase) throw new Error('Supabase client not initialized');
     const { error } = await supabase
       .from('sponsors')
       .delete()

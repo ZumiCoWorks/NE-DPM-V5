@@ -22,6 +22,7 @@ export const OnboardingChecklist: React.FC = () => {
             if (!user?.id) return;
 
             try {
+                if (!supabase) return;
                 const { data, error } = await supabase
                     .from('events')
                     .select('id')

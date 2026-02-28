@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { DemoModeProvider } from './contexts/DemoModeContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { PinProtection } from './components/PinProtection';
 import { Layout as AdminLayout } from './components/Layout';
 import { LandingPage } from './pages/LandingPage';
 import { NavEazeLandingPage } from './pages/NavEazeLandingPage';
@@ -34,7 +35,32 @@ import StaffPWA from './pages/mobile/StaffPWA-new';
 import SecurityDashboard from './pages/admin/SecurityDashboard';
 
 
+const APP_TYPE = import.meta.env.VITE_APP_TYPE || 'admin';
+
 export default function App() {
+  if (APP_TYPE === 'attendee') {
+    return (
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<PinProtection><AttendeePWANew /></PinProtection>} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    );
+  }
+
+  if (APP_TYPE === 'staff') {
+    return (
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<PinProtection><StaffPWA /></PinProtection>} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    );
+  }
+
+  // Admin / default routing
   return (
     <DemoModeProvider>
       <AuthProvider>
@@ -238,14 +264,14 @@ export default function App() {
               }
             />
 
-            {/* Attendee Mobile PWA - No auth required */}
-            <Route path="/attendee" element={<AttendeePWANew />} />
-
-            {/* Staff Mobile PWA - No auth required */}
-            <Route path="/staff" element={<StaffPWA />} />
-
-            {/* Security Command Center - Protected (but open for demo for now) */}
-            <Route path="/security" element={<SecurityDashboard />} />
+            {/* Security Command Center - Protected */}
+            <Route path="/security" element={
+              <ProtectedRoute>
+                <AdminLayout>
+                  <SecurityDashboard />
+                </AdminLayout>
+              </ProtectedRoute>
+            } />
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

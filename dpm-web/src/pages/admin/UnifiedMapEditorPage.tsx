@@ -411,6 +411,7 @@ export const UnifiedMapEditorPage: React.FC = () => {
   // Handle saving floorplan with name
   const handleSaveFloorplan = async () => {
     if (!pendingUpload || !eventId || !user) return;
+    if (!supabase) throw new Error('Supabase client not initialized');
 
     try {
       const { data: floorplanData, error: dbError } = await supabase

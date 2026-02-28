@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { supabase } from '../../lib/supabase';
 import { List, Map, Scan, Navigation, MapPin, Camera, WifiOff, ArrowRight, Trophy, CheckCircle, Satellite, ChevronRight, Compass } from 'lucide-react';
 import jsQR from 'jsqr';
 import FloorplanCanvas from '../../components/FloorplanCanvas.jsx';
@@ -75,6 +76,13 @@ type Tab = 'directory' | 'map' | 'scanner';
 const AttendeePWANew: React.FC = () => {
   // Arrival modal state
   const [showArrivalModal, setShowArrivalModal] = useState(false);
+  const [attendeeId] = useState(() => localStorage.getItem('naveaze_attendee_id') || `anon_${crypto.randomUUID()}`);
+  const [lastLocationPing, setLastLocationPing] = useState(0);
+
+  // Initialize random anonymous user ID for live tracking
+  useEffect(() => {
+    localStorage.setItem('naveaze_attendee_id', attendeeId);
+  }, [attendeeId]);
   // Debug mode for testing
   const [debugMode, setDebugMode] = useState(false);
   // Screen flow state
@@ -124,6 +132,9 @@ const AttendeePWANew: React.FC = () => {
   // QR Scanner state
   const [isScanning, setIsScanning] = useState(false);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+
+  // Live Location Tracking Refs
+  const lastLocationPingRef = useRef<number>(0);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -531,6 +542,24 @@ const AttendeePWANew: React.FC = () => {
           setGpsAccuracy(accuracy);
           setGpsEnabled(true);
 
+          // Broadcast location to backend based on throttling
+          const now = Date.now();
+          if (now - lastLocationPingRef.current > 3000 && supabase && event.id) {
+            lastLocationPingRef.current = now;
+            const locationData = {
+              attendee_id: attendeeId,
+              event_id: event.id,
+              lat: gps.lat,
+              lng: gps.lng,
+              accuracy: accuracy,
+              last_ping_at: new Date().toISOString()
+            };
+            void (supabase.from('attendee_locations') as any).upsert(locationData, { onConflict: 'attendee_id, event_id' })
+              .then(({ error }: { error: any }) => {
+                if (error) console.error('[GPS] Failed to broadcast location:', error.message);
+              });
+          }
+
           // Convert GPS to floorplan coordinates if we have event bounds
           if (event.gps_bounds_ne_lat && event.gps_bounds_sw_lat) {
             const gpsBounds: GPSBounds = {
@@ -562,7 +591,7 @@ const AttendeePWANew: React.FC = () => {
             }
           }
         },
-        (error) => {
+        (error: any) => {
           console.error('GPS error:', error);
           displayMessage('GPS positioning unavailable', 3000);
         }
@@ -1278,108 +1307,110 @@ const AttendeePWANew: React.FC = () => {
                   <div className="w-16 h-16 bg-green-400 rounded-full animate-ping opacity-60 mt-2" />
                 )}
               </div>
+            );
+          })()}
 
 
-          {/* Instruction text */ }
-            <div className="text-center max-w-sm">
-              {isVeryClose ? (
-                <div>
-                  <p className="text-xl text-green-400 font-semibold">You have arrived!</p>
-                  {currentWaypoint && !isLastWaypoint && (
-                    <p className="text-sm text-gray-400 mt-2">Next: {navigationPath[currentWaypointIndex + 1]?.name}</p>
-                  )}
-                </div>
-              ) : currentWaypoint ? (
-                <div>
-                  <p className="text-lg font-semibold mb-1">
-                    {isPointingCorrect ? (
-                      <span className="text-green-400">Keep going straight</span>
-                    ) : relativeBearing > 0 ? (
-                      <span>Turn right</span>
-                    ) : (
-                      <span>Turn left</span>
-                    )}
-                  </p>
-                  <p className="text-sm text-gray-400">
-                    toward {currentWaypoint.name}
-                  </p>
-                  {!isLastWaypoint && navigationPath[currentWaypointIndex + 1] && (
-                    <p className="text-xs text-gray-500 mt-2">
-                      Then continue to {navigationPath[currentWaypointIndex + 1].name}
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <div>
-                  <p className="text-lg font-semibold mb-1">
-                    {isPointingCorrect ? (
-                      <span className="text-green-400">Keep going straight</span>
-                    ) : relativeBearing > 0 ? (
-                      <span>Turn right and walk forward</span>
-                    ) : (
-                      <span>Turn left and walk forward</span>
-                    )}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-2">
-                    Direct path to destination
-                  </p>
-                </div>
-              )}
-
-              {/* Debug Controls */}
-              {debugMode && (
-                <div className="mt-6 p-4 bg-black/50 rounded-lg border border-brand-yellow">
-                  <p className="text-xs text-brand-yellow mb-2">🔧 Debug Mode</p>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => {
-                        if (currentGPS && selectedPOI?.metadata?.gps_lat && selectedPOI?.metadata?.gps_lng) {
-                          const poiGPS = { lat: selectedPOI.metadata.gps_lat, lng: selectedPOI.metadata.gps_lng };
-                          const bearing = calculateBearing(currentGPS, poiGPS);
-                          const distance = Math.max(0, distanceToTarget - 10);
-
-                          // Move 10m closer
-                          const newLat = currentGPS.lat + (10 / 111320) * Math.cos(bearing * Math.PI / 180);
-                          const newLng = currentGPS.lng + (10 / (111320 * Math.cos(currentGPS.lat * Math.PI / 180))) * Math.sin(bearing * Math.PI / 180);
-
-                          setCurrentGPS({ lat: newLat, lng: newLng });
-                        }
-                      }}
-                      className="px-3 py-1 bg-green-500 text-white text-xs rounded"
-                    >
-                      Walk 10m Closer
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (currentGPS && selectedPOI?.metadata?.gps_lat) {
-                          setDistanceToTarget(2);
-                          setShowArrivalModal(true);
-                        }
-                      }}
-                      className="px-3 py-1 bg-brand-red text-white text-xs rounded"
-                    >
-                      Trigger Arrival
-                    </button>
-                  </div>
-                  <p className="text-xs text-gray-400 mt-2">Distance: {distanceToTarget.toFixed(1)}m</p>
-                </div>
-              )}
-
-              {/* Path navigation note */}
-              {!isVeryClose && navigationPath.length === 0 && (
-                <p className="text-xs text-gray-500 mt-4 px-4">
-                  ℹ️ This shows the direct path. View the map below for pathways around buildings.
-                </p>
-              )}
-            </div>
-
-            {/* GPS accuracy indicator */ }
-            <div className="mt-8 text-center text-sm text-gray-400">
-              <div className="flex items-center justify-center gap-2">
-                <Satellite className="w-4 h-4" />
-                <span>GPS Accuracy: ±{gpsAccuracy.toFixed(0)}m</span>
+          {/* Instruction text */}
+          <div className="text-center max-w-sm">
+            {isVeryClose ? (
+              <div>
+                <p className="text-xl text-green-400 font-semibold">You have arrived!</p>
+                {currentWaypoint && !isLastWaypoint && (
+                  <p className="text-sm text-gray-400 mt-2">Next: {navigationPath[currentWaypointIndex + 1]?.name}</p>
+                )}
               </div>
+            ) : currentWaypoint ? (
+              <div>
+                <p className="text-lg font-semibold mb-1">
+                  {isPointingCorrect ? (
+                    <span className="text-green-400">Keep going straight</span>
+                  ) : relativeBearing > 0 ? (
+                    <span>Turn right</span>
+                  ) : (
+                    <span>Turn left</span>
+                  )}
+                </p>
+                <p className="text-sm text-gray-400">
+                  toward {currentWaypoint.name}
+                </p>
+                {!isLastWaypoint && navigationPath[currentWaypointIndex + 1] && (
+                  <p className="text-xs text-gray-500 mt-2">
+                    Then continue to {navigationPath[currentWaypointIndex + 1].name}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div>
+                <p className="text-lg font-semibold mb-1">
+                  {isPointingCorrect ? (
+                    <span className="text-green-400">Keep going straight</span>
+                  ) : relativeBearing > 0 ? (
+                    <span>Turn right and walk forward</span>
+                  ) : (
+                    <span>Turn left and walk forward</span>
+                  )}
+                </p>
+                <p className="text-xs text-gray-500 mt-2">
+                  Direct path to destination
+                </p>
+              </div>
+            )}
+
+            {/* Debug Controls */}
+            {debugMode && (
+              <div className="mt-6 p-4 bg-black/50 rounded-lg border border-brand-yellow">
+                <p className="text-xs text-brand-yellow mb-2">🔧 Debug Mode</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      if (currentGPS && selectedPOI?.metadata?.gps_lat && selectedPOI?.metadata?.gps_lng) {
+                        const poiGPS = { lat: selectedPOI.metadata.gps_lat, lng: selectedPOI.metadata.gps_lng };
+                        const bearing = calculateBearing(currentGPS, poiGPS);
+                        const distance = Math.max(0, distanceToTarget - 10);
+
+                        // Move 10m closer
+                        const newLat = currentGPS.lat + (10 / 111320) * Math.cos(bearing * Math.PI / 180);
+                        const newLng = currentGPS.lng + (10 / (111320 * Math.cos(currentGPS.lat * Math.PI / 180))) * Math.sin(bearing * Math.PI / 180);
+
+                        setCurrentGPS({ lat: newLat, lng: newLng });
+                      }
+                    }}
+                    className="px-3 py-1 bg-green-500 text-white text-xs rounded"
+                  >
+                    Walk 10m Closer
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (currentGPS && selectedPOI?.metadata?.gps_lat) {
+                        setDistanceToTarget(2);
+                        setShowArrivalModal(true);
+                      }
+                    }}
+                    className="px-3 py-1 bg-brand-red text-white text-xs rounded"
+                  >
+                    Trigger Arrival
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400 mt-2">Distance: {distanceToTarget.toFixed(1)}m</p>
+              </div>
+            )}
+
+            {/* Path navigation note */}
+            {!isVeryClose && navigationPath.length === 0 && (
+              <p className="text-xs text-gray-500 mt-4 px-4">
+                ℹ️ This shows the direct path. View the map below for pathways around buildings.
+              </p>
+            )}
+          </div>
+
+          {/* GPS accuracy indicator */}
+          <div className="mt-8 text-center text-sm text-gray-400">
+            <div className="flex items-center justify-center gap-2">
+              <Satellite className="w-4 h-4" />
+              <span>GPS Accuracy: ±{gpsAccuracy.toFixed(0)}m</span>
             </div>
+          </div>
         </div>
 
         {/* Bottom actions */}

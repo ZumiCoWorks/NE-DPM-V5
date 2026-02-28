@@ -16,7 +16,7 @@ export const RemotionRoot: React.FC = () => {
         <>
             <Composition
                 id="HeroVideo"
-                component={HeroVideo}
+                component={HeroVideo as React.FC<any>}
                 durationInFrames={240}
                 fps={60}
                 width={1920}
@@ -30,7 +30,7 @@ export const RemotionRoot: React.FC = () => {
 
             <Composition
                 id="HeatmapAnimation"
-                component={HeatmapAnimation}
+                component={HeatmapAnimation as React.FC<any>}
                 durationInFrames={360}
                 fps={60}
                 width={1920}
@@ -43,7 +43,7 @@ export const RemotionRoot: React.FC = () => {
 
             <Composition
                 id="PaperKillerCounter"
-                component={PaperKillerCounter}
+                component={PaperKillerCounter as React.FC<any>}
                 durationInFrames={300}
                 fps={60}
                 width={1920}

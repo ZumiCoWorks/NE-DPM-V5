@@ -24,58 +24,87 @@ interface Alert {
     metadata?: any;
 }
 
-// --- Crowd Simulation Hook ---
-// Generates random moving dots within a bounding box to simulate attendees
-const useCrowdSimulation = (bounds: [[number, number], [number, number]] | null, count: number = 80) => {
-    const [crowd, setCrowd] = useState<{ id: number; lat: number; lng: number }[]>([]);
+interface AttendeeLocation {
+    attendee_id: string;
+    event_id: string;
+    lat: number;
+    lng: number;
+    accuracy?: number;
+    last_ping_at: string;
+}
+
+// --- Live Attendee Tracking Hook ---
+const useLiveAttendees = () => {
+    const [attendees, setAttendees] = useState<Map<string, AttendeeLocation>>(new Map());
 
     useEffect(() => {
-        if (!bounds) return;
+        if (!supabase) return;
 
-        const [sw, ne] = bounds;
-        const latMin = sw[0];
-        const latMax = ne[0];
-        const lngMin = sw[1];
-        const lngMax = ne[1];
+        // Fetch initial active attendees (last 5 minutes)
+        const fetchInitial = async () => {
+            const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+            const query = supabase!.from('attendee_locations').select('*') as any;
+            const { data, error } = await query.gte('last_ping_at', fiveMinsAgo);
 
-        // Initial generation
-        const initialCrowd = Array.from({ length: count }).map((_, i) => ({
-            id: i,
-            lat: latMin + Math.random() * (latMax - latMin),
-            lng: lngMin + Math.random() * (lngMax - lngMin),
-            // Random movement vector
-            dLat: (Math.random() - 0.5) * 0.00005,
-            dLng: (Math.random() - 0.5) * 0.00005
-        }));
+            if (error) {
+                console.error("Error fetching live attendees:", error);
+                return;
+            }
 
-        setCrowd(initialCrowd as any);
+            if (data) {
+                const map = new Map<string, AttendeeLocation>();
+                data.forEach((a: any) => map.set(a.attendee_id, a as AttendeeLocation));
+                setAttendees(map);
+            }
+        };
 
-        // Animation loop
-        const interval = setInterval(() => {
-            setCrowd(prev => prev.map(p => {
-                let newLat = p.lat + (p as any).dLat;
-                let newLng = p.lng + (p as any).dLng;
+        fetchInitial();
 
-                // Bounce off walls
-                if (newLat < latMin || newLat > latMax) (p as any).dLat *= -1;
-                if (newLng < lngMin || newLng > lngMax) (p as any).dLng *= -1;
+        // Subscribe to real-time location updates
+        const client = supabase as any;
+        const subscription = client
+            .channel('live_attendees')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'attendee_locations' }, (payload: any) => {
+                const newLoc = payload.new as AttendeeLocation;
+                // Only keep recent pings
+                const isRecent = new Date(newLoc.last_ping_at).getTime() > Date.now() - 5 * 60 * 1000;
+                setAttendees(prev => {
+                    const next = new Map(prev);
+                    if (isRecent) {
+                        next.set(newLoc.attendee_id, newLoc);
+                    } else {
+                        next.delete(newLoc.attendee_id);
+                    }
+                    return next;
+                });
+            })
+            .subscribe();
 
-                // Add some random jitter
-                if (Math.random() > 0.95) {
-                    (p as any).dLat = (Math.random() - 0.5) * 0.00005;
-                    (p as any).dLng = (Math.random() - 0.5) * 0.00005;
+        // Periodic cleanup of stale locations
+        const cleanup = setInterval(() => {
+            setAttendees(prev => {
+                const next = new Map(prev);
+                let changed = false;
+                const fiveMinsAgo = Date.now() - 5 * 60 * 1000;
+
+                for (const [id, loc] of next.entries()) {
+                    if (new Date(loc.last_ping_at).getTime() < fiveMinsAgo) {
+                        next.delete(id);
+                        changed = true;
+                    }
                 }
+                return changed ? next : prev;
+            });
+        }, 30000); // Check every 30s
 
-                return { ...p, lat: newLat, lng: newLng };
-            }));
-        }, 1000); // Update every second
+        return () => {
+            subscription.unsubscribe();
+            clearInterval(cleanup);
+        };
+    }, []);
 
-        return () => clearInterval(interval);
-    }, [bounds, count]);
-
-    return crowd;
+    return Array.from(attendees.values());
 };
-
 // --- Map Center Helper ---
 function MapReCenter({ center }: { center: [number, number] }) {
     const map = useMap();
@@ -105,8 +134,7 @@ export default function SecurityDashboard() {
                 .select('*')
                 .order('created_at', { ascending: false })
                 .limit(50);
-
-            if (alertsData) setAlerts(alertsData);
+            if (alertsData) setAlerts(alertsData as unknown as Alert[]);
 
             // 2. Fetch Active Floorplan (Just grab the most recent one for the demo)
             const { data: fpData } = await client
@@ -116,13 +144,14 @@ export default function SecurityDashboard() {
                 .limit(1)
                 .single();
 
-            if (fpData && fpData.image_url) {
-                setFloorplan(fpData);
+            if (fpData && (fpData as Record<string, any>).image_url) {
+                setFloorplan(fpData as any);
+                const fp = fpData as any;
                 // Use calibrated bounds if available, else event bounds, else default
-                if (fpData.is_calibrated && fpData.gps_top_left_lat) {
+                if (fp.is_calibrated && fp.gps_top_left_lat) {
                     setGpsBounds([
-                        [Math.min(fpData.gps_bottom_left_lat, fpData.gps_bottom_right_lat), Math.min(fpData.gps_bottom_left_lng, fpData.gps_top_left_lng)], // SW
-                        [Math.max(fpData.gps_top_left_lat, fpData.gps_top_right_lat), Math.max(fpData.gps_top_right_lng, fpData.gps_bottom_right_lng)]    // NE
+                        [Math.min(fp.gps_bottom_left_lat, fp.gps_bottom_right_lat), Math.min(fp.gps_bottom_left_lng, fp.gps_top_left_lng)], // SW
+                        [Math.max(fp.gps_top_left_lat, fp.gps_top_right_lat), Math.max(fp.gps_top_right_lng, fp.gps_bottom_right_lng)]    // NE
                     ]);
                 } else {
                     // Fallback to strict event bounds or hardcoded default for demo
@@ -172,7 +201,7 @@ export default function SecurityDashboard() {
     };
 
     const activeAlerts = alerts.filter(a => a.status !== 'resolved');
-    const crowd = useCrowdSimulation(gpsBounds);
+    const liveAttendees = useLiveAttendees();
 
     // Calculate map center
     const mapCenter: [number, number] = gpsBounds
@@ -191,7 +220,7 @@ export default function SecurityDashboard() {
                     <div className="flex items-center gap-6">
                         <div className="flex items-center gap-2">
                             <Users className="w-4 h-4 text-blue-400" />
-                            <span className="text-xl font-mono font-bold text-blue-400">{1240 + crowd.length}</span>
+                            <span className="text-xl font-mono font-bold text-blue-400">{liveAttendees.length}</span>
                             <span className="text-xs text-gray-400">ON SITE</span>
                         </div>
                         <div className="h-6 w-px bg-gray-700"></div>
@@ -310,17 +339,17 @@ export default function SecurityDashboard() {
                                 opacity={0.6}
                             />
 
-                            {/* CROWD SIMULATION LAYER */}
-                            {crowd.map(p => (
+                            {/* LIVE ATTENDEES LAYER */}
+                            {liveAttendees.map(p => (
                                 <CircleMarker
-                                    key={p.id}
+                                    key={`attendee-${p.attendee_id}`}
                                     center={[p.lat, p.lng]}
-                                    radius={3}
+                                    radius={4}
                                     pathOptions={{
                                         color: '#3b82f6',
                                         fillColor: '#60a5fa',
-                                        fillOpacity: 0.4,
-                                        weight: 0
+                                        fillOpacity: 0.8,
+                                        weight: 1
                                     }}
                                 />
                             ))}

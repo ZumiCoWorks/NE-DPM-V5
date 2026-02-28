@@ -28,7 +28,7 @@ export const NavEazeLandingPage: React.FC = () => {
             {/* Hero Section with Remotion Player */}
             <section className="relative w-full h-screen">
                 <Player
-                    component={HeroVideo}
+                    component={HeroVideo as React.FC<any>}
                     inputProps={{
                         mode,
                         accentColor,
@@ -95,7 +95,7 @@ export const NavEazeLandingPage: React.FC = () => {
                         {/* Heatmap Player */}
                         <div className="rounded-2xl overflow-hidden border-2 border-logic-blue/30 shadow-2xl">
                             <Player
-                                component={HeatmapAnimation}
+                                component={HeatmapAnimation as React.FC<any>}
                                 inputProps={{
                                     mode,
                                     showMetrics: true,
@@ -245,7 +245,7 @@ export const NavEazeLandingPage: React.FC = () => {
                     {/* Paper Killer Counter Player */}
                     <div className="rounded-2xl overflow-hidden border-2 border-green-400/30 shadow-2xl">
                         <Player
-                            component={PaperKillerCounter}
+                            component={PaperKillerCounter as React.FC<any>}
                             inputProps={{
                                 signsReplaced: 12847,
                                 co2Saved: 4.2,
