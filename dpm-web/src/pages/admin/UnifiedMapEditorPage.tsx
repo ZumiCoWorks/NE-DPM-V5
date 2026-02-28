@@ -284,8 +284,8 @@ export const UnifiedMapEditorPage: React.FC = () => {
 
       const segs: GraphSegment[] = ((segments as any[]) || []).map((s: any) => ({
         id: s.id,
-        start_node_id: s.from_node_id,
-        end_node_id: s.to_node_id
+        start_node_id: s.start_node_id,
+        end_node_id: s.end_node_id
       }));
 
 

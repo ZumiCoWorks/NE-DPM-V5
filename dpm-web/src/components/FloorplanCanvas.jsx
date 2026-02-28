@@ -23,6 +23,8 @@ const FloorplanCanvas = ({
   containerHeight,
   // current location marker (GPS position)
   currentLocation,
+  // gps bounds to resolve exact coordinates on the fly
+  gpsBounds,
 }) => {
   const [image] = useImage(floorplanImageUrl);
   const stageRef = useRef(null);
@@ -38,16 +40,36 @@ const FloorplanCanvas = ({
 
   const [stageDimensions, setStageDimensions] = useState({ width: 800, height: 600 });
 
+  // When fitToContainer, watch the wrapper div for size changes and update stage immediately
+  useEffect(() => {
+    if (!fitToContainer || !containerRef.current) return;
+    const el = containerRef.current;
+    const updateSize = () => {
+      const w = el.offsetWidth;
+      const h = el.offsetHeight;
+      if (w > 0 && h > 0) {
+        setStageDimensions(prev => {
+          if (prev.width === w && prev.height === h) return prev;
+          return { width: w, height: h };
+        });
+      }
+    };
+    updateSize();
+    const obs = new ResizeObserver(updateSize);
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [fitToContainer]);
+
   // Auto-fit to container on mount and image load
   useEffect(() => {
     if (image && fitToContainer) {
-      const availableWidth = containerWidth || window.innerWidth - 32; // padding
-      const availableHeight = containerHeight || window.innerHeight * 0.5; // half screen
-      
+      const availableWidth = stageDimensions.width > 0 ? stageDimensions.width : (containerWidth || window.innerWidth);
+      const availableHeight = stageDimensions.height > 0 ? stageDimensions.height : (containerHeight || window.innerHeight * 0.5);
+
       // If we have a highlighted path, zoom to show it
       if (highlightPath && highlightPath.length > 1) {
         const padding = 100; // pixels of padding around the path
-        
+
         // Find bounding box of path
         const xs = highlightPath.map(p => p.x);
         const ys = highlightPath.map(p => p.y);
@@ -57,37 +79,37 @@ const FloorplanCanvas = ({
         const maxY = Math.max(...ys) + padding;
         const pathWidth = maxX - minX;
         const pathHeight = maxY - minY;
-        
+
         // Calculate scale to fit path in view
         const scaleX = availableWidth / pathWidth;
         const scaleY = availableHeight / pathHeight;
         const pathScale = Math.min(scaleX, scaleY, 2); // Max 2x zoom
-        
+
         setStageScale(pathScale);
         setStageDimensions({ width: availableWidth, height: availableHeight });
-        
+
         // Center on path
         const centerX = (minX + maxX) / 2;
         const centerY = (minY + maxY) / 2;
         setStageX(availableWidth / 2 - centerX * pathScale);
         setStageY(availableHeight / 2 - centerY * pathScale);
-        
+
         console.log('🔍 Zoomed to path:', { pathWidth, pathHeight, scale: pathScale, center: { centerX, centerY } });
       } else {
         // No path, just fit the whole image
         const scaleX = availableWidth / image.width;
         const scaleY = availableHeight / image.height;
         const initialScale = Math.min(scaleX, scaleY, 1); // Don't scale up, only down
-        
+
         setStageScale(initialScale);
         setStageDimensions({ width: availableWidth, height: availableHeight });
-        
+
         // Center the image
         const scaledWidth = image.width * initialScale;
         const scaledHeight = image.height * initialScale;
         setStageX((availableWidth - scaledWidth) / 2);
         setStageY((availableHeight - scaledHeight) / 2);
-        
+
         console.log('🔍 Fit to container:', { imageWidth: image.width, imageHeight: image.height, scale: initialScale, containerWidth: availableWidth });
       }
     } else if (image) {
@@ -96,7 +118,7 @@ const FloorplanCanvas = ({
       setStageX(0);
       setStageY(0);
     }
-  }, [image, floorplanImageUrl, fitToContainer, containerWidth, containerHeight, highlightPath]);
+  }, [image, floorplanImageUrl, fitToContainer, containerWidth, containerHeight, highlightPath, stageDimensions.width, stageDimensions.height]);
 
   useEffect(() => {
     // clear any in-progress draw-path state when mode changes away
@@ -171,12 +193,27 @@ const FloorplanCanvas = ({
     }
   };
 
+  // Resolve precise image coordinates on the fly
+  const getNodeCoords = useCallback((node) => {
+    if (gpsBounds && image && node.metadata?.gps_lat && node.metadata?.gps_lng) {
+      const latRange = gpsBounds.ne.lat - gpsBounds.sw.lat;
+      const lngRange = gpsBounds.ne.lng - gpsBounds.sw.lng;
+      // Normalize to 0-1 range, then scale to actual image size
+      const x = ((node.metadata.gps_lng - gpsBounds.sw.lng) / lngRange) * image.width;
+      const y = ((gpsBounds.ne.lat - node.metadata.gps_lat) / latRange) * image.height;
+      return { x, y };
+    }
+    return { x: node.x || 0, y: node.y || 0 };
+  }, [gpsBounds, image]);
+
   const renderSegments = () => {
     if (!segments) return null;
     return segments.map((s) => {
-      const a = nodes.find(n => n.id === s.start_node_id);
-      const b = nodes.find(n => n.id === s.end_node_id);
-      if (!a || !b) return null;
+      const aNode = nodes.find(n => n.id === s.start_node_id);
+      const bNode = nodes.find(n => n.id === s.end_node_id);
+      if (!aNode || !bNode) return null;
+      const a = getNodeCoords(aNode);
+      const b = getNodeCoords(bNode);
       return (
         <Line key={s.id} points={[a.x, a.y, b.x, b.y]} stroke="#06b6d4" strokeWidth={4} lineCap="round" lineJoin="round" />
       );
@@ -185,28 +222,37 @@ const FloorplanCanvas = ({
 
   const renderNodes = () => {
     if (!nodes) return null;
-    return nodes.map(n => (
-      <Group key={n.id}>
-        <Circle x={n.x} y={n.y} radius={6} fill="#10b981" stroke="#fff" strokeWidth={2} />
-        <Text x={n.x + 8} y={n.y - 6} text={n.name || `N${n.id}`} fontSize={12} fill="#111827" />
-      </Group>
-    ));
+    return nodes.map(n => {
+      const { x, y } = getNodeCoords(n);
+      return (
+        <Group key={n.id}>
+          <Circle x={x} y={y} radius={6} fill="#10b981" stroke="#fff" strokeWidth={2} />
+          <Text x={x + 8} y={y - 6} text={n.name || `N${n.id}`} fontSize={12} fill="#111827" />
+        </Group>
+      );
+    });
   };
 
   const renderPois = () => {
     if (!pois) return null;
-    return pois.map(p => (
-      <Group key={p.id}>
-        <Circle x={p.x || 0} y={p.y || 0} radius={8} fill={p.type === 'localization' ? 'orange' : '#06b6d4'} stroke="#fff" strokeWidth={2} />
-        <Text x={(p.x || 0) + 10} y={(p.y || 0) - 6} text={p.name || 'POI'} fontSize={12} fill="#111827" />
-      </Group>
-    ));
+    return pois.map(p => {
+      const { x, y } = getNodeCoords(p);
+      return (
+        <Group key={p.id}>
+          <Circle x={x} y={y} radius={8} fill={p.type === 'localization' ? 'orange' : '#06b6d4'} stroke="#fff" strokeWidth={2} />
+          <Text x={x + 10} y={y - 6} text={p.name || 'POI'} fontSize={12} fill="#111827" />
+        </Group>
+      );
+    });
   };
 
   const renderHighlightPath = () => {
     if (!highlightPath || highlightPath.length < 2) return null;
-    // flatten points
-    const pts = highlightPath.flatMap(p => [p.x, p.y]);
+    // flatten points using getNodeCoords to fix displacement
+    const pts = highlightPath.flatMap(p => {
+      const { x, y } = getNodeCoords(p);
+      return [x, y];
+    });
     return (
       <>
         {/* Route line - NavEaze brand red */}
@@ -225,12 +271,12 @@ const FloorplanCanvas = ({
         <Circle x={currentLocation.x} y={currentLocation.y} radius={20} fill="#E63946" opacity={0.3} />
         <Circle x={currentLocation.x} y={currentLocation.y} radius={12} fill="#FFD700" opacity={0.6} />
         <Circle x={currentLocation.x} y={currentLocation.y} radius={8} fill="#E63946" stroke="#fff" strokeWidth={2} />
-        <Text 
-          x={currentLocation.x - 30} 
-          y={currentLocation.y - 35} 
-          text="📍 You" 
-          fontSize={14} 
-          fill="#000000" 
+        <Text
+          x={currentLocation.x - 30}
+          y={currentLocation.y - 35}
+          text="📍 You"
+          fontSize={14}
+          fill="#000000"
           fontStyle="bold"
         />
       </Group>
@@ -273,7 +319,7 @@ const FloorplanCanvas = ({
     const stage = e.target.getStage();
     const oldScale = stage.scaleX();
     const pointer = stage.getPointerPosition();
-    
+
     const mousePointTo = {
       x: (pointer.x - stage.x()) / oldScale,
       y: (pointer.y - stage.y()) / oldScale,
@@ -301,10 +347,10 @@ const FloorplanCanvas = ({
     <div ref={containerRef} style={{ position: 'relative', width: '100%', touchAction: 'none' }}>
       {/* Zoom Controls - Mobile optimized */}
       {fitToContainer && (
-        <div style={{ 
-          position: 'absolute', 
-          bottom: '16px', 
-          right: '16px', 
+        <div style={{
+          position: 'absolute',
+          bottom: '16px',
+          right: '16px',
           zIndex: 10,
           display: 'flex',
           flexDirection: 'column',
@@ -314,7 +360,7 @@ const FloorplanCanvas = ({
           padding: '8px',
           boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
         }}>
-          <button 
+          <button
             onClick={handleZoomIn}
             style={{
               width: '40px',
@@ -331,7 +377,7 @@ const FloorplanCanvas = ({
           >
             +
           </button>
-          <button 
+          <button
             onClick={handleZoomOut}
             style={{
               width: '40px',
@@ -348,7 +394,7 @@ const FloorplanCanvas = ({
           >
             −
           </button>
-          <button 
+          <button
             onClick={handleResetView}
             style={{
               width: '40px',
@@ -368,8 +414,14 @@ const FloorplanCanvas = ({
           </button>
         </div>
       )}
-      
-      <div style={{ border: '1px solid #e5e7eb', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#f9fafb' }}>
+
+      <div
+        ref={containerRef}
+        style={fitToContainer
+          ? { width: '100%', height: '100%', overflow: 'hidden', backgroundColor: '#ffffff' }
+          : { border: '1px solid #e5e7eb', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#f9fafb' }
+        }
+      >
         <Stage
           width={stageDimensions.width}
           height={stageDimensions.height}
@@ -383,7 +435,7 @@ const FloorplanCanvas = ({
           onWheel={handleWheel}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
-          style={{ background: '#fff', cursor: mode === 'pan' ? 'grab' : 'crosshair' }}
+          style={{ background: '#ffffff', cursor: mode === 'pan' ? 'grab' : 'crosshair' }}
         >
           <Layer>
             {image && <Image image={image} x={0} y={0} />}

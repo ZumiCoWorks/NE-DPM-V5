@@ -103,6 +103,7 @@ const AttendeePWANew: React.FC = () => {
   const [graphNodes, setGraphNodes] = useState<GraphNode[]>([]);
   const [graphSegments, setGraphSegments] = useState<GraphSegment[]>([]);
   const [floorplanImageUrl, setFloorplanImageUrl] = useState<string | null>(null);
+  const [floorplanGpsBounds, setFloorplanGpsBounds] = useState<any | null>(null);
   const [highlightPath, setHighlightPath] = useState<Array<{ x: number; y: number }>>([]);
   const [navigationPath, setNavigationPath] = useState<GraphNode[]>([]); // Turn-by-turn waypoints
   const [currentWaypointIndex, setCurrentWaypointIndex] = useState<number>(0);
@@ -125,6 +126,25 @@ const AttendeePWANew: React.FC = () => {
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const [mapContainerWidth, setMapContainerWidth] = useState(0);
+  const [mapContainerHeight, setMapContainerHeight] = useState(0);
+
+  // Measure map container when map tab is active
+  useEffect(() => {
+    if (activeTab !== 'map' || !mapContainerRef.current) return;
+    const measure = () => {
+      const el = mapContainerRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      if (rect.width > 0) setMapContainerWidth(Math.floor(rect.width));
+      if (rect.height > 0) setMapContainerHeight(Math.floor(rect.height));
+    };
+    measure();
+    const obs = new ResizeObserver(measure);
+    obs.observe(mapContainerRef.current);
+    return () => obs.disconnect();
+  }, [activeTab]);
 
   // UI state
   const [offlineMode, setOfflineMode] = useState(false);
@@ -423,6 +443,28 @@ const AttendeePWANew: React.FC = () => {
 
       if (floorplanErr) throw floorplanErr;
 
+      // Extract GPS bounds if available
+      let bounds = null;
+      if (floorplan?.is_calibrated) {
+        const lats = [
+          floorplan.gps_top_left_lat,
+          floorplan.gps_top_right_lat,
+          floorplan.gps_bottom_left_lat,
+          floorplan.gps_bottom_right_lat
+        ];
+        const lngs = [
+          floorplan.gps_top_left_lng,
+          floorplan.gps_top_right_lng,
+          floorplan.gps_bottom_left_lng,
+          floorplan.gps_bottom_right_lng
+        ];
+        bounds = {
+          ne: { lat: Math.max(...lats), lng: Math.max(...lngs) },
+          sw: { lat: Math.min(...lats), lng: Math.min(...lngs) }
+        };
+        setFloorplanGpsBounds(bounds);
+      }
+
       // Convert to graph format
       const nodes: GraphNode[] = (points || []).map((p: any) => ({
         id: p.id,
@@ -439,14 +481,17 @@ const AttendeePWANew: React.FC = () => {
 
       const segs: GraphSegment[] = (segments || []).map((s: any) => ({
         id: s.id,
-        from_node_id: s.from_node_id,
-        to_node_id: s.to_node_id,
-        bidirectional: s.bidirectional,
+        start_node_id: s.start_node_id,
+        end_node_id: s.end_node_id,
+        bidirectional: s.is_bidirectional,
         distance: s.distance_meters
       }));
 
       setGraphNodes(nodes);
       setGraphSegments(segs);
+      if (nodes.length > 0) {
+        console.log('🔍 First node coordinates:', nodes[0].id, nodes[0].x, nodes[0].y, 'Image size:', floorplan?.image_url);
+      }
 
       // Extract POIs
       const poisList = nodes.filter(n => n.type === 'poi');
@@ -1161,134 +1206,180 @@ const AttendeePWANew: React.FC = () => {
             </div>
           </div>
 
-          {/* Directional arrow/compass */}
-          <div className="relative w-64 h-64 mb-12">
-            {/* Compass ring */}
-            <div className="absolute inset-0 rounded-full border-4 border-brand-yellow/30"></div>
+          {/* Brand arrow — exact wave animation from AD-Instagram-2025 SVGs */}
+          {(() => {
+            // Convert smoothly rotating compass bearing to discrete turn-by-turn chevron directions
+            let chevronRotation = 0; // Default: Straight Up
+            let normBearing = relativeBearing % 360;
+            if (normBearing > 180) normBearing -= 360;
+            if (normBearing < -180) normBearing += 360;
 
-            {/* Direction indicator (rotates based on relative bearing) */}
-            <div
-              className="absolute inset-0 flex items-center justify-center transition-transform duration-1000 ease-in-out"
-              style={{
-                transform: `rotate(${relativeBearing}deg)`,
-                willChange: 'transform'
-              }}
-            >
-              <div className={`w-0 h-0 border-l-[40px] border-l-transparent border-r-[40px] border-r-transparent border-b-[80px] ${isPointingCorrect ? 'border-b-green-400' : 'border-b-brand-red'
-                } transition-colors duration-300`}>
-              </div>
-            </div>
+            if (normBearing > 45 && normBearing <= 135) chevronRotation = 90; // Turn Right
+            else if (normBearing < -45 && normBearing >= -135) chevronRotation = -90; // Turn Left
+            else if (normBearing > 135 || normBearing < -135) chevronRotation = 180; // Turn Around
 
-            {/* Center dot */}
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-brand-yellow rounded-full"></div>
-
-            {/* Cardinal directions */}
-            <div className="absolute top-2 left-1/2 transform -translate-x-1/2 text-xs text-gray-400">N</div>
-            <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 text-xs text-gray-400">S</div>
-            <div className="absolute left-2 top-1/2 transform -translate-y-1/2 text-xs text-gray-400">W</div>
-            <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-gray-400">E</div>
-          </div>
-
-          {/* Instruction text */}
-          <div className="text-center max-w-sm">
-            {isVeryClose ? (
-              <div>
-                <p className="text-xl text-green-400 font-semibold">You have arrived!</p>
-                {currentWaypoint && !isLastWaypoint && (
-                  <p className="text-sm text-gray-400 mt-2">Next: {navigationPath[currentWaypointIndex + 1]?.name}</p>
-                )}
-              </div>
-            ) : currentWaypoint ? (
-              <div>
-                <p className="text-lg font-semibold mb-1">
-                  {isPointingCorrect ? (
-                    <span className="text-green-400">Keep going straight</span>
-                  ) : relativeBearing > 0 ? (
-                    <span>Turn right</span>
-                  ) : (
-                    <span>Turn left</span>
-                  )}
-                </p>
-                <p className="text-sm text-gray-400">
-                  toward {currentWaypoint.name}
-                </p>
-                {!isLastWaypoint && navigationPath[currentWaypointIndex + 1] && (
-                  <p className="text-xs text-gray-500 mt-2">
-                    Then continue to {navigationPath[currentWaypointIndex + 1].name}
-                  </p>
-                )}
-              </div>
-            ) : (
-              <div>
-                <p className="text-lg font-semibold mb-1">
-                  {isPointingCorrect ? (
-                    <span className="text-green-400">Keep going straight</span>
-                  ) : relativeBearing > 0 ? (
-                    <span>Turn right and walk forward</span>
-                  ) : (
-                    <span>Turn left and walk forward</span>
-                  )}
-                </p>
-                <p className="text-xs text-gray-500 mt-2">
-                  Direct path to destination
-                </p>
-              </div>
-            )}
-
-            {/* Debug Controls */}
-            {debugMode && (
-              <div className="mt-6 p-4 bg-black/50 rounded-lg border border-brand-yellow">
-                <p className="text-xs text-brand-yellow mb-2">🔧 Debug Mode</p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => {
-                      if (currentGPS && selectedPOI?.metadata?.gps_lat && selectedPOI?.metadata?.gps_lng) {
-                        const poiGPS = { lat: selectedPOI.metadata.gps_lat, lng: selectedPOI.metadata.gps_lng };
-                        const bearing = calculateBearing(currentGPS, poiGPS);
-                        const distance = Math.max(0, distanceToTarget - 10);
-
-                        // Move 10m closer
-                        const newLat = currentGPS.lat + (10 / 111320) * Math.cos(bearing * Math.PI / 180);
-                        const newLng = currentGPS.lng + (10 / (111320 * Math.cos(currentGPS.lat * Math.PI / 180))) * Math.sin(bearing * Math.PI / 180);
-
-                        setCurrentGPS({ lat: newLat, lng: newLng });
-                      }
-                    }}
-                    className="px-3 py-1 bg-green-500 text-white text-xs rounded"
-                  >
-                    Walk 10m Closer
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (currentGPS && selectedPOI?.metadata?.gps_lat) {
-                        setDistanceToTarget(2);
-                        setShowArrivalModal(true);
-                      }
-                    }}
-                    className="px-3 py-1 bg-brand-red text-white text-xs rounded"
-                  >
-                    Trigger Arrival
-                  </button>
+            return (
+              <div className="relative flex flex-col items-center mb-8">
+                <style>{`
+                  @keyframes chevron-wave {
+                    0%   { fill: transparent; }
+                    20%  { fill: var(--arrow-color); }
+                    60%  { fill: var(--arrow-color); }
+                    80%  { fill: transparent; }
+                    100% { fill: transparent; }
+                  }
+                `}</style>
+                <div
+                  className="transition-transform duration-700 ease-in-out"
+                  style={{ transform: `rotate(${chevronRotation}deg)`, willChange: 'transform' }}
+                >
+                  {/* Exact polygon paths from AD-Instagram-2025 brand SVGs, scaled to 160×210px viewBox */}
+                  <svg width="160" height="210" viewBox="0 0 402 620" fill="none">
+                    {/* Chevron 1 — largest, topmost (leads the wave) */}
+                    <path
+                      d="M201 53L127 112L128.5 161.5L199.5 97L275 161.5V107L201 53Z"
+                      style={{
+                        ['--arrow-color' as string]: isVeryClose ? '#4ade80' : isPointingCorrect ? '#4ade80' : '#FF0003',
+                        fill: 'transparent',
+                        stroke: isVeryClose ? '#4ade80' : isPointingCorrect ? '#4ade80' : '#FF0003',
+                        strokeWidth: 2,
+                        animation: isVeryClose ? 'none' : 'chevron-wave 1.4s ease-in-out infinite',
+                        animationDelay: '0s',
+                      }}
+                    />
+                    {/* Chevron 2 — medium */}
+                    <path
+                      d="M200.5 133L151 171.065L152.003 203L199.497 161.387L250 203V167.839L200.5 133Z"
+                      style={{
+                        ['--arrow-color' as string]: isVeryClose ? '#4ade80' : isPointingCorrect ? '#4ade80' : '#FF0003',
+                        fill: 'transparent',
+                        stroke: isVeryClose ? '#4ade80' : isPointingCorrect ? '#4ade80' : '#FF0003',
+                        strokeWidth: 2,
+                        animation: isVeryClose ? 'none' : 'chevron-wave 1.4s ease-in-out infinite',
+                        animationDelay: '0.35s',
+                      }}
+                    />
+                    {/* Chevron 3 — smallest, bottommost (wave starts here) */}
+                    <path
+                      d="M200.5 191L184 203.507L184.334 214L200.166 200.327L217 214V202.447L200.5 191Z"
+                      style={{
+                        ['--arrow-color' as string]: isVeryClose ? '#4ade80' : isPointingCorrect ? '#4ade80' : '#FF0003',
+                        fill: isVeryClose ? '#4ade80' : isPointingCorrect ? '#4ade80' : '#FF0003',
+                        stroke: isVeryClose ? '#4ade80' : isPointingCorrect ? '#4ade80' : '#FF0003',
+                        strokeWidth: 2,
+                        animation: isVeryClose ? 'none' : 'chevron-wave 1.4s ease-in-out infinite',
+                        animationDelay: '0.7s',
+                      }}
+                    />
+                  </svg>
                 </div>
-                <p className="text-xs text-gray-400 mt-2">Distance: {distanceToTarget.toFixed(1)}m</p>
+                {/* Arrival pulse */}
+                {isVeryClose && (
+                  <div className="w-16 h-16 bg-green-400 rounded-full animate-ping opacity-60 mt-2" />
+                )}
               </div>
-            )}
 
-            {/* Path navigation note */}
-            {!isVeryClose && navigationPath.length === 0 && (
-              <p className="text-xs text-gray-500 mt-4 px-4">
-                ℹ️ This shows the direct path. View the map below for pathways around buildings.
-              </p>
-            )}
-          </div>
 
-          {/* GPS accuracy indicator */}
-          <div className="mt-8 text-center text-sm text-gray-400">
-            <div className="flex items-center justify-center gap-2">
-              <Satellite className="w-4 h-4" />
-              <span>GPS Accuracy: ±{gpsAccuracy.toFixed(0)}m</span>
+          {/* Instruction text */ }
+            <div className="text-center max-w-sm">
+              {isVeryClose ? (
+                <div>
+                  <p className="text-xl text-green-400 font-semibold">You have arrived!</p>
+                  {currentWaypoint && !isLastWaypoint && (
+                    <p className="text-sm text-gray-400 mt-2">Next: {navigationPath[currentWaypointIndex + 1]?.name}</p>
+                  )}
+                </div>
+              ) : currentWaypoint ? (
+                <div>
+                  <p className="text-lg font-semibold mb-1">
+                    {isPointingCorrect ? (
+                      <span className="text-green-400">Keep going straight</span>
+                    ) : relativeBearing > 0 ? (
+                      <span>Turn right</span>
+                    ) : (
+                      <span>Turn left</span>
+                    )}
+                  </p>
+                  <p className="text-sm text-gray-400">
+                    toward {currentWaypoint.name}
+                  </p>
+                  {!isLastWaypoint && navigationPath[currentWaypointIndex + 1] && (
+                    <p className="text-xs text-gray-500 mt-2">
+                      Then continue to {navigationPath[currentWaypointIndex + 1].name}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <p className="text-lg font-semibold mb-1">
+                    {isPointingCorrect ? (
+                      <span className="text-green-400">Keep going straight</span>
+                    ) : relativeBearing > 0 ? (
+                      <span>Turn right and walk forward</span>
+                    ) : (
+                      <span>Turn left and walk forward</span>
+                    )}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Direct path to destination
+                  </p>
+                </div>
+              )}
+
+              {/* Debug Controls */}
+              {debugMode && (
+                <div className="mt-6 p-4 bg-black/50 rounded-lg border border-brand-yellow">
+                  <p className="text-xs text-brand-yellow mb-2">🔧 Debug Mode</p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        if (currentGPS && selectedPOI?.metadata?.gps_lat && selectedPOI?.metadata?.gps_lng) {
+                          const poiGPS = { lat: selectedPOI.metadata.gps_lat, lng: selectedPOI.metadata.gps_lng };
+                          const bearing = calculateBearing(currentGPS, poiGPS);
+                          const distance = Math.max(0, distanceToTarget - 10);
+
+                          // Move 10m closer
+                          const newLat = currentGPS.lat + (10 / 111320) * Math.cos(bearing * Math.PI / 180);
+                          const newLng = currentGPS.lng + (10 / (111320 * Math.cos(currentGPS.lat * Math.PI / 180))) * Math.sin(bearing * Math.PI / 180);
+
+                          setCurrentGPS({ lat: newLat, lng: newLng });
+                        }
+                      }}
+                      className="px-3 py-1 bg-green-500 text-white text-xs rounded"
+                    >
+                      Walk 10m Closer
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (currentGPS && selectedPOI?.metadata?.gps_lat) {
+                          setDistanceToTarget(2);
+                          setShowArrivalModal(true);
+                        }
+                      }}
+                      className="px-3 py-1 bg-brand-red text-white text-xs rounded"
+                    >
+                      Trigger Arrival
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-2">Distance: {distanceToTarget.toFixed(1)}m</p>
+                </div>
+              )}
+
+              {/* Path navigation note */}
+              {!isVeryClose && navigationPath.length === 0 && (
+                <p className="text-xs text-gray-500 mt-4 px-4">
+                  ℹ️ This shows the direct path. View the map below for pathways around buildings.
+                </p>
+              )}
             </div>
-          </div>
+
+            {/* GPS accuracy indicator */ }
+            <div className="mt-8 text-center text-sm text-gray-400">
+              <div className="flex items-center justify-center gap-2">
+                <Satellite className="w-4 h-4" />
+                <span>GPS Accuracy: ±{gpsAccuracy.toFixed(0)}m</span>
+              </div>
+            </div>
         </div>
 
         {/* Bottom actions */}
@@ -1419,7 +1510,7 @@ const AttendeePWANew: React.FC = () => {
       )}
 
       {/* Main Content */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden relative">
         {/* DIRECTORY TAB */}
         {activeTab === 'directory' && (
           <div className="flex flex-col h-full bg-gray-50">
@@ -1544,86 +1635,125 @@ const AttendeePWANew: React.FC = () => {
           </div>
         )}
 
-        {/* MAP TAB */}
+        {/* MAP TAB — full-screen canvas, UI overlaid */}
         {activeTab === 'map' && (
-          <div className="flex flex-col h-full bg-gray-50">
-            <div className="p-4 bg-white border-b border-gray-200">
-              <h1 className="text-gray-900 text-lg font-semibold mb-2">Event Map</h1>
-
-              {/* GPS Status */}
-              {selectedEvent && (selectedEvent.navigation_mode === 'outdoor' || selectedEvent.navigation_mode === 'hybrid') && (
-                <div className={`flex items-center text-sm ${gpsEnabled ? 'text-green-600' : 'text-orange-600'}`}>
-                  <Satellite className="w-4 h-4 mr-1" />
-                  {gpsEnabled ? (
-                    <span>GPS Active • ±{gpsAccuracy.toFixed(0)}m</span>
-                  ) : (
-                    <span>GPS Searching...</span>
-                  )}
+          <div
+            ref={mapContainerRef}
+            className="absolute inset-0 bg-gray-900"
+          >
+            {/* Canvas fills the entire tab area */}
+            {graphNodes.length > 0 ? (
+              <FloorplanCanvas
+                floorplanImageUrl={floorplanImageUrl || ''}
+                nodes={graphNodes}
+                segments={graphSegments}
+                pois={pois}
+                highlightPath={highlightPath}
+                currentLocation={
+                  currentLocation && (currentLocation.source === 'qr' || isGPSAccuracyGood(gpsAccuracy))
+                    ? { x: currentLocation.x, y: currentLocation.y }
+                    : undefined
+                }
+                fitToContainer={true}
+                containerWidth={mapContainerWidth > 0 ? mapContainerWidth : window.innerWidth}
+                containerHeight={mapContainerHeight > 0 ? mapContainerHeight : window.innerHeight - 64}
+                gpsBounds={floorplanGpsBounds}
+                mode="pan"
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center">
+                  <div className="w-10 h-10 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                  <p className="text-white/70 text-sm">Loading map…</p>
                 </div>
-              )}
+              </div>
+            )}
 
-              {/* Selected POI */}
+            {/* Top overlay: GPS pill + destination */}
+            <div className="absolute top-0 left-0 right-0 z-10 flex items-center gap-2 px-3 pt-3 pointer-events-none">
+              <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold shadow-lg pointer-events-auto ${gpsEnabled ? 'bg-green-500/90 text-white' : 'bg-orange-500/90 text-white'
+                }`}>
+                <Satellite className="w-3 h-3" />
+                {gpsEnabled ? `GPS ±${gpsAccuracy.toFixed(0)}m` : 'GPS Searching…'}
+              </div>
               {selectedPOI && (
-                <div className="mt-2 bg-brand-yellow/20 border border-brand-yellow rounded-lg p-2">
-                  <p className="text-sm font-medium text-brand-gray-dark">
-                    Navigating to: <span className="font-bold">{selectedPOI.name}</span>
-                  </p>
+                <div className="flex-1 min-w-0 flex items-center gap-1.5 bg-white/90 px-3 py-1.5 rounded-full shadow-lg pointer-events-auto">
+                  <Navigation className="w-3 h-3 text-red-600 shrink-0" />
+                  <span className="text-xs font-semibold text-gray-900 truncate">→ {selectedPOI.name}</span>
                 </div>
               )}
             </div>
 
-            <div className="flex-1 overflow-hidden p-4">
-              {graphNodes.length > 0 ? (
-                <FloorplanCanvas
-                  floorplanImageUrl={floorplanImageUrl || ''}
-                  nodes={graphNodes}
-                  segments={graphSegments}
-                  pois={pois}
-                  highlightPath={highlightPath}
-                  currentLocation={
-                    currentLocation && (currentLocation.source === 'qr' || isGPSAccuracyGood(gpsAccuracy))
-                      ? { x: currentLocation.x, y: currentLocation.y }
-                      : undefined
-                  }
+            {/* Bottom sheet */}
+            <div className="absolute bottom-0 left-0 right-0 z-10 bg-white rounded-t-3xl shadow-2xl">
+              <div className="flex justify-center pt-3 pb-1">
+                <div className="w-10 h-1 bg-gray-200 rounded-full" />
+              </div>
 
-                  fitToContainer={true}
-                  containerWidth={window.innerWidth - 32}
-                  containerHeight={window.innerHeight * 0.7}
-                  mode="pan"
-                />
-              ) : (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-center">
-                    <Map className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600">Loading map...</p>
+              {selectedPOI ? (
+                <div className="px-4 pt-1 pb-6">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-11 h-11 rounded-2xl bg-red-600 flex items-center justify-center shrink-0">
+                      <Navigation className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] text-gray-400 uppercase tracking-widest font-semibold">Navigating to</p>
+                      <p className="text-base font-bold text-gray-900 truncate">{selectedPOI.name}</p>
+                    </div>
                   </div>
-                </div>
-              )}
-
-              {/* Location info */}
-              {currentLocation && (
-                <div className="mt-4 bg-white rounded-lg border border-gray-200 p-3">
-                  <div className="flex items-center gap-2 mb-1">
-                    <MapPin className={`w-4 h-4 ${currentLocation.source === 'gps' ? 'text-blue-600' : 'text-green-600'}`} />
-                    <span className="font-medium text-sm">Current Location</span>
-                    <span className="ml-auto text-xs px-2 py-0.5 rounded-full bg-gray-100">
-                      {currentLocation.source === 'gps' ? '📡 GPS' : '📷 QR'}
-                    </span>
-                  </div>
-                  {currentLocation.accuracy && (
-                    <p className="text-xs text-gray-600">Accuracy: ±{currentLocation.accuracy.toFixed(0)}m</p>
+                  {turnByTurnDirections.length > 0 && (
+                    <div className="bg-gray-50 rounded-2xl p-3 mb-3 flex items-center gap-2">
+                      <Compass className="w-4 h-4 text-gray-500 shrink-0" />
+                      <p className="text-sm text-gray-700">
+                        {turnByTurnDirections[currentWaypointIndex] || turnByTurnDirections[0]}
+                      </p>
+                    </div>
                   )}
+                  <button
+                    onClick={() => {
+                      setSelectedPOI(null);
+                      setHighlightPath([]);
+                      setNavigationPath([]);
+                      setTurnByTurnDirections([]);
+                    }}
+                    className="w-full py-3 border-2 border-gray-100 rounded-2xl text-sm font-semibold text-gray-500"
+                  >
+                    Cancel Navigation
+                  </button>
                 </div>
-              )}
-
-              {!currentLocation && (
-                <div className="mt-4 bg-orange-50 border border-orange-200 rounded-lg p-3 text-center">
-                  <p className="text-sm text-orange-700">
-                    {selectedEvent?.navigation_mode === 'outdoor' ?
-                      'Waiting for GPS signal...' :
-                      'Scan a QR code to set your location'
-                    }
-                  </p>
+              ) : (
+                <div className="px-4 pt-1 pb-6">
+                  <h2 className="text-lg font-bold text-gray-900 mb-3">Where to?</h2>
+                  {pois.length > 0 ? (
+                    <div className="space-y-2 max-h-44 overflow-y-auto">
+                      {pois.map(poi => (
+                        <button
+                          key={poi.id}
+                          onClick={() => handleGetDirections(poi)}
+                          className="w-full flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 active:scale-95 transition-transform rounded-2xl text-left"
+                        >
+                          <div className="w-9 h-9 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
+                            <MapPin className="w-4 h-4 text-red-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-gray-900 text-sm truncate">{poi.name}</p>
+                            <p className="text-xs text-gray-400">Tap for directions</p>
+                          </div>
+                          <ChevronRight className="w-4 h-4 text-gray-300 shrink-0" />
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-400 text-sm text-center py-4">No destinations available</p>
+                  )}
+                  {!currentLocation && (
+                    <div className="mt-3 flex items-center gap-2 bg-orange-50 rounded-xl px-3 py-2">
+                      <span className="text-sm">📡</span>
+                      <p className="text-xs text-orange-600 font-medium">
+                        {selectedEvent?.navigation_mode === 'outdoor' ? 'Waiting for GPS...' : 'Scan a QR code to place yourself'}
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1634,96 +1764,74 @@ const AttendeePWANew: React.FC = () => {
         {activeTab === 'scanner' && (
           <div className="flex flex-col h-full bg-brand-gray-dark">
             <div className="p-4 bg-brand-black">
-              <h1 className="text-white text-lg font-semibold">QR Scanner</h1>
-              <p className="text-gray-300 text-sm mt-1">Scan a location QR code</p>
+              <h2 className="text-white text-lg font-bold">QR Scanner</h2>
+              <p className="text-gray-400 text-sm">Scan a QR code to set your location</p>
             </div>
-
-            <div className="flex-1 flex flex-col items-center justify-center p-4">
-              {isScanning ? (
-                <div className="w-full max-w-sm">
-                  <video ref={videoRef} className="w-full rounded-lg mb-4" playsInline />
-                  <canvas ref={canvasRef} className="hidden" />
-                  <button
-                    onClick={stopScanning}
-                    className="w-full bg-red-600 text-white py-3 rounded-lg font-semibold"
-                  >
-                    Stop Scanning
-                  </button>
+            <div className="flex-1 relative overflow-hidden">
+              <video
+                ref={videoRef}
+                className="absolute inset-0 w-full h-full object-cover"
+                autoPlay
+                playsInline
+                muted
+              />
+              <canvas ref={canvasRef} className="hidden" />
+              {/* Scanner overlay */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="relative">
+                  <div className="w-64 h-64 border-2 border-white/50 rounded-2xl" />
+                  <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-brand-yellow rounded-tl-xl" />
+                  <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-brand-yellow rounded-tr-xl" />
+                  <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-brand-yellow rounded-bl-xl" />
+                  <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-brand-yellow rounded-br-xl" />
+                  <p className="absolute -bottom-10 left-1/2 -translate-x-1/2 text-white/80 text-sm whitespace-nowrap">Point at a NavEaze QR code</p>
                 </div>
-              ) : (
-                <div className="text-center">
-                  <Camera className="w-24 h-24 text-gray-400 mx-auto mb-6" />
-                  <h3 className="text-white text-xl font-semibold mb-2">Camera Ready</h3>
-                  <p className="text-gray-400 mb-8">
-                    Tap the button below to start scanning
-                  </p>
-                  <button
-                    onClick={handleStartScanning}
-                    className="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold flex items-center gap-2 mx-auto hover:bg-blue-700 transition"
-                  >
-                    <Camera className="w-5 h-5" />
-                    Start Scanning
-                  </button>
-                </div>
-              )}
-
-              {error && (
-                <div className="mt-4 bg-red-500/20 border border-red-500 text-red-200 px-4 py-2 rounded">
-                  {error}
-                </div>
-              )}
+              </div>
             </div>
+            {!cameraStream && (
+              <div className="p-4">
+                <button
+                  onClick={async () => {
+                    try {
+                      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                      setCameraStream(stream);
+                      if (videoRef.current) videoRef.current.srcObject = stream;
+                    } catch (e) { console.error('Camera error', e); }
+                  }}
+                  className="w-full py-3 bg-brand-yellow text-brand-black font-bold rounded-xl"
+                >
+                  Start Camera
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
 
       {/* Bottom Navigation */}
-      {currentScreen === 'main' && (
-        <div className="border-t border-gray-200 bg-white">
-          <div className="flex items-center justify-around p-2">
+      <div className="shrink-0 bg-white border-t border-gray-200">
+        <div className="flex">
+          {([
+            { id: 'directory', label: 'Directory', Icon: List },
+            { id: 'map', label: 'Map', Icon: Map },
+            { id: 'scanner', label: 'Scanner', Icon: Scan },
+          ] as const).map(({ id, label, Icon }) => (
             <button
-              onClick={() => setActiveTab('directory')}
-              className={`flex flex-col items-center justify-center p-3 rounded-lg flex-1 ${activeTab === 'directory'
-                ? 'bg-yellow-50 border-2 border-brand-yellow'
-                : 'text-gray-600'
+              key={id}
+              onClick={() => setActiveTab(id)}
+              className={`flex-1 flex flex-col items-center py-3 gap-1 transition-colors ${activeTab === id
+                ? 'text-brand-yellow bg-brand-black'
+                : 'text-gray-500 hover:text-gray-700'
                 }`}
             >
-              <List className={`w-6 h-6 mb-1 ${activeTab === 'directory' ? 'text-brand-gray-dark' : ''}`} />
-              <span className={`text-xs font-medium ${activeTab === 'directory' ? 'text-brand-gray-dark' : ''}`}>
-                Directory
-              </span>
+              <Icon className="w-5 h-5" />
+              <span className="text-xs font-medium">{label}</span>
             </button>
-
-            <button
-              onClick={() => setActiveTab('map')}
-              className={`flex flex-col items-center justify-center p-3 rounded-lg flex-1 ${activeTab === 'map'
-                ? 'bg-yellow-50 border-2 border-brand-yellow'
-                : 'text-gray-600'
-                }`}
-            >
-              <Map className={`w-6 h-6 mb-1 ${activeTab === 'map' ? 'text-brand-gray-dark' : ''}`} />
-              <span className={`text-xs font-medium ${activeTab === 'map' ? 'text-brand-gray-dark' : ''}`}>
-                Map
-              </span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('scanner')}
-              className={`flex flex-col items-center justify-center p-3 rounded-lg flex-1 ${activeTab === 'scanner'
-                ? 'bg-yellow-50 border-2 border-brand-yellow'
-                : 'text-gray-600'
-                }`}
-            >
-              <Scan className={`w-6 h-6 mb-1 ${activeTab === 'scanner' ? 'text-brand-gray-dark' : ''}`} />
-              <span className={`text-xs font-medium ${activeTab === 'scanner' ? 'text-brand-gray-dark' : ''}`}>
-                Scanner
-              </span>
-            </button>
-          </div>
+          ))}
         </div>
-      )}
+      </div>
     </div>
   );
-};
+}
 
 export default AttendeePWANew;

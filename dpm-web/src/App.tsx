@@ -12,7 +12,7 @@ import { RegisterPage } from './pages/auth/RegisterPage';
 import { ResetPasswordPage } from './pages/auth/ResetPasswordPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
 import { DashboardPage } from './pages/DashboardPage';
-import { SponsorDashboardPage } from './pages/SponsorDashboardPage';
+import SponsorAnalytics from './pages/admin/SponsorAnalytics';
 import ROIDashboardPage from './pages/ROIDashboardPage';
 import MapEditorPage from './pages/admin/UnifiedMapEditorPage';
 import { EventsPage } from './pages/events/EventsPage';
@@ -31,6 +31,7 @@ import { ProfilePage } from './pages/profile/ProfilePage';
 import { RegisterPage as VendorSignupPage } from './pages/auth/RegisterPage';
 import AttendeePWANew from './pages/mobile/AttendeePWANew';
 import StaffPWA from './pages/mobile/StaffPWA-new';
+import SecurityDashboard from './pages/admin/SecurityDashboard';
 
 
 export default function App() {
@@ -143,7 +144,7 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <AdminLayout>
-                    <SponsorDashboardPage />
+                    <SponsorAnalytics />
                   </AdminLayout>
                 </ProtectedRoute>
               }
@@ -242,6 +243,9 @@ export default function App() {
 
             {/* Staff Mobile PWA - No auth required */}
             <Route path="/staff" element={<StaffPWA />} />
+
+            {/* Security Command Center - Protected (but open for demo for now) */}
+            <Route path="/security" element={<SecurityDashboard />} />
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

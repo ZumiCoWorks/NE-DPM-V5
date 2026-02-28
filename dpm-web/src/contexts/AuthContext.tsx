@@ -86,6 +86,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             });
           } else {
             console.warn('⚠️ No profile found for user:', session.user.id);
+            // Set basic user info even if profile fetch fails (e.g. new user)
+            setUser({
+              id: session.user.id,
+              email: session.user.email || '',
+              full_name: session.user.user_metadata?.full_name || '',
+              name: session.user.user_metadata?.name || '',
+              role: 'organizer',
+              organization_id: undefined,
+              avatar_url: undefined,
+              created_at: session.user.created_at || new Date().toISOString(),
+              email_confirmed_at: session.user.email_confirmed_at
+            });
           }
         }
       } catch (error) {
@@ -125,31 +137,108 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         console.log('🔄 Fetching profile for user:', session.user.email);
 
         try {
-          // Add timeout to profile fetch
+          // FIX: Increased timeout to 20s and handle AbortError gracefully
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Profile fetch timeout')), 20000)
+          );
+
           const profilePromise = supabase
             .from('profiles')
             .select('*')
             .eq('id', session.user.id)
             .single();
 
-          const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Profile fetch timeout')), 5000)
-          );
+          try {
+            const { data: profile, error } = await Promise.race([
+              profilePromise,
+              timeoutPromise
+            ]) as any;
 
-          const { data: profile, error } = await Promise.race([
-            profilePromise,
-            timeoutPromise
-          ]) as any;
+            if (error) {
+              // Ignore AbortError which happens on reload/navigation
+              if (error.message && (error.message.includes('AbortError') || error.message.includes('aborted'))) {
+                console.log('ℹ️ Profile fetch aborted (navigation or reload)');
+              } else {
+                console.error('❌ Error fetching profile:', error);
+              }
 
-          if (error) {
-            console.error('❌ Error fetching profile:', error);
-            // Continue without profile data
+              // Continue without profile data (fallback to session)
+              setUser({
+                id: session.user.id,
+                email: session.user.email || '',
+                full_name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || '',
+                name: session.user.user_metadata?.name || session.user.user_metadata?.full_name || '',
+                role: 'organizer',
+                organization_id: undefined,
+                avatar_url: undefined,
+                created_at: session.user.created_at || new Date().toISOString(),
+                phone: undefined,
+                company: undefined,
+                address: undefined,
+                bio: undefined,
+                email_confirmed_at: session.user.email_confirmed_at
+              });
+            } else if (profile) {
+              const p = profile as any;
+              console.log('🔍 Profile found:', { name: p.first_name || p.full_name, role: p.role });
+
+              let fullName = '';
+              if (p.first_name && p.last_name && p.first_name !== p.last_name) {
+                fullName = `${p.first_name} ${p.last_name}`;
+              } else if (p.first_name) {
+                fullName = p.first_name;
+              } else if (p.last_name) {
+                fullName = p.last_name;
+              } else {
+                fullName = session.user.user_metadata?.full_name ||
+                  session.user.user_metadata?.name ||
+                  '';
+              }
+
+              setUser({
+                id: p.id,
+                email: p.email || session.user.email || '',
+                full_name: fullName,
+                name: fullName,
+                role: p.role || 'organizer',
+                organization_id: p.organization_id,
+                avatar_url: p.avatar_url,
+                created_at: p.created_at,
+                phone: p.phone,
+                company: p.company,
+                address: p.address,
+                bio: p.bio,
+                email_confirmed_at: session.user.email_confirmed_at
+              });
+            } else {
+              // Fallback if no profile found
+              setUser({
+                id: session.user.id,
+                email: session.user.email || '',
+                full_name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || '',
+                name: session.user.user_metadata?.name || session.user.user_metadata?.full_name || '',
+                role: 'organizer',
+                organization_id: undefined,
+                avatar_url: undefined,
+                created_at: session.user.created_at || new Date().toISOString(),
+                email_confirmed_at: session.user.email_confirmed_at
+              });
+            }
+          } catch (raceError: any) {
+            // Handle timeout or other race errors
+            if (raceError.message === 'Profile fetch timeout') {
+              console.warn('⚠️ Profile fetch timed out, using session data');
+            } else {
+              console.error('❌ Error during profile fetch race:', raceError);
+            }
+
+            // Fallback to session data
             setUser({
               id: session.user.id,
               email: session.user.email || '',
               full_name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || '',
               name: session.user.user_metadata?.name || session.user.user_metadata?.full_name || '',
-              role: 'organizer', // Changed from 'staff' to 'organizer'
+              role: 'organizer',
               organization_id: undefined,
               avatar_url: undefined,
               created_at: session.user.created_at || new Date().toISOString(),
@@ -159,44 +248,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               bio: undefined,
               email_confirmed_at: session.user.email_confirmed_at
             });
-          } else if (profile) {
-            const p = profile as any;
-            console.log('🔍 Profile data from DB:', { first_name: p.first_name, last_name: p.last_name, role: p.role });
-            // Build full name from first_name and last_name, avoiding duplicates
-            let fullName = '';
-            if (p.first_name && p.last_name && p.first_name !== p.last_name) {
-              fullName = `${p.first_name} ${p.last_name}`;
-            } else if (p.first_name) {
-              fullName = p.first_name;
-            } else if (p.last_name) {
-              fullName = p.last_name;
-            } else {
-              fullName = session.user.user_metadata?.full_name ||
-                session.user.user_metadata?.name ||
-                '';
-            }
-            console.log('✅ Setting user with full_name:', fullName);
-            setUser({
-              id: p.id,
-              email: p.email || session.user.email || '',
-              full_name: fullName,
-              name: fullName,
-              role: p.role || 'organizer',
-              organization_id: p.organization_id,
-              avatar_url: p.avatar_url,
-              created_at: p.created_at,
-              phone: p.phone,
-              company: p.company,
-              address: p.address,
-              bio: p.bio,
-              email_confirmed_at: session.user.email_confirmed_at
-            });
-          } else {
-            console.warn('⚠️ No profile found for user:', session.user.id);
           }
         } catch (err) {
           console.error('❌ Error in profile fetch:', err);
-          // Set user from session data only
+          // Fallback on catastrophic error
           setUser({
             id: session.user.id,
             email: session.user.email || '',

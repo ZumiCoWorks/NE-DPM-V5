@@ -12,3 +12,59 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+@keyframes arrow-flow {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.9);
+  }
+
+  20% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  80% {
+    opacity: 0;
+    transform: translateY(-5px) scale(1.1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(-5px) scale(1.1);
+  }
+}
+
+@keyframes arrow-pulse {
+  0% {
+    filter: drop-shadow(0 0 5px rgba(255, 0, 0, 0.4));
+    transform: scale(1);
+  }
+
+  50% {
+    filter: drop-shadow(0 0 15px rgba(255, 0, 0, 0.8));
+    transform: scale(1.05);
+  }
+
+  100% {
+    filter: drop-shadow(0 0 5px rgba(255, 0, 0, 0.4));
+    transform: scale(1);
+  }
+}
+
+/* Layer 3 (Bottom/Rear) - Starts first */
+.animate-arrow-flow-3 {
+  animation: arrow-flow 1.5s infinite ease-out;
+  animation-delay: 0s;
+}
+
+/* Layer 2 (Middle) - Follows */
+.animate-arrow-flow-2 {
+  animation: arrow-flow 1.5s infinite ease-out;
+  animation-delay: 0.2s;
+}
+
+/* Layer 1 (Top/Front) - Finishes flow & pulses */
+.animate-arrow-pulse {
+  animation: arrow-pulse 2s infinite ease-in-out;
+}
