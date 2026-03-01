@@ -211,32 +211,32 @@ export default function SecurityDashboard() {
         : [-25.747, 28.187]; // Default fallback
 
     return (
-        <div className="h-screen bg-gray-900 text-white font-sans flex flex-col overflow-hidden">
+        <div className="h-screen bg-[#09090B] text-white font-sans flex flex-col overflow-hidden">
             {/* Header */}
-            <header className="bg-gray-800 border-b border-gray-700 p-3 flex-shrink-0 z-20 shadow-md">
+            <header className="bg-[#111113] border-b border-[#2A2A2A] p-3 flex-shrink-0 z-20 shadow-sm">
                 <div className="flex items-center justify-between px-4">
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => navigate('/dashboard')}
-                            className="p-2 mr-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-gray-300 hover:text-white flex items-center gap-2 group"
+                            className="p-2 mr-2 bg-[#1C1C1F] border border-[#2A2A2A] hover:bg-[#2A2A2A] hover:border-[#3A3A3A] rounded-lg transition-colors text-white/50 hover:text-white flex items-center gap-2 group"
                             title="Return to Dashboard"
                         >
-                            <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+                            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
                             <span className="text-xs font-bold tracking-wider hidden sm:block uppercase">Exit</span>
                         </button>
-                        <Shield className="w-6 h-6 text-brand-yellow" />
-                        <h1 className="text-lg font-bold tracking-tight">SECURITY CMD CENTER</h1>
+                        <Shield className="w-6 h-6 text-brand-red opacity-90" />
+                        <h1 className="text-lg font-bold tracking-tight text-white/90">SECURITY CMD CENTER</h1>
                     </div>
                     <div className="flex items-center gap-6">
                         <div className="flex items-center gap-2">
-                            <Users className="w-4 h-4 text-blue-400" />
-                            <span className="text-xl font-mono font-bold text-blue-400">{liveAttendees.length}</span>
-                            <span className="text-xs text-gray-400">ON SITE</span>
+                            <Users className="w-4 h-4 text-logic-blue" />
+                            <span className="text-xl font-mono font-bold text-logic-blue">{liveAttendees.length}</span>
+                            <span className="text-[10px] font-bold text-white/50 tracking-wider">ON SITE</span>
                         </div>
-                        <div className="h-6 w-px bg-gray-700"></div>
-                        <div className="flex items-center gap-2 px-3 py-1 bg-red-900/40 border border-red-500/20 rounded-full">
-                            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
-                            <span className="text-xs font-bold text-red-200 tracking-wider">LIVE</span>
+                        <div className="h-6 w-px bg-[#2A2A2A]"></div>
+                        <div className="flex items-center gap-2 px-3 py-1 bg-red-500/10 border border-red-500/20 rounded-full">
+                            <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></div>
+                            <span className="text-[10px] font-bold text-red-400 tracking-wider">LIVE</span>
                         </div>
                     </div>
                 </div>
@@ -246,69 +246,69 @@ export default function SecurityDashboard() {
             <div className="flex-1 flex overflow-hidden">
 
                 {/* LEFT PANEL: Alerts Feed (30%) */}
-                <div className="w-1/3 min-w-[350px] max-w-[450px] border-r border-gray-700 flex flex-col bg-gray-900/95 backdrop-blur z-10">
-                    <div className="p-4 border-b border-gray-800 bg-gray-800/50">
-                        <div className="flex gap-2 p-1 bg-gray-900 rounded-lg">
+                <div className="w-1/3 min-w-[350px] max-w-[450px] border-r border-[#2A2A2A] flex flex-col bg-[#111113] z-10">
+                    <div className="p-4 border-b border-[#2A2A2A] bg-[#161618]">
+                        <div className="flex gap-2 p-1 bg-[#09090B] border border-[#2A2A2A] rounded-lg">
                             <button
                                 onClick={() => setActiveTab('live')}
-                                className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${activeTab === 'live' ? 'bg-gray-700 text-white shadow' : 'text-gray-400 hover:text-white'}`}
+                                className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-all ${activeTab === 'live' ? 'bg-[#2A2A2A] text-white shadow-sm' : 'text-white/40 hover:text-white/70'}`}
                             >
                                 Active ({activeAlerts.length})
                             </button>
                             <button
                                 onClick={() => setActiveTab('history')}
-                                className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${activeTab === 'history' ? 'bg-gray-700 text-white shadow' : 'text-gray-400 hover:text-white'}`}
+                                className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-all ${activeTab === 'history' ? 'bg-[#2A2A2A] text-white shadow-sm' : 'text-white/40 hover:text-white/70'}`}
                             >
                                 History
                             </button>
                         </div>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                    <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#09090B]">
                         {(activeTab === 'live' ? activeAlerts : alerts.filter(a => a.status === 'resolved')).map(alert => (
                             <div key={alert.id} className={`p-4 rounded-xl border transition-all ${alert.status === 'new'
-                                ? 'bg-red-500/10 border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.1)]'
-                                : 'bg-gray-800 border-gray-700'
+                                ? 'bg-red-500/5 border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.05)]'
+                                : 'bg-[#1C1C1F] border-[#2A2A2A]'
                                 }`}>
                                 <div className="flex justify-between items-start mb-2">
                                     <div className="flex items-center gap-2">
                                         {alert.status === 'new' ? (
-                                            <AlertTriangle className="w-5 h-5 text-red-500 animate-pulse" />
+                                            <AlertTriangle className="w-4 h-4 text-red-500 animate-pulse" />
                                         ) : (
-                                            <CheckCircle className="w-5 h-5 text-green-500" />
+                                            <CheckCircle className="w-4 h-4 text-green-500 opacity-80" />
                                         )}
-                                        <span className={`font-bold uppercase text-sm ${alert.status === 'new' ? 'text-red-400' : 'text-gray-300'}`}>
+                                        <span className={`font-bold uppercase text-[10px] tracking-wider ${alert.status === 'new' ? 'text-red-400' : 'text-white/50'}`}>
                                             {alert.type}
                                         </span>
                                     </div>
-                                    <span className="text-xs font-mono text-gray-500">{new Date(alert.created_at).toLocaleTimeString()}</span>
+                                    <span className="text-[10px] font-mono text-white/30">{new Date(alert.created_at).toLocaleTimeString()}</span>
                                 </div>
 
-                                <div className="text-sm text-gray-300 mb-3 pl-7">
+                                <div className="text-sm text-white/70 mb-3 pl-6">
                                     <div className="flex items-center gap-2 mb-1">
-                                        <User className="w-3 h-3 text-gray-500" />
-                                        <span>User: {alert.user_id?.slice(0, 6) || 'Guest'}</span>
+                                        <User className="w-3.5 h-3.5 text-white/30" />
+                                        <span className="text-xs">User: {alert.user_id?.slice(0, 6) || 'Guest'}</span>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <MapPin className="w-3 h-3 text-gray-500" />
-                                        <span>{alert.gps_lat != null ? `${alert.gps_lat.toFixed(5)}, ${alert.gps_lng.toFixed(5)}` : '📍 Location Unknown'}</span>
+                                        <MapPin className="w-3.5 h-3.5 text-white/30" />
+                                        <span className="text-xs">{alert.gps_lat != null ? `${alert.gps_lat.toFixed(5)}, ${alert.gps_lng.toFixed(5)}` : '📍 Location Unknown'}</span>
                                     </div>
                                 </div>
 
                                 {alert.status !== 'resolved' && (
-                                    <div className="flex gap-2 pl-7">
+                                    <div className="flex gap-2 pl-6">
                                         {alert.gps_lat != null && (
                                             <a
                                                 href={`https://www.google.com/maps?q=${alert.gps_lat},${alert.gps_lng}`}
                                                 target="_blank" rel="noreferrer"
-                                                className="px-3 py-1.5 text-xs bg-gray-700 hover:bg-gray-600 rounded text-gray-200 transition-colors"
+                                                className="px-3 py-1.5 text-xs font-medium bg-[#2A2A2A] hover:bg-[#3A3A3A] border border-[#3A3A3A] hover:border-[#4A4A4A] rounded-lg text-white/70 hover:text-white transition-colors"
                                             >
                                                 Locate
                                             </a>
                                         )}
                                         <button
                                             onClick={() => updateAlertStatus(alert.id, 'resolved')}
-                                            className="flex-1 px-3 py-1.5 text-xs bg-white text-black font-bold hover:bg-gray-200 rounded transition-colors"
+                                            className="flex-1 px-3 py-1.5 text-xs font-semibold bg-white/10 hover:bg-white/20 border border-white/10 rounded-lg text-white transition-colors"
                                         >
                                             Mark Resolved
                                         </button>
@@ -318,9 +318,11 @@ export default function SecurityDashboard() {
                         ))}
 
                         {activeTab === 'live' && activeAlerts.length === 0 && (
-                            <div className="text-center py-10 opacity-50">
-                                <Shield className="w-12 h-12 mx-auto mb-3 text-gray-600" />
-                                <p>All Systems Normal</p>
+                            <div className="text-center py-12 opacity-40">
+                                <div className="mx-auto w-12 h-12 rounded-full bg-[#1C1C1F] border border-[#2A2A2A] flex items-center justify-center mb-3">
+                                    <Shield className="w-5 h-5 text-white/50" />
+                                </div>
+                                <p className="text-sm font-medium text-white/70">All Systems Normal</p>
                             </div>
                         )}
                     </div>
@@ -391,15 +393,17 @@ export default function SecurityDashboard() {
                     )}
 
                     {/* Map Overlay Controls */}
-                    <div className="absolute top-4 right-4 z-[400] bg-gray-900/90 backdrop-blur border border-gray-700 rounded-lg p-3 shadow-xl">
-                        <div className="text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">Crowd Density</div>
-                        <div className="flex items-center gap-2 mb-1">
-                            <div className="w-3 h-3 rounded-full bg-blue-500/50"></div>
-                            <span className="text-xs text-gray-300">Normal</span>
+                    <div className="absolute top-4 right-4 z-[400] bg-[#111113]/90 backdrop-blur-md border border-[#2A2A2A] rounded-xl p-4 shadow-sm">
+                        <div className="text-[10px] font-bold text-white/50 mb-3 uppercase tracking-wider">Crowd Density</div>
+                        <div className="flex items-center gap-2 mb-2">
+                            <div className="w-2.5 h-2.5 rounded-full bg-logic-blue/80 border border-logic-blue"></div>
+                            <span className="text-xs text-white/70 font-medium tracking-wide">Normal Activity</span>
                         </div>
                         <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                            <span className="text-xs text-gray-300">Critical Alert</span>
+                            <div className="w-2.5 h-2.5 rounded-full bg-brand-red border border-brand-red/50 relative">
+                                <div className="absolute inset-0 bg-brand-red rounded-full animate-ping opacity-50"></div>
+                            </div>
+                            <span className="text-xs text-red-400 font-bold tracking-wide">Critical Alert</span>
                         </div>
                     </div>
                 </div>

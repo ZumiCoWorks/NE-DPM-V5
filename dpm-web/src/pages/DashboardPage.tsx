@@ -337,10 +337,10 @@ export const DashboardPage: React.FC = () => {
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-black text-white tracking-tight drop-shadow-[0_0_15px_rgba(255,255,255,0.1)]">
-          Welcome back, {user?.full_name || 'User'}!
+        <h1 className="text-2xl font-semibold text-white/90 tracking-tight">
+          Welcome back, {user?.full_name || 'User'}
         </h1>
-        <p className="mt-2 text-sm font-mono text-white/50 uppercase tracking-widest">
+        <p className="mt-1 text-sm text-white/50 capitalize">
           {user?.role?.replace('_', ' ')} Command Center
         </p>
       </div>
@@ -349,24 +349,23 @@ export const DashboardPage: React.FC = () => {
       {user?.role === 'admin' && <OnboardingChecklist key={Date.now()} />}
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {(user?.role === 'admin' || user?.role === 'staff') && (
           <>
             {/* Dark Premium Card: Total Events */}
-            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden shadow-[0_4px_30px_rgba(0,0,0,0.1)] relative group hover:border-brand-red/30 transition-colors duration-300">
-              <div className="absolute inset-0 bg-gradient-to-br from-brand-red/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <div className="p-6 relative z-10">
+            <div className="bg-[#111113] border border-[#2A2A2A] rounded-xl overflow-hidden shadow-sm relative transition-colors duration-200 hover:border-[#3A3A3A]">
+              <div className="p-5 relative z-10">
                 <div className="flex items-center">
                   <div className="flex-shrink-0">
-                    <Calendar className="h-8 w-8 text-brand-red drop-shadow-[0_0_8px_rgba(255,77,50,0.6)]" />
+                    <Calendar className="h-6 w-6 text-brand-red opacity-90" />
                   </div>
-                  <div className="ml-5 w-0 flex-1">
+                  <div className="ml-4 w-0 flex-1">
                     <dl>
-                      <dt className="text-xs font-mono font-bold text-white/50 uppercase tracking-widest truncate">
+                      <dt className="text-xs font-medium text-white/50 uppercase tracking-wide truncate">
                         Total Events
                       </dt>
                       <dd>
-                        <div className="text-3xl font-black text-white mt-1">
+                        <div className="text-2xl font-semibold text-white mt-1">
                           {stats.totalEvents}
                         </div>
                       </dd>
@@ -377,20 +376,19 @@ export const DashboardPage: React.FC = () => {
             </div>
 
             {/* Dark Premium Card: Total Venues */}
-            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden shadow-[0_4px_30px_rgba(0,0,0,0.1)] relative group hover:border-logic-blue/30 transition-colors duration-300">
-              <div className="absolute inset-0 bg-gradient-to-br from-logic-blue/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <div className="p-6 relative z-10">
+            <div className="bg-[#111113] border border-[#2A2A2A] rounded-xl overflow-hidden shadow-sm relative transition-colors duration-200 hover:border-[#3A3A3A]">
+              <div className="p-5 relative z-10">
                 <div className="flex items-center">
                   <div className="flex-shrink-0">
-                    <MapPin className="h-8 w-8 text-logic-blue drop-shadow-[0_0_8px_rgba(59,130,246,0.6)]" />
+                    <MapPin className="h-6 w-6 text-logic-blue opacity-90" />
                   </div>
-                  <div className="ml-5 w-0 flex-1">
+                  <div className="ml-4 w-0 flex-1">
                     <dl>
-                      <dt className="text-xs font-mono font-bold text-white/50 uppercase tracking-widest truncate">
+                      <dt className="text-xs font-medium text-white/50 uppercase tracking-wide truncate">
                         Total Venues
                       </dt>
                       <dd>
-                        <div className="text-3xl font-black text-white mt-1">
+                        <div className="text-2xl font-semibold text-white mt-1">
                           {stats.totalVenues}
                         </div>
                       </dd>
@@ -404,23 +402,22 @@ export const DashboardPage: React.FC = () => {
         {user?.role === 'admin' && (
           <>
             {/* Dark Premium Card: Active Users (Demo) */}
-            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden shadow-[0_4px_30px_rgba(0,0,0,0.1)] relative group hover:border-teal-400/30 transition-colors duration-300">
-              <div className="absolute inset-0 bg-gradient-to-br from-teal-400/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <div className="p-6 relative z-10">
+            <div className="bg-[#111113] border border-[#2A2A2A] rounded-xl overflow-hidden shadow-sm relative transition-colors duration-200 hover:border-[#3A3A3A]">
+              <div className="p-5 relative z-10">
                 <div className="flex items-center">
                   <div className="flex-shrink-0">
-                    <Users className="h-8 w-8 text-teal-400 drop-shadow-[0_0_8px_rgba(45,212,191,0.6)]" />
+                    <Users className="h-6 w-6 text-teal-400 opacity-90" />
                   </div>
-                  <div className="ml-5 w-0 flex-1">
+                  <div className="ml-4 w-0 flex-1">
                     <dl>
-                      <dt className="text-xs font-mono font-bold text-white/50 uppercase tracking-widest truncate">
+                      <dt className="text-xs font-medium text-white/50 uppercase tracking-wide truncate">
                         Active Users
                       </dt>
                       <dd className="flex items-baseline">
-                        <div className="text-3xl font-black text-white mt-1">
+                        <div className="text-2xl font-semibold text-white mt-1">
                           {stats.totalUsers}
                         </div>
-                        <span className="ml-2 text-sm font-bold text-teal-400 bg-teal-400/10 px-2 py-0.5 rounded flex items-center gap-1">
+                        <span className="ml-2 text-xs font-medium text-teal-400 bg-teal-400/10 border border-teal-400/20 px-1.5 py-0.5 rounded flex items-center gap-1">
                           <TrendingUp className="w-3 h-3" /> 14%
                         </span>
                       </dd>
@@ -431,20 +428,19 @@ export const DashboardPage: React.FC = () => {
             </div>
 
             {/* Dark Premium Card: AR Campaigns */}
-            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden shadow-[0_4px_30px_rgba(0,0,0,0.1)] relative group hover:border-orange-500/30 transition-colors duration-300">
-              <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <div className="p-6 relative z-10">
+            <div className="bg-[#111113] border border-[#2A2A2A] rounded-xl overflow-hidden shadow-sm relative transition-colors duration-200 hover:border-[#3A3A3A]">
+              <div className="p-5 relative z-10">
                 <div className="flex items-center">
                   <div className="flex-shrink-0">
-                    <Megaphone className="h-8 w-8 text-orange-500 drop-shadow-[0_0_8px_rgba(249,115,22,0.6)]" />
+                    <Megaphone className="h-6 w-6 text-orange-500 opacity-90" />
                   </div>
-                  <div className="ml-5 w-0 flex-1">
+                  <div className="ml-4 w-0 flex-1">
                     <dl>
-                      <dt className="text-xs font-mono font-bold text-white/50 uppercase tracking-widest truncate">
+                      <dt className="text-xs font-medium text-white/50 uppercase tracking-wide truncate">
                         AR Campaigns
                       </dt>
                       <dd>
-                        <div className="text-3xl font-black text-white mt-1">
+                        <div className="text-2xl font-semibold text-white mt-1">
                           {stats.totalCampaigns}
                         </div>
                       </dd>
@@ -459,11 +455,11 @@ export const DashboardPage: React.FC = () => {
 
       {/* Traffic Chart (Demo Mode Only) */}
       {demoMode && (
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 shadow-[0_4px_30px_rgba(0,0,0,0.1)] rounded-2xl p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-bold text-white tracking-tight">Live Traffic Overview</h3>
-            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold text-green-400 bg-green-400/10 border border-green-400/20">
-              <div className="w-2 h-2 bg-green-400 rounded-full mr-2 shadow-[0_0_8px_rgba(74,222,128,0.8)] animate-pulse"></div>
+        <div className="bg-[#111113] border border-[#2A2A2A] shadow-sm rounded-xl p-5 mt-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-white/90">Live Traffic Overview</h3>
+            <span className="inline-flex items-center px-2 py-1 rounded text-[10px] font-semibold text-green-400 bg-green-400/10 border border-green-400/20 uppercase tracking-wider">
+              <div className="w-1.5 h-1.5 bg-green-400 rounded-full mr-1.5 animate-pulse"></div>
               LIVE
             </span>
           </div>
@@ -494,48 +490,38 @@ export const DashboardPage: React.FC = () => {
       )}
 
       {/* Quick Actions */}
-      <div className="md:flex md:items-center md:justify-between pt-4">
+      <div className="md:flex md:items-center md:justify-between pt-6">
         <div className="flex-1 min-w-0">
-          <h2 className="text-2xl font-black tracking-tight text-white/90 sm:text-3xl sm:truncate">
+          <h2 className="text-lg font-semibold text-white/90 sm:truncate">
             Management
           </h2>
         </div>
       </div>
-      <div className="bg-white/5 backdrop-blur-xl border border-white/10 shadow-[0_4px_30px_rgba(0,0,0,0.1)] rounded-2xl overflow-hidden">
-        <div className="px-6 py-6 sm:p-8">
-          <h3 className="text-sm font-mono font-bold text-white/50 uppercase tracking-widest mb-6">
-            Quick Actions
-          </h3>
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="bg-[#111113] border border-[#2A2A2A] shadow-sm rounded-xl overflow-hidden mt-2">
+        <div className="px-5 py-5 sm:p-6">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {getQuickActions().map((action) => {
               const Icon = action.icon
               return (
                 <Link
                   key={action.title}
                   to={action.href}
-                  className="relative group bg-white/5 backdrop-blur-md p-6 border border-white/10 rounded-xl hover:bg-white/10 hover:border-white/20 transition-all duration-300 overflow-hidden"
+                  className="relative group bg-[#161618] p-5 border border-[#2A2A2A] rounded-lg hover:bg-[#1C1C1F] hover:border-[#3A3A3A] transition-all duration-200 overflow-hidden flex items-start"
                 >
-                  <div className={`absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity duration-300 ${action.color}`} />
-                  <div>
-                    <span className={`rounded-lg inline-flex p-3 bg-black/40 border border-white/5 shadow-inner text-white group-hover:scale-110 transition-transform duration-300`}>
-                      <Icon className="h-6 w-6" />
+                  <div className="mt-1">
+                    <span className={`inline-flex text-white/70 group-hover:text-white transition-colors duration-200`}>
+                      <Icon className="h-5 w-5" />
                     </span>
                   </div>
-                  <div className="mt-5 relative z-10">
-                    <h3 className="text-lg font-bold text-white tracking-wide">
+                  <div className="ml-4 flex-1">
+                    <h3 className="text-sm font-semibold text-white/90">
                       <span className="absolute inset-0" aria-hidden="true" />
                       {action.title}
                     </h3>
-                    <p className="mt-2 text-sm text-white/60">
+                    <p className="mt-1 text-xs text-white/50">
                       {action.description}
                     </p>
                   </div>
-                  <span
-                    className="pointer-events-none absolute top-6 right-6 text-white/20 group-hover:text-white/60 transition-colors"
-                    aria-hidden="true"
-                  >
-                    <Plus className="h-6 w-6" />
-                  </span>
                 </Link>
               )
             })}
@@ -544,9 +530,9 @@ export const DashboardPage: React.FC = () => {
       </div>
 
       {/* Recent Activity */}
-      <div className="bg-white/5 backdrop-blur-xl border border-white/10 shadow-[0_4px_30px_rgba(0,0,0,0.1)] rounded-2xl overflow-hidden mb-12">
-        <div className="px-6 py-6 sm:p-8">
-          <h3 className="text-sm font-mono font-bold text-white/50 uppercase tracking-widest mb-6">
+      <div className="bg-[#111113] border border-[#2A2A2A] shadow-sm rounded-xl overflow-hidden mb-8 mt-6">
+        <div className="px-5 py-5 sm:p-6">
+          <h3 className="text-sm font-semibold text-white/90 mb-6">
             System Log
           </h3>
           {recentActivity.length > 0 ? (
@@ -559,26 +545,26 @@ export const DashboardPage: React.FC = () => {
                       <div className="relative pb-8">
                         {index !== recentActivity.length - 1 && (
                           <span
-                            className="absolute top-5 left-5 -ml-px h-full w-[1px] bg-white/10"
+                            className="absolute top-5 left-4 -ml-px h-full w-[1px] bg-[#2A2A2A]"
                             aria-hidden="true"
                           />
                         )}
-                        <div className="relative flex items-start space-x-4">
+                        <div className="relative flex items-start space-x-3">
                           <div className="relative">
-                            <span className="h-10 w-10 rounded-full bg-black/50 border border-white/10 shadow-[0_0_10px_rgba(255,255,255,0.05)] flex items-center justify-center ring-4 ring-[#050505]">
-                              <Icon className="h-5 w-5 text-white/70" />
+                            <span className="h-8 w-8 rounded-full bg-[#1C1C1F] border border-[#2A2A2A] flex items-center justify-center ring-4 ring-[#111113]">
+                              <Icon className="h-4 w-4 text-white/60" />
                             </span>
                           </div>
                           <div className="min-w-0 flex-1 py-1.5 flex flex-col sm:flex-row sm:justify-between sm:space-x-4">
                             <div>
-                              <p className="text-sm font-bold text-white">
+                              <p className="text-sm font-medium text-white/90">
                                 {activity.title}
                               </p>
-                              <p className="text-sm text-white/50 mt-1">
+                              <p className="text-xs text-white/50 mt-0.5">
                                 {activity.description}
                               </p>
                             </div>
-                            <div className="mt-2 sm:mt-0 text-left sm:text-right text-xs font-mono text-white/40 whitespace-nowrap">
+                            <div className="mt-2 sm:mt-0 text-left sm:text-right text-xs text-white/40 whitespace-nowrap">
                               {formatDate(activity.created_at)}
                             </div>
                           </div>
@@ -590,9 +576,9 @@ export const DashboardPage: React.FC = () => {
               </ul>
             </div>
           ) : (
-            <div className="border border-dashed border-white/20 rounded-xl p-8 text-center bg-white/[0.02]">
-              <Eye className="mx-auto h-8 w-8 text-white/30 mb-3" />
-              <p className="text-white/50 font-medium">
+            <div className="border border-dashed border-[#2A2A2A] rounded-lg p-6 text-center bg-[#161618]">
+              <Eye className="mx-auto h-6 w-6 text-white/30 mb-2" />
+              <p className="text-xs text-white/50">
                 No recent activity logged in the system.
               </p>
             </div>

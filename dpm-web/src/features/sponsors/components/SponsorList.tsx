@@ -50,22 +50,22 @@ export const SponsorList: React.FC<SponsorListProps> = ({ eventId }) => {
 
     const getTierColor = (tier: string) => {
         const colors = {
-            bronze: 'bg-orange-100 text-orange-800',
-            silver: 'bg-gray-100 text-gray-800',
-            gold: 'bg-yellow-100 text-yellow-800',
-            platinum: 'bg-purple-100 text-purple-800'
+            bronze: 'bg-orange-500/10 text-orange-400 border border-orange-500/20',
+            silver: 'bg-gray-500/10 text-gray-400 border border-gray-500/20',
+            gold: 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20',
+            platinum: 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
         };
-        return colors[tier as keyof typeof colors] || 'bg-gray-100 text-gray-800';
+        return colors[tier as keyof typeof colors] || 'bg-gray-500/10 text-white/50 border border-[#3A3A3A]';
     };
 
     if (loading) {
-        return <div className="text-center py-8">Loading sponsors...</div>;
+        return <div className="text-center py-8 text-white/50">Loading sponsors...</div>;
     }
 
     if (sponsors.length === 0) {
         return (
-            <div className="text-center py-12 bg-gray-50 rounded-lg">
-                <p className="text-gray-500">No sponsors yet. Add your first sponsor to get started.</p>
+            <div className="text-center py-12 bg-[#1C1C1F] border border-[#2A2A2A] rounded-xl">
+                <p className="text-white/50">No sponsors yet. Add your first sponsor to get started.</p>
             </div>
         );
     }
@@ -75,36 +75,40 @@ export const SponsorList: React.FC<SponsorListProps> = ({ eventId }) => {
             {sponsors.map((sponsor) => (
                 <div
                     key={sponsor.id}
-                    className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                    className="bg-[#1C1C1F] border border-[#2A2A2A] rounded-xl p-5 hover:border-[#3A3A3A] transition-colors duration-200"
                 >
-                    <div className="flex items-start justify-between">
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                         <div className="flex-1">
-                            <div className="flex items-center gap-3">
-                                <h3 className="text-lg font-semibold text-gray-900">{sponsor.name}</h3>
-                                <span className={`px-2 py-1 rounded text-xs font-medium ${getTierColor(sponsor.tier)}`}>
-                                    {sponsor.tier.toUpperCase()}
+                            <div className="flex flex-wrap items-center gap-3 mb-2">
+                                <h3 className="text-lg font-semibold text-white/90">{sponsor.name}</h3>
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${getTierColor(sponsor.tier)}`}>
+                                    {sponsor.tier}
                                 </span>
                                 {sponsor.signup_completed && (
-                                    <span className="px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-green-400/10 text-green-400 border border-green-400/20">
                                         ✓ Onboarded
                                     </span>
                                 )}
                             </div>
 
                             {sponsor.booth_location && (
-                                <p className="text-sm text-gray-600 mt-1">📍 {sponsor.booth_location}</p>
+                                <p className="text-sm text-white/50 mt-1 flex items-center gap-1.5">
+                                    <span className="text-brand-red">📍</span> {sponsor.booth_location}
+                                </p>
                             )}
 
                             {sponsor.contact_email && (
-                                <p className="text-sm text-gray-600 mt-1">✉️ {sponsor.contact_email}</p>
+                                <p className="text-sm text-white/50 mt-1 flex items-center gap-1.5">
+                                    <span className="text-logic-blue">✉️</span> {sponsor.contact_email}
+                                </p>
                             )}
                         </div>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 self-start">
                             {sponsor.signup_token && !sponsor.signup_completed && (
                                 <button
                                     onClick={() => handleCopyLink(sponsor)}
-                                    className="px-3 py-1.5 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                    className="px-3 py-1.5 text-xs font-medium text-white/70 hover:text-white bg-[#2A2A2A] hover:bg-[#3A3A3A] border border-[#3A3A3A] hover:border-[#4A4A4A] rounded-lg transition-colors flex items-center gap-1.5"
                                 >
                                     {copiedId === sponsor.id ? '✓ Copied!' : '🔗 Copy Link'}
                                 </button>
@@ -112,7 +116,7 @@ export const SponsorList: React.FC<SponsorListProps> = ({ eventId }) => {
 
                             <button
                                 onClick={() => handleDelete(sponsor.id)}
-                                className="px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 rounded transition-colors"
+                                className="px-3 py-1.5 text-xs font-medium text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/30 rounded-lg transition-colors"
                             >
                                 Delete
                             </button>

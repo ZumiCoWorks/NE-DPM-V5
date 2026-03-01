@@ -7,6 +7,7 @@ import {
   Calendar,
   MapPin,
   Users,
+  User,
   Plus,
   Edit,
   Trash2,
@@ -224,14 +225,14 @@ export const EventsPage: React.FC = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Events</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <h1 className="text-2xl font-semibold text-white/90">Events</h1>
+          <p className="mt-1 text-sm text-white/50">
             Manage your events and track attendance
           </p>
         </div>
         <Link
           to="/events/create"
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          className="inline-flex items-center px-4 py-2 border border-brand-red/50 text-sm font-medium rounded-lg shadow-sm text-brand-red bg-brand-red/10 hover:bg-brand-red/20 transition-colors"
         >
           <Plus className="-ml-1 mr-2 h-4 w-4" />
           Create Event
@@ -239,32 +240,32 @@ export const EventsPage: React.FC = () => {
       </div>
 
       {/* Filters */}
-      <div className="bg-white shadow rounded-lg">
-        <div className="px-4 py-5 sm:p-6">
+      <div className="bg-[#111113] border border-[#2A2A2A] rounded-xl shadow-sm">
+        <div className="px-5 py-5 sm:p-6">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {/* Search */}
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-5 w-5 text-gray-400" />
+                <Search className="h-4 w-4 text-white/40" />
               </div>
               <input
                 type="text"
                 placeholder="Search events..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                className="block w-full pl-10 pr-3 py-2 border border-[#2A2A2A] rounded-lg leading-5 bg-[#1C1C1F] text-white/90 placeholder-white/40 focus:outline-none focus:ring-1 focus:ring-white/20 focus:border-white/20 transition-colors sm:text-sm"
               />
             </div>
 
             {/* Status Filter */}
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Filter className="h-5 w-5 text-gray-400" />
+                <Filter className="h-4 w-4 text-white/40" />
               </div>
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as EventStatus)}
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                className="block w-full pl-10 pr-3 py-2 border border-[#2A2A2A] rounded-lg leading-5 bg-[#1C1C1F] text-white/90 focus:outline-none focus:ring-1 focus:ring-white/20 focus:border-white/20 transition-colors sm:text-sm appearance-none"
               >
                 <option value="all">All Status</option>
                 <option value="draft">Draft</option>
@@ -277,88 +278,95 @@ export const EventsPage: React.FC = () => {
       </div>
 
       {/* Events List */}
-      <div className="bg-white shadow overflow-hidden sm:rounded-md">
+      <div className="bg-[#111113] border border-[#2A2A2A] shadow-sm overflow-hidden sm:rounded-xl">
         {filteredEvents.length > 0 ? (
-          <ul className="divide-y divide-gray-200">
+          <ul className="divide-y divide-[#2A2A2A]">
             {filteredEvents.map((event) => (
-              <li key={event.id}>
-                <div className="px-4 py-4 sm:px-6">
+              <li key={event.id} className="hover:bg-[#161618] transition-colors duration-200">
+                <div className="px-5 py-5 sm:px-6">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
                       <div className="flex-shrink-0">
-                        <Calendar className="h-10 w-10 text-gray-400" />
+                        <div className="h-10 w-10 rounded-lg bg-[#1C1C1F] border border-[#3A3A3A] flex items-center justify-center">
+                          <Calendar className="h-5 w-5 text-white/50" />
+                        </div>
                       </div>
                       <div className="ml-4">
                         <div className="flex items-center">
-                          <p className="text-sm font-medium text-blue-600 truncate">
+                          <p className="text-sm font-semibold text-white/90 truncate">
                             {event.name}
                           </p>
                           <span className={cn(
-                            'ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize',
-                            getStatusColor(event.status)
+                            'ml-3 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border',
+                            event.status === 'published' ? 'bg-green-400/10 text-green-400 border-green-400/20' :
+                              event.status === 'draft' ? 'bg-yellow-400/10 text-yellow-400 border-yellow-400/20' :
+                                'bg-red-400/10 text-red-400 border-red-400/20'
                           )}>
                             {event.status}
                           </span>
                         </div>
-                        <div className="mt-2 flex items-center text-sm text-gray-500">
-                          <MapPin className="flex-shrink-0 mr-1.5 h-4 w-4" />
+                        <div className="mt-1 flex items-center text-xs text-white/50">
+                          <MapPin className="flex-shrink-0 mr-1.5 h-3.5 w-3.5" />
                           <p className="truncate">
                             {event.venue?.name} - {event.venue?.address}
                           </p>
                         </div>
-                        <div className="mt-2 flex items-center text-sm text-gray-500">
-                          <Calendar className="flex-shrink-0 mr-1.5 h-4 w-4" />
+                        <div className="mt-1 flex items-center text-xs text-white/50">
+                          <Calendar className="flex-shrink-0 mr-1.5 h-3.5 w-3.5" />
                           <p>
                             {formatDate(event.start_date)} - {formatDate(event.end_date)}
                           </p>
                         </div>
                         {event.max_attendees && (
-                          <div className="mt-2 flex items-center text-sm text-gray-500">
-                            <Users className="flex-shrink-0 mr-1.5 h-4 w-4" />
+                          <div className="mt-1 flex items-center text-xs text-white/50">
+                            <Users className="flex-shrink-0 mr-1.5 h-3.5 w-3.5" />
                             <p>Max {event.max_attendees} attendees</p>
                           </div>
                         )}
                         {user?.role === 'admin' && event.organizer && (
-                          <div className="mt-2 text-sm text-gray-500">
-                            Organizer: {event.organizer.full_name}
+                          <div className="mt-1 flex items-center text-xs text-white/50">
+                            <User className="flex-shrink-0 mr-1.5 h-3.5 w-3.5" />
+                            <p>Organizer: {event.organizer.full_name}</p>
                           </div>
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex flex-col items-end space-y-2 sm:flex-row sm:space-y-0 sm:items-center sm:space-x-3">
                       <Link
                         to={`/events/${event.id}/setup`}
-                        className="inline-flex items-center px-3 py-2 border border-blue-300 rounded-md shadow-sm text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                        className="inline-flex items-center px-3 py-1.5 border border-[#3A3A3A] rounded-lg shadow-sm text-xs font-medium text-white/80 bg-[#1C1C1F] hover:bg-[#2A2A2A] hover:text-white transition-colors"
                         title="Continue event setup"
                       >
-                        <svg className="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg className="h-3.5 w-3.5 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
                         </svg>
                         Setup
                       </Link>
-                      <Link
-                        to={`/events/${event.id}/edit`}
-                        className="inline-flex items-center p-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Link>
-                      <button
-                        onClick={() => handleDeleteEvent(event.id)}
-                        disabled={deleteLoading === event.id}
-                        className="inline-flex items-center p-2 border border-red-300 rounded-md shadow-sm text-sm font-medium text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {deleteLoading === event.id ? (
-                          <LoadingSpinner size="sm" />
-                        ) : (
-                          <Trash2 className="h-4 w-4" />
-                        )}
-                      </button>
+                      <div className="flex space-x-2">
+                        <Link
+                          to={`/events/${event.id}/edit`}
+                          className="inline-flex items-center p-1.5 border border-[#3A3A3A] rounded-lg text-white/50 bg-[#1C1C1F] hover:bg-[#2A2A2A] hover:text-white transition-colors"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Link>
+                        <button
+                          onClick={() => handleDeleteEvent(event.id)}
+                          disabled={deleteLoading === event.id}
+                          className="inline-flex items-center p-1.5 border border-red-500/20 rounded-lg text-red-400 bg-red-500/5 hover:bg-red-500/20 hover:text-red-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {deleteLoading === event.id ? (
+                            <LoadingSpinner size="sm" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
                     </div>
                   </div>
                   {event.description && (
-                    <div className="mt-2 sm:flex sm:justify-between">
+                    <div className="mt-3 sm:flex sm:justify-between">
                       <div className="sm:flex">
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-white/40">
                           {event.description}
                         </p>
                       </div>
@@ -369,12 +377,14 @@ export const EventsPage: React.FC = () => {
             ))}
           </ul>
         ) : (
-          <div className="text-center py-12">
-            <Calendar className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">
+          <div className="text-center py-16">
+            <div className="mx-auto h-12 w-12 rounded-full bg-[#1C1C1F] border border-[#2A2A2A] flex items-center justify-center mb-4">
+              <Calendar className="h-6 w-6 text-white/30" />
+            </div>
+            <h3 className="mt-2 text-sm font-medium text-white/90">
               No events found
             </h3>
-            <p className="mt-1 text-sm text-gray-500">
+            <p className="mt-1 text-sm text-white/50 max-w-sm mx-auto">
               {searchTerm || statusFilter !== 'all'
                 ? 'Try adjusting your search or filter criteria.'
                 : 'Get started by creating your first event.'}
@@ -383,7 +393,7 @@ export const EventsPage: React.FC = () => {
               <div className="mt-6">
                 <Link
                   to="/events/create"
-                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  className="inline-flex items-center px-4 py-2 border border-brand-red/50 text-sm font-medium rounded-lg shadow-sm text-brand-red bg-brand-red/10 hover:bg-brand-red/20 transition-colors"
                 >
                   <Plus className="-ml-1 mr-2 h-4 w-4" />
                   Create Event
