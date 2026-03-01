@@ -266,9 +266,7 @@ export default function App() {
             {/* Security Command Center - Protected */}
             <Route path="/security" element={
               <ProtectedRoute>
-                <AdminLayout>
-                  <SecurityDashboard />
-                </AdminLayout>
+                <SecurityDashboard />
               </ProtectedRoute>
             } />
 

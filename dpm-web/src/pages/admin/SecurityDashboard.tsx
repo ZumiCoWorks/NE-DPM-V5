@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { Shield, AlertTriangle, CheckCircle, MapPin, Clock, Radio, User, Maximize2, Users } from 'lucide-react';
+import { Shield, AlertTriangle, CheckCircle, MapPin, Clock, Radio, User, Maximize2, Users, ArrowLeft } from 'lucide-react';
 import { MapContainer, TileLayer, ImageOverlay, Marker, CircleMarker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -115,6 +116,7 @@ function MapReCenter({ center }: { center: [number, number] }) {
 }
 
 export default function SecurityDashboard() {
+    const navigate = useNavigate();
     const [alerts, setAlerts] = useState<Alert[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'live' | 'history'>('live');
@@ -214,6 +216,14 @@ export default function SecurityDashboard() {
             <header className="bg-gray-800 border-b border-gray-700 p-3 flex-shrink-0 z-20 shadow-md">
                 <div className="flex items-center justify-between px-4">
                     <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => navigate('/dashboard')}
+                            className="p-2 mr-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-gray-300 hover:text-white flex items-center gap-2 group"
+                            title="Return to Dashboard"
+                        >
+                            <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+                            <span className="text-xs font-bold tracking-wider hidden sm:block uppercase">Exit</span>
+                        </button>
                         <Shield className="w-6 h-6 text-brand-yellow" />
                         <h1 className="text-lg font-bold tracking-tight">SECURITY CMD CENTER</h1>
                     </div>
