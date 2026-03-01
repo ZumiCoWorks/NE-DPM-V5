@@ -24,7 +24,19 @@ export const NavEazeLandingPage: React.FC = () => {
             : 'Find your way. Keep your tribe.';
 
     return (
-        <div className="min-h-screen bg-ultra-dark">
+        <div className="min-h-screen bg-ultra-dark relative">
+            {/* Top Navigation */}
+            <div className="absolute top-0 left-0 w-full z-50 p-6 flex justify-between items-center">
+                <div className="flex items-center">
+                    <img src="/nav-eaze-logo-dark.svg" alt="NavEaze" className="h-8" />
+                </div>
+                <button
+                    onClick={() => navigate('/login')}
+                    className="px-6 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white font-medium transition-colors border border-white/20"
+                >
+                    Log In
+                </button>
+            </div>
             {/* Hero Section with Remotion Player */}
             <section className="relative w-full h-screen">
                 <Player

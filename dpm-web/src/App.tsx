@@ -66,8 +66,7 @@ export default function App() {
       <AuthProvider>
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/naveaze-landing" element={<NavEazeLandingPage />} />
+            <Route path="/" element={<NavEazeLandingPage />} />
             <Route path="/waitlist" element={<WaitlistPage />} />
             <Route path="/role-selector" element={<RoleSelectorPage />} />
             <Route path="/login" element={<LoginPage />} />
