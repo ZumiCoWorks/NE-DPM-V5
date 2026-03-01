@@ -148,23 +148,7 @@ export const LoginPage = () => {
                   )}
                 </Button>
 
-                <div className="relative my-6">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-gray-200"></div>
-                  </div>
-                  <div className="relative flex justify-center text-sm">
-                    <span className="px-2 bg-white text-gray-500">New to NavEaze?</span>
-                  </div>
-                </div>
 
-                <div className="text-center">
-                  <Link
-                    to="/register"
-                    className="inline-block w-full py-3 px-4 border-2 border-black text-black font-semibold rounded-lg hover:bg-black hover:text-white transition-all transform hover:scale-[1.02] active:scale-[0.98]"
-                  >
-                    Create Account
-                  </Link>
-                </div>
               </form>
 
               <p className="mt-8 text-center text-xs text-gray-500">

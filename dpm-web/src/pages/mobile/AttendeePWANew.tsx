@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
-import { List, Map, Scan, Navigation, MapPin, Camera, WifiOff, ArrowRight, Trophy, CheckCircle, Satellite, ChevronRight, Compass } from 'lucide-react';
+import { List, Map, Scan, Navigation, MapPin, Camera, WifiOff, ArrowRight, Trophy, CheckCircle, Satellite, ChevronRight, Compass, AlertTriangle } from 'lucide-react';
 import jsQR from 'jsqr';
 import FloorplanCanvas from '../../components/FloorplanCanvas.jsx';
 import { findShortestNodePath, nearestNodeToPoint, nodePathToCoords, generateTurnByTurnDirections, GraphNode, GraphSegment } from '../../lib/pathfinding';
@@ -76,12 +76,15 @@ type Tab = 'directory' | 'map' | 'scanner';
 const AttendeePWANew: React.FC = () => {
   // Arrival modal state
   const [showArrivalModal, setShowArrivalModal] = useState(false);
-  const [attendeeId] = useState(() => localStorage.getItem('naveaze_attendee_id') || `anon_${crypto.randomUUID()}`);
+  const [attendeeId] = useState(() => sessionStorage.getItem('naveaze_attendee_id') || `anon_${crypto.randomUUID()}`);
   const [lastLocationPing, setLastLocationPing] = useState(0);
+
+  // SOS State
+  const [sosLoading, setSosLoading] = useState(false);
 
   // Initialize random anonymous user ID for live tracking
   useEffect(() => {
-    localStorage.setItem('naveaze_attendee_id', attendeeId);
+    sessionStorage.setItem('naveaze_attendee_id', attendeeId);
   }, [attendeeId]);
   // Debug mode for testing
   const [debugMode, setDebugMode] = useState(false);
@@ -355,7 +358,7 @@ const AttendeePWANew: React.FC = () => {
     // Try to load from cache first if offline
     if (!isOnline()) {
       console.log('📴 Offline mode - loading events from cache');
-      const cachedEventId = localStorage.getItem('selectedEventId');
+      const cachedEventId = sessionStorage.getItem('selectedEventId');
       if (cachedEventId) {
         const cachedEvent = await getCachedEventData(cachedEventId);
         if (cachedEvent) {
@@ -603,11 +606,31 @@ const AttendeePWANew: React.FC = () => {
     }
   };
 
+  const handleSOS = async () => {
+    if (!selectedEvent?.id || !supabase) return;
+    setSosLoading(true);
+    try {
+      await (supabase.from('safety_alerts') as any).insert({
+        event_id: selectedEvent.id,
+        user_id: attendeeId,
+        type: 'sos',
+        status: 'new',
+        gps_lat: null,
+        gps_lng: null
+      });
+      alert('Emergency alert sent to onsite security.');
+    } catch (e) {
+      console.error('Failed to send SOS', e);
+    } finally {
+      setSosLoading(false);
+    }
+  };
+
   // Handle event selection
   const handleEventSelect = async (event: EventData) => {
     console.log('🎯 Event selected:', event.name, event.id);
     setSelectedEvent(event);
-    localStorage.setItem('selectedEventId', event.id);
+    sessionStorage.setItem('selectedEventId', event.id);
 
     // Fetch navigation data
     console.log('📡 Fetching navigation data for event:', event.id);
@@ -1250,12 +1273,10 @@ const AttendeePWANew: React.FC = () => {
             return (
               <div className="relative flex flex-col items-center mb-8">
                 <style>{`
-                  @keyframes chevron-wave {
-                    0%   { fill: transparent; }
-                    20%  { fill: var(--arrow-color); }
-                    60%  { fill: var(--arrow-color); }
-                    80%  { fill: transparent; }
-                    100% { fill: transparent; }
+                  @keyframes chevron-flow {
+                    0%   { opacity: 0; transform: translateY(40px); }
+                    50%  { opacity: 1; transform: translateY(0px); }
+                    100% { opacity: 0; transform: translateY(-40px); }
                   }
                 `}</style>
                 <div
@@ -1269,10 +1290,11 @@ const AttendeePWANew: React.FC = () => {
                       d="M201 53L127 112L128.5 161.5L199.5 97L275 161.5V107L201 53Z"
                       style={{
                         ['--arrow-color' as string]: isVeryClose ? '#4ade80' : isPointingCorrect ? '#4ade80' : '#FF0003',
-                        fill: 'transparent',
+                        fill: isVeryClose ? '#4ade80' : isPointingCorrect ? '#4ade80' : '#FF0003',
                         stroke: isVeryClose ? '#4ade80' : isPointingCorrect ? '#4ade80' : '#FF0003',
                         strokeWidth: 2,
-                        animation: isVeryClose ? 'none' : 'chevron-wave 1.4s ease-in-out infinite',
+                        opacity: 0,
+                        animation: isVeryClose ? 'none' : 'chevron-flow 1.5s ease-in-out infinite',
                         animationDelay: '0s',
                       }}
                     />
@@ -1281,11 +1303,12 @@ const AttendeePWANew: React.FC = () => {
                       d="M200.5 133L151 171.065L152.003 203L199.497 161.387L250 203V167.839L200.5 133Z"
                       style={{
                         ['--arrow-color' as string]: isVeryClose ? '#4ade80' : isPointingCorrect ? '#4ade80' : '#FF0003',
-                        fill: 'transparent',
+                        fill: isVeryClose ? '#4ade80' : isPointingCorrect ? '#4ade80' : '#FF0003',
                         stroke: isVeryClose ? '#4ade80' : isPointingCorrect ? '#4ade80' : '#FF0003',
                         strokeWidth: 2,
-                        animation: isVeryClose ? 'none' : 'chevron-wave 1.4s ease-in-out infinite',
-                        animationDelay: '0.35s',
+                        opacity: 0,
+                        animation: isVeryClose ? 'none' : 'chevron-flow 1.5s ease-in-out infinite',
+                        animationDelay: '0.2s',
                       }}
                     />
                     {/* Chevron 3 — smallest, bottommost (wave starts here) */}
@@ -1296,8 +1319,9 @@ const AttendeePWANew: React.FC = () => {
                         fill: isVeryClose ? '#4ade80' : isPointingCorrect ? '#4ade80' : '#FF0003',
                         stroke: isVeryClose ? '#4ade80' : isPointingCorrect ? '#4ade80' : '#FF0003',
                         strokeWidth: 2,
-                        animation: isVeryClose ? 'none' : 'chevron-wave 1.4s ease-in-out infinite',
-                        animationDelay: '0.7s',
+                        opacity: 0,
+                        animation: isVeryClose ? 'none' : 'chevron-flow 1.5s ease-in-out infinite',
+                        animationDelay: '0.4s',
                       }}
                     />
                   </svg>
@@ -1839,8 +1863,19 @@ const AttendeePWANew: React.FC = () => {
         )}
       </div>
 
+      {/* Floating SOS Button */}
+      {activeTab !== 'scanner' && (
+        <button
+          onClick={handleSOS}
+          disabled={sosLoading}
+          className="absolute bottom-20 right-4 w-12 h-12 bg-red-600 rounded-full shadow-[0_0_15px_rgba(220,38,38,0.5)] flex items-center justify-center text-white z-50 transition-transform active:scale-95 border-2 border-white"
+        >
+          {sosLoading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <AlertTriangle className="w-5 h-5 fill-white text-red-600" />}
+        </button>
+      )}
+
       {/* Bottom Navigation */}
-      <div className="shrink-0 bg-white border-t border-gray-200">
+      <div className="shrink-0 bg-white border-t border-gray-200 relative z-40">
         <div className="flex">
           {([
             { id: 'directory', label: 'Directory', Icon: List },
