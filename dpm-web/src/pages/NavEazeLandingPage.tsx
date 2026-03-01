@@ -24,223 +24,112 @@ export const NavEazeLandingPage: React.FC = () => {
             : 'Certainty in Chaos. Find your way. Keep your tribe.';
 
     return (
-        <div className="min-h-screen bg-ultra-dark relative">
+        <div className="min-h-screen bg-ultra-dark relative overflow-hidden">
             {/* Top Navigation */}
             <div className="absolute top-0 left-0 w-full z-50 p-6 flex justify-between items-center">
                 <div className="flex items-center">
                     <img src="/nav-eaze-logo-dark.svg" alt="NavEaze" className="h-8" />
                 </div>
-                <button
-                    onClick={() => navigate('/login')}
-                    className="px-6 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white font-medium transition-colors border border-white/20"
-                >
-                    Log In
-                </button>
+                <div className="flex items-center gap-6">
+                    <MirrorPivot mode={mode} onModeChange={setMode} />
+                    <button
+                        onClick={() => navigate('/login')}
+                        className="px-6 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white font-medium transition-colors border border-white/20 hover:border-white/40 shadow-sm"
+                    >
+                        Log In
+                    </button>
+                </div>
             </div>
-            {/* Hero Section with Remotion Player */}
-            <section className="relative w-full h-screen">
-                <Player
-                    component={HeroVideo as React.FC<any>}
-                    inputProps={{
-                        mode,
-                        accentColor,
-                        tagline,
-                    }}
-                    durationInFrames={240}
-                    compositionWidth={1920}
-                    compositionHeight={1080}
-                    fps={60}
-                    loop
-                    autoPlay
-                    controls={false}
-                    style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                    }}
-                />
-            </section>
 
-            {/* Mirror Pivot Toggle */}
-            <section className="relative z-10 -mt-20">
-                <MirrorPivot mode={mode} onModeChange={setMode} />
-            </section>
+            {/* Hero Section */}
+            <section className="relative w-full min-h-screen flex flex-col items-center justify-center pt-24 pb-12">
+                {/* Background Remotion Player */}
+                <div className="absolute inset-0 z-0 pointer-events-none opacity-50">
+                    <Player
+                        component={HeroVideo as React.FC<any>}
+                        inputProps={{
+                            mode,
+                            accentColor,
+                            tagline,
+                        }}
+                        durationInFrames={240}
+                        compositionWidth={1920}
+                        compositionHeight={1080}
+                        fps={60}
+                        loop
+                        autoPlay
+                        controls={false}
+                        style={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover',
+                        }}
+                    />
+                </div>
 
-            {/* Mode-Specific Content Section */}
-            <section className="py-20 px-8">
-                <div className="max-w-6xl mx-auto">
-                    <div className="text-center mb-16">
-                        <h2 className="text-5xl font-poppins font-black text-white mb-6">
+                {/* Hero Content (Foreground) */}
+                <div className="relative z-10 w-full max-w-7xl mx-auto px-8 flex flex-col items-center">
+                    <div className="text-center mb-16 max-w-4xl mt-12">
+                        <h2 className="text-6xl sm:text-7xl md:text-8xl font-poppins font-black text-white mb-6 leading-tight">
                             {mode === 'architect' ? (
                                 <>
-                                    <span className="text-logic-blue">Eradicate</span> The Black Box
+                                    <span className="text-logic-blue">Eradicate</span> <br className="hidden md:block" />The Black Box
                                 </>
                             ) : (
                                 <>
-                                    <span className="text-naveaze-red">Certainty</span> in Chaos
+                                    <span className="text-naveaze-red">Certainty</span> <br className="hidden md:block" />in Chaos
                                 </>
                             )}
                         </h2>
-                        <p className="text-xl font-inter text-white/70 max-w-3xl mx-auto">
+                        <p className="text-xl md:text-2xl font-inter text-white/70 max-w-3xl mx-auto">
                             {mode === 'architect'
                                 ? 'Transform crowd movement into actionable intelligence. Justify safety to insurers, monitor real-time CDV (Crowd Density Value), and prevent bottlenecks before they happen.'
                                 : 'Navigate "concrete data holes" with zero friction. No app downloads required. We are the invisible layer that provides psychological safety and keeps your tribe together.'}
                         </p>
                     </div>
+
+                    {/* Feature Cards Grid (Moved directly into Hero) */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full mt-4">
+                        {mode === 'architect' ? (
+                            <>
+                                <FeatureCard
+                                    title="Financial Assurance"
+                                    description="Digitize the emergency response audit trail to provide insurers and OHS auditors with exact timestamped data."
+                                    color="logic-blue"
+                                />
+                                <FeatureCard
+                                    title="The Red Alert Engine"
+                                    description="Automated logic that monitors CDV (Crowd Density Value) to dictate crowd flow and trigger emergency protocols."
+                                    color="logic-blue"
+                                />
+                                <FeatureCard
+                                    title="QR-Anchoring Logic"
+                                    description="Infinitely scalable, zero CapEx solution to fix GPS drift in massive concrete venues without expensive Bluetooth beacons."
+                                    color="logic-blue"
+                                />
+                            </>
+                        ) : (
+                            <>
+                                <FeatureCard
+                                    title="The Invisible Guardian"
+                                    description="A Tech-Lite PWA with zero downloads required. We stay perfectly invisible until you need us."
+                                    color="naveaze-red"
+                                />
+                                <FeatureCard
+                                    title="The Distress Pin"
+                                    description="Drop secure emergency markers that instantly alert on-ground staff to your exact VIP location."
+                                    color="naveaze-red"
+                                />
+                                <FeatureCard
+                                    title="POPIA Compliant"
+                                    description="Complete privacy by design. Navigate as an anonymous coordinate without handing over personal data."
+                                    color="naveaze-red"
+                                />
+                            </>
+                        )}
+                    </div>
                 </div>
             </section>
-
-            {/* Mode-Specific Visualization Section */}
-            {mode === 'architect' ? (
-                // ARCHITECT MODE: Density Heatmap
-                <section className="py-20 px-8 bg-black/30">
-                    <div className="max-w-7xl mx-auto">
-                        <div className="text-center mb-12">
-                            <h2 className="text-5xl font-poppins font-black text-white mb-4">
-                                <span className="text-logic-blue">LIVE</span> Density Intelligence
-                            </h2>
-                            <p className="text-lg font-inter text-white/60">
-                                Real-time crowd density visualization for event organizers
-                            </p>
-                        </div>
-
-                        {/* Heatmap Player */}
-                        <div className="rounded-2xl overflow-hidden border-2 border-logic-blue/30 shadow-2xl">
-                            <Player
-                                component={HeatmapAnimation as React.FC<any>}
-                                inputProps={{
-                                    mode,
-                                    showMetrics: true,
-                                }}
-                                durationInFrames={360}
-                                compositionWidth={1920}
-                                compositionHeight={1080}
-                                fps={60}
-                                loop
-                                autoPlay
-                                controls={false}
-                                style={{
-                                    width: '100%',
-                                    aspectRatio: '16/9',
-                                }}
-                            />
-                        </div>
-
-                        {/* Architect Feature Grid */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-16">
-                            <FeatureCard
-                                title="Financial Assurance"
-                                description="Digitize the emergency response audit trail to provide insurers and OHS auditors with exact timestamped data."
-                                color="logic-blue"
-                            />
-                            <FeatureCard
-                                title="The Red Alert Engine"
-                                description="Automated logic that monitors CDV (Crowd Density Value) to dictate crowd flow and trigger emergency protocols."
-                                color="logic-blue"
-                            />
-                            <FeatureCard
-                                title="QR-Anchoring Logic"
-                                description="Infinitely scalable, zero CapEx solution to fix GPS drift in massive concrete venues without expensive Bluetooth beacons."
-                                color="logic-blue"
-                            />
-                        </div>
-                    </div>
-                </section>
-            ) : (
-                // COMPANION MODE: Social Connection Features
-                <section className="py-20 px-8 bg-black/30">
-                    <div className="max-w-7xl mx-auto">
-                        <div className="text-center mb-12">
-                            <h2 className="text-5xl font-poppins font-black text-white mb-4">
-                                <span className="text-naveaze-red">Find Your Tribe</span> Instantly
-                            </h2>
-                            <p className="text-lg font-inter text-white/60">
-                                Never lose your friends in the crowd again
-                            </p>
-                        </div>
-
-                        {/* Social Features Illustration */}
-                        <div className="rounded-2xl overflow-hidden border-2 border-naveaze-red/30 shadow-2xl bg-gradient-to-br from-naveaze-red/10 to-transparent p-16">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-                                {/* Left: Visual */}
-                                <div className="relative">
-                                    <div className="aspect-square rounded-full bg-naveaze-red/20 border-4 border-naveaze-red/40 flex items-center justify-center">
-                                        <div className="text-center">
-                                            <div className="text-8xl mb-4">👥</div>
-                                            <div className="text-3xl font-poppins font-bold text-white">
-                                                Your Tribe
-                                            </div>
-                                            <div className="text-naveaze-red font-mono text-xl mt-2">
-                                                5 friends nearby
-                                            </div>
-                                        </div>
-                                    </div>
-                                    {/* Pulsing rings */}
-                                    <div className="absolute inset-0 rounded-full border-2 border-naveaze-red/30 animate-ping" />
-                                </div>
-
-                                {/* Right: Features */}
-                                <div className="space-y-6">
-                                    <div className="flex items-start gap-4">
-                                        <div className="text-4xl">📍</div>
-                                        <div>
-                                            <h3 className="text-2xl font-poppins font-bold text-white mb-2">
-                                                Real-Time Location
-                                            </h3>
-                                            <p className="text-white/70 font-inter">
-                                                See where your friends are on the map, updated live as they move
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex items-start gap-4">
-                                        <div className="text-4xl">🔔</div>
-                                        <div>
-                                            <h3 className="text-2xl font-poppins font-bold text-white mb-2">
-                                                Smart Notifications
-                                            </h3>
-                                            <p className="text-white/70 font-inter">
-                                                Get alerts when friends are nearby or when the group splits up
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex items-start gap-4">
-                                        <div className="text-4xl">🛡️</div>
-                                        <div>
-                                            <h3 className="text-2xl font-poppins font-bold text-white mb-2">
-                                                Psychological Safety
-                                            </h3>
-                                            <p className="text-white/70 font-inter">
-                                                Avoid crowded areas and find the safest routes to meet up
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Companion Feature Grid */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-16">
-                            <FeatureCard
-                                title="The Invisible Guardian"
-                                description="A Tech-Lite PWA with zero downloads required. We stay perfectly invisible until you need us."
-                                color="naveaze-red"
-                            />
-                            <FeatureCard
-                                title="The Distress Pin"
-                                description="Drop secure emergency markers that instantly alert on-ground staff to your exact VIP location."
-                                color="naveaze-red"
-                            />
-                            <FeatureCard
-                                title="POPIA Compliant"
-                                description="Complete privacy by design. Navigate as an anonymous coordinate without handing over personal data."
-                                color="naveaze-red"
-                            />
-                        </div>
-                    </div>
-                </section>
-            )}
 
             {/* Paper Killer ESG Section */}
             <section className="py-20 px-8">
