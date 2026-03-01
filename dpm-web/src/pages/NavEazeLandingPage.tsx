@@ -45,6 +45,15 @@ export const NavEazeLandingPage: React.FC = () => {
                         mode,
                         accentColor,
                         tagline,
+                        title: mode === 'architect' ? (
+                            <>
+                                <span style={{ color: '#3B82F6' }}>Eradicate</span> <br /> The Black Box
+                            </>
+                        ) : (
+                            <>
+                                <span style={{ color: '#FF4D32' }}>Certainty</span> <br /> in Chaos
+                            </>
+                        )
                     }}
                     durationInFrames={240}
                     compositionWidth={1920}

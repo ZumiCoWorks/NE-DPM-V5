@@ -11,12 +11,14 @@ export interface HeroVideoProps {
     mode: 'architect' | 'companion';
     accentColor: string;
     tagline: string;
+    title: React.ReactNode;
 }
 
 export const HeroVideo: React.FC<HeroVideoProps> = ({
     mode,
     accentColor,
     tagline,
+    title,
 }) => {
     const frame = useCurrentFrame();
     const { fps, durationInFrames } = useVideoConfig();
@@ -101,13 +103,10 @@ export const HeroVideo: React.FC<HeroVideoProps> = ({
                     letterSpacing: '0.03em',
                     opacity: textOpacity,
                     marginBottom: 24,
-                    textTransform: 'uppercase',
                     lineHeight: 1.2,
                 }}
             >
-                Never Lost.
-                <br />
-                <span style={{ color: accentColor }}>Always Connected.</span>
+                {title}
             </div>
 
             {/* Tagline */}
