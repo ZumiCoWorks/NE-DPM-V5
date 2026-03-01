@@ -98,13 +98,13 @@ export const NavEazeLandingPage: React.FC = () => {
                                     color="logic-blue"
                                 />
                                 <FeatureCard
-                                    title="AR Scavenger Hunts"
-                                    description="Create location-based gamification campaigns to drive attendee engagement and capture sponsor leads."
+                                    title="Event Management"
+                                    description="Create and configure multiple events, manage your venue details, and control access from a centralized hub."
                                     color="logic-blue"
                                 />
                                 <FeatureCard
-                                    title="Real-Time Dashboard"
-                                    description="Track active users, live heatmap density, and event statistics straight from the control center."
+                                    title="Centralized Control"
+                                    description="Monitor event details and manage your entire venue's physical infrastructure from a single dashboard."
                                     color="logic-blue"
                                 />
                             </>
@@ -117,12 +117,12 @@ export const NavEazeLandingPage: React.FC = () => {
                                 />
                                 <FeatureCard
                                     title="Interactive Wayfinding"
-                                    description="Follow the path to your destination with dynamic routing overlaid on the event floorplan."
+                                    description="Follow the quickest path to your destination with dynamic routing overlaid on the event floorplan."
                                     color="naveaze-red"
                                 />
                                 <FeatureCard
-                                    title="Location Sharing"
-                                    description="Staff and organizers can track VIPs and securely monitor team locations across the venue."
+                                    title="Secure Access"
+                                    description="Enter specialized event modes securely using a simple PIN code, ensuring your privacy while navigating."
                                     color="naveaze-red"
                                 />
                             </>
