@@ -1,10 +1,19 @@
+var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
+    if (pack || arguments.length === 2) for (var i = 0, l = from.length, ar; i < l; i++) {
+        if (ar || !(i in from)) {
+            if (!ar) ar = Array.prototype.slice.call(from, 0, i);
+            ar[i] = from[i];
+        }
+    }
+    return to.concat(ar || Array.prototype.slice.call(from));
+};
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tsconfigPaths from "vite-tsconfig-paths";
 import { VitePWA } from 'vite-plugin-pwa';
 // https://vite.dev/config/
 export default defineConfig({
-    plugins: [
+    plugins: __spreadArray([
         react({
             babel: {
                 plugins: [
@@ -12,12 +21,9 @@ export default defineConfig({
                 ],
             },
         }),
-        tsconfigPaths(),
-        VitePWA({
+        tsconfigPaths()
+    ], (process.env.NODE_ENV === 'production' ? [VitePWA({
             registerType: 'autoUpdate',
-            devOptions: {
-                enabled: true
-            },
             workbox: {
                 globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
                 maximumFileSizeToCacheInBytes: 3 * 1024 * 1024 // 3MB limit for large bundles
@@ -49,8 +55,7 @@ export default defineConfig({
                     }
                 ]
             }
-        })
-    ],
+        })] : []), true),
     server: {
         proxy: {
             '/api': {

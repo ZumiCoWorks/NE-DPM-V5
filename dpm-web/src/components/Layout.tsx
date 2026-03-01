@@ -13,6 +13,7 @@ import {
   X,
   Settings,
   FlaskConical,
+  ShieldAlert,
 } from 'lucide-react'
 import { cn } from '../lib/utils'
 
@@ -51,6 +52,12 @@ const navigation: NavItem[] = [
     href: '/map-editor',
     icon: MapPin,
     roles: ['admin', 'organizer'], // Added organizer
+  },
+  {
+    name: 'Security Dashboard',
+    href: '/security-dashboard',
+    icon: ShieldAlert,
+    roles: ['admin', 'organizer'],
   },
   {
     name: 'ROI Reports',
