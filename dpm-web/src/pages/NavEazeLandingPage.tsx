@@ -83,8 +83,8 @@ export const NavEazeLandingPage: React.FC = () => {
                         </h2>
                         <p className="text-xl md:text-2xl font-inter text-white/70 max-w-3xl mx-auto">
                             {mode === 'architect'
-                                ? 'Design interactive floorplans, monitor real-time attendee flow, and manage gamified AR experiences from a single unified dashboard.'
-                                : 'Find your way through complex events without downloading an app. Participate in interactive scavenger hunts and stay connected to your group.'}
+                                ? 'Design interactive floorplans, monitor real-time attendee flow, and manage your event from a single unified dashboard.'
+                                : 'Find your way through complex events without downloading an app. Easily navigate the venue and find what you need securely.'}
                         </p>
                     </div>
 
