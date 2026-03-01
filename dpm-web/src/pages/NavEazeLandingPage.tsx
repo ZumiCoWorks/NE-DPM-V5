@@ -33,10 +33,10 @@ export const NavEazeLandingPage: React.FC = () => {
                 <div className="flex items-center gap-6">
                     <MirrorPivot mode={mode} onModeChange={setMode} />
                     <button
-                        onClick={() => navigate('/login')}
+                        onClick={() => navigate('/waitlist')}
                         className="px-6 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white font-medium transition-colors border border-white/20 hover:border-white/40 shadow-sm"
                     >
-                        Log In
+                        Join Waitlist
                     </button>
                 </div>
             </div>
