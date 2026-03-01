@@ -55,7 +55,7 @@ const navigation: NavItem[] = [
   },
   {
     name: 'Security Dashboard',
-    href: '/security-dashboard',
+    href: '/security',
     icon: ShieldAlert,
     roles: ['admin', 'organizer'],
   },
