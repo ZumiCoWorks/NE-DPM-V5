@@ -76,15 +76,16 @@ type Tab = 'directory' | 'map' | 'scanner';
 const AttendeePWANew: React.FC = () => {
   // Arrival modal state
   const [showArrivalModal, setShowArrivalModal] = useState(false);
-  const [attendeeId] = useState(() => sessionStorage.getItem('naveaze_attendee_id') || `anon_${crypto.randomUUID()}`);
+  const [attendeeId] = useState(() => localStorage.getItem('naveaze_attendee_id') || `anon_${crypto.randomUUID()}`);
   const [lastLocationPing, setLastLocationPing] = useState(0);
 
   // SOS State
   const [sosLoading, setSosLoading] = useState(false);
+  const [showSosModal, setShowSosModal] = useState(false);
 
   // Initialize random anonymous user ID for live tracking
   useEffect(() => {
-    sessionStorage.setItem('naveaze_attendee_id', attendeeId);
+    localStorage.setItem('naveaze_attendee_id', attendeeId);
   }, [attendeeId]);
   // Debug mode for testing
   const [debugMode, setDebugMode] = useState(false);
@@ -358,7 +359,7 @@ const AttendeePWANew: React.FC = () => {
     // Try to load from cache first if offline
     if (!isOnline()) {
       console.log('📴 Offline mode - loading events from cache');
-      const cachedEventId = sessionStorage.getItem('selectedEventId');
+      const cachedEventId = localStorage.getItem('selectedEventId');
       if (cachedEventId) {
         const cachedEvent = await getCachedEventData(cachedEventId);
         if (cachedEvent) {
@@ -606,7 +607,7 @@ const AttendeePWANew: React.FC = () => {
     }
   };
 
-  const handleSOS = async () => {
+  const confirmSOS = async () => {
     if (!selectedEvent?.id || !supabase) return;
     setSosLoading(true);
     try {
@@ -618,6 +619,7 @@ const AttendeePWANew: React.FC = () => {
         gps_lat: null,
         gps_lng: null
       });
+      setShowSosModal(false);
       alert('Emergency alert sent to onsite security.');
     } catch (e) {
       console.error('Failed to send SOS', e);
@@ -630,7 +632,7 @@ const AttendeePWANew: React.FC = () => {
   const handleEventSelect = async (event: EventData) => {
     console.log('🎯 Event selected:', event.name, event.id);
     setSelectedEvent(event);
-    sessionStorage.setItem('selectedEventId', event.id);
+    localStorage.setItem('selectedEventId', event.id);
 
     // Fetch navigation data
     console.log('📡 Fetching navigation data for event:', event.id);
@@ -1866,12 +1868,50 @@ const AttendeePWANew: React.FC = () => {
       {/* Floating SOS Button */}
       {activeTab !== 'scanner' && (
         <button
-          onClick={handleSOS}
+          onClick={() => setShowSosModal(true)}
           disabled={sosLoading}
           className="absolute bottom-20 right-4 w-12 h-12 bg-red-600 rounded-full shadow-[0_0_15px_rgba(220,38,38,0.5)] flex items-center justify-center text-white z-50 transition-transform active:scale-95 border-2 border-white"
         >
           {sosLoading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <AlertTriangle className="w-5 h-5 fill-white text-red-600" />}
         </button>
+      )}
+
+      {/* SOS Confirmation Modal */}
+      {showSosModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-[#1C1C1F] border border-[#2A2A2A] rounded-2xl w-full max-w-sm p-6 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-red-600"></div>
+            <div className="flex flex-col items-center text-center mb-6">
+              <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mb-4 border border-red-500/20">
+                <AlertTriangle className="w-8 h-8 text-red-500" />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2">Emergency Assistance</h3>
+              <p className="text-white/60 text-sm">
+                This will send an immediate alert with your current location to onsite security staff. Are you sure you need assistance?
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowSosModal(false)}
+                disabled={sosLoading}
+                className="flex-1 py-3 px-4 bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white font-semibold rounded-xl transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmSOS}
+                disabled={sosLoading}
+                className="flex-1 py-3 px-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-colors shadow-lg shadow-red-600/20 disabled:opacity-50 flex items-center justify-center"
+              >
+                {sosLoading ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  'Send Alert'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Bottom Navigation */}

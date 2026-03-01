@@ -42,9 +42,9 @@ interface AttendeeInfo {
 const StaffPWA: React.FC = () => {
   // Get event context from URL params or localStorage
   const urlParams = new URLSearchParams(window.location.search);
-  const eventId = urlParams.get('event_id') || sessionStorage.getItem('currentEventId') || 'demo-event-001';
-  const sponsorId = urlParams.get('sponsor_id') || sessionStorage.getItem('currentSponsorId') || 'demo-sponsor-001';
-  const staffId = urlParams.get('staff_id') || sessionStorage.getItem('currentStaffId') || 'demo-staff-001';
+  const eventId = urlParams.get('event_id') || localStorage.getItem('currentEventId') || 'demo-event-001';
+  const sponsorId = urlParams.get('sponsor_id') || localStorage.getItem('currentSponsorId') || 'demo-sponsor-001';
+  const staffId = urlParams.get('staff_id') || localStorage.getItem('currentStaffId') || 'demo-staff-001';
 
   type Screen = 'scanner' | 'qualify';
   const [currentScreen, setCurrentScreen] = useState<Screen>('scanner');
@@ -156,9 +156,9 @@ const StaffPWA: React.FC = () => {
   };
 
   // Rest of effects ...
-  // Load saved leads from sessionStorage
+  // Load saved leads from localStorage
   useEffect(() => {
-    const savedLeads = sessionStorage.getItem('staff-leads');
+    const savedLeads = localStorage.getItem('staff-leads');
     if (savedLeads) {
       setLeads(JSON.parse(savedLeads));
     }
