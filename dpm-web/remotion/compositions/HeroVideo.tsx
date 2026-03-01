@@ -11,17 +11,25 @@ export interface HeroVideoProps {
     mode: 'architect' | 'companion';
     accentColor: string;
     tagline: string;
-    title: React.ReactNode;
 }
 
 export const HeroVideo: React.FC<HeroVideoProps> = ({
     mode,
     accentColor,
     tagline,
-    title,
 }) => {
     const frame = useCurrentFrame();
     const { fps, durationInFrames } = useVideoConfig();
+
+    const title = mode === 'architect' ? (
+        <>
+            <span style={{ color: '#3B82F6' }}>Eradicate</span> <br /> The Black Box
+        </>
+    ) : (
+        <>
+            <span style={{ color: '#FF4D32' }}>Certainty</span> <br /> in Chaos
+        </>
+    );
 
     // Slow, subtle pulsing animation for logo
     const logoPulse = interpolate(
@@ -83,7 +91,7 @@ export const HeroVideo: React.FC<HeroVideoProps> = ({
                 }}
             >
                 <Img
-                    src="/remotion/nav-eaze-logo-dark.svg"
+                    src="/nav-eaze-logo-dark.svg"
                     style={{
                         width: 500,
                         height: 'auto',
