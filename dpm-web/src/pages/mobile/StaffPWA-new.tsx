@@ -51,6 +51,17 @@ const StaffPWA: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'leads' | 'safety'>('leads');
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
+  // Consent State
+  const [hasConsented, setHasConsented] = useState(() => localStorage.getItem('naveaze_consent') === 'true');
+
+  useEffect(() => {
+    if (hasConsented) {
+      if (urlParams.get('event_id')) localStorage.setItem('currentEventId', eventId);
+      if (urlParams.get('sponsor_id')) localStorage.setItem('currentSponsorId', sponsorId);
+      if (urlParams.get('staff_id')) localStorage.setItem('currentStaffId', staffId);
+    }
+  }, [hasConsented, eventId, sponsorId, staffId]);
+
   // Leads State
   const [leads, setLeads] = useState<Lead[]>([]);
   const [currentLead, setCurrentLead] = useState<Partial<Lead>>({
@@ -616,6 +627,28 @@ const StaffPWA: React.FC = () => {
           <span className="text-xs font-medium">Safety</span>
         </button>
       </div>
+
+      {/* POPIA Consent Overlay */}
+      {!hasConsented && (
+        <div className="fixed inset-0 bg-black/95 backdrop-blur-md z-[200] flex flex-col items-center justify-center p-6 text-center">
+          <div className="w-20 h-20 bg-gray-900 border border-gray-800 rounded-2xl flex items-center justify-center mb-8">
+            <span className="text-4xl">🔐</span>
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-4">Staff Access</h2>
+          <p className="text-gray-400 mb-8 max-w-sm">
+            To ensure secure lead capturing and safety tracking, we store a session ID on your device. By continuing, you consent to our use of local storage for these essential event functions.
+          </p>
+          <button
+            onClick={() => {
+              localStorage.setItem('naveaze_consent', 'true');
+              setHasConsented(true);
+            }}
+            className="w-full max-w-sm py-4 bg-red-600 hover:bg-red-700 text-white font-bold text-lg rounded-2xl transition-colors shadow-[0_0_20px_rgba(220,38,38,0.3)] border-2 border-white/10"
+          >
+            Accept & Continue
+          </button>
+        </div>
+      )}
     </div>
   );
 };

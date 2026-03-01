@@ -76,17 +76,23 @@ type Tab = 'directory' | 'map' | 'scanner';
 const AttendeePWANew: React.FC = () => {
   // Arrival modal state
   const [showArrivalModal, setShowArrivalModal] = useState(false);
-  const [attendeeId] = useState(() => localStorage.getItem('naveaze_attendee_id') || `anon_${crypto.randomUUID()}`);
+  const [attendeeId] = useState(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get('attendee_id') || localStorage.getItem('naveaze_attendee_id') || `anon_${crypto.randomUUID()}`;
+  });
   const [lastLocationPing, setLastLocationPing] = useState(0);
 
-  // SOS State
+  // SOS & Consent State
   const [sosLoading, setSosLoading] = useState(false);
   const [showSosModal, setShowSosModal] = useState(false);
+  const [hasConsented, setHasConsented] = useState(() => localStorage.getItem('naveaze_consent') === 'true');
 
   // Initialize random anonymous user ID for live tracking
   useEffect(() => {
-    localStorage.setItem('naveaze_attendee_id', attendeeId);
-  }, [attendeeId]);
+    if (hasConsented) {
+      localStorage.setItem('naveaze_attendee_id', attendeeId);
+    }
+  }, [attendeeId, hasConsented]);
   // Debug mode for testing
   const [debugMode, setDebugMode] = useState(false);
   // Screen flow state
@@ -1864,6 +1870,28 @@ const AttendeePWANew: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* POPIA Consent Overlay */}
+      {!hasConsented && (
+        <div className="fixed inset-0 bg-black/95 backdrop-blur-md z-[200] flex flex-col items-center justify-center p-6 text-center">
+          <div className="w-20 h-20 bg-[#1C1C1F] border border-[#2A2A2A] rounded-2xl flex items-center justify-center mb-8">
+            <span className="text-4xl">🍪</span>
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-4">Welcome to NavEaze</h2>
+          <p className="text-white/60 mb-8 max-w-sm">
+            To provide continuous navigation and connect you to onsite security, we store a minimal, anonymous session ID on your device. By continuing, you agree to our use of local storage for these essential features.
+          </p>
+          <button
+            onClick={() => {
+              localStorage.setItem('naveaze_consent', 'true');
+              setHasConsented(true);
+            }}
+            className="w-full max-w-sm py-4 bg-brand-yellow hover:bg-yellow-400 text-black font-bold text-lg rounded-2xl transition-colors shadow-[0_0_20px_rgba(255,215,0,0.3)]"
+          >
+            Accept & Continue
+          </button>
+        </div>
+      )}
 
       {/* Floating SOS Button */}
       {activeTab !== 'scanner' && (
