@@ -332,9 +332,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto">
-          <div className="py-6">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <main className={cn("flex-1 overflow-y-auto", (location.pathname.startsWith('/map-editor') || location.pathname.startsWith('/security')) ? "bg-gray-900 h-full" : "bg-gray-100")}>
+          <div className={cn((location.pathname.startsWith('/map-editor') || location.pathname.startsWith('/security')) ? "h-full w-full" : "py-6")}>
+            <div className={cn((location.pathname.startsWith('/map-editor') || location.pathname.startsWith('/security')) ? "h-full w-full" : "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8")}>
               {children}
             </div>
           </div>
