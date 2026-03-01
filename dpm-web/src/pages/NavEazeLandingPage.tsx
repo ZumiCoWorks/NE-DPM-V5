@@ -73,18 +73,18 @@ export const NavEazeLandingPage: React.FC = () => {
                         <h2 className="text-6xl sm:text-7xl md:text-8xl font-poppins font-black text-white mb-6 leading-tight">
                             {mode === 'architect' ? (
                                 <>
-                                    <span className="text-logic-blue">Eradicate</span> <br className="hidden md:block" />The Black Box
+                                    <span className="text-logic-blue">Master</span> <br className="hidden md:block" />Your Venue
                                 </>
                             ) : (
                                 <>
-                                    <span className="text-naveaze-red">Certainty</span> <br className="hidden md:block" />in Chaos
+                                    <span className="text-naveaze-red">Navigate</span> <br className="hidden md:block" />With Ease
                                 </>
                             )}
                         </h2>
                         <p className="text-xl md:text-2xl font-inter text-white/70 max-w-3xl mx-auto">
                             {mode === 'architect'
-                                ? 'Transform crowd movement into actionable intelligence. Justify safety to insurers, monitor real-time CDV (Crowd Density Value), and prevent bottlenecks before they happen.'
-                                : 'Navigate "concrete data holes" with zero friction. No app downloads required. We are the invisible layer that provides psychological safety and keeps your tribe together.'}
+                                ? 'Design interactive floorplans, monitor real-time attendee flow, and manage gamified AR experiences from a single unified dashboard.'
+                                : 'Find your way through complex events without downloading an app. Participate in interactive scavenger hunts and stay connected to your group.'}
                         </p>
                     </div>
 
@@ -93,36 +93,36 @@ export const NavEazeLandingPage: React.FC = () => {
                         {mode === 'architect' ? (
                             <>
                                 <FeatureCard
-                                    title="Financial Assurance"
-                                    description="Digitize the emergency response audit trail to provide insurers and OHS auditors with exact timestamped data."
+                                    title="Unified Map Editor"
+                                    description="Upload static floorplans, convert them to interactive digital maps, and place routing nodes instantly."
                                     color="logic-blue"
                                 />
                                 <FeatureCard
-                                    title="The Red Alert Engine"
-                                    description="Automated logic that monitors CDV (Crowd Density Value) to dictate crowd flow and trigger emergency protocols."
+                                    title="AR Scavenger Hunts"
+                                    description="Create location-based gamification campaigns to drive attendee engagement and capture sponsor leads."
                                     color="logic-blue"
                                 />
                                 <FeatureCard
-                                    title="QR-Anchoring Logic"
-                                    description="Infinitely scalable, zero CapEx solution to fix GPS drift in massive concrete venues without expensive Bluetooth beacons."
+                                    title="Real-Time Dashboard"
+                                    description="Track active users, live heatmap density, and event statistics straight from the control center."
                                     color="logic-blue"
                                 />
                             </>
                         ) : (
                             <>
                                 <FeatureCard
-                                    title="The Invisible Guardian"
-                                    description="A Tech-Lite PWA with zero downloads required. We stay perfectly invisible until you need us."
+                                    title="Frictionless PWA"
+                                    description="Access interactive venue maps instantly through your browser. No app store downloads or installations required."
                                     color="naveaze-red"
                                 />
                                 <FeatureCard
-                                    title="The Distress Pin"
-                                    description="Drop secure emergency markers that instantly alert on-ground staff to your exact VIP location."
+                                    title="Interactive Wayfinding"
+                                    description="Follow the path to your destination with dynamic routing overlaid on the event floorplan."
                                     color="naveaze-red"
                                 />
                                 <FeatureCard
-                                    title="POPIA Compliant"
-                                    description="Complete privacy by design. Navigate as an anonymous coordinate without handing over personal data."
+                                    title="Location Sharing"
+                                    description="Staff and organizers can track VIPs and securely monitor team locations across the venue."
                                     color="naveaze-red"
                                 />
                             </>
