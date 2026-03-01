@@ -21,7 +21,7 @@ export const NavEazeLandingPage: React.FC = () => {
     const tagline =
         mode === 'architect'
             ? 'Turning physical movement into digital currency.'
-            : 'Find your way. Keep your tribe.';
+            : 'Certainty in Chaos. Find your way. Keep your tribe.';
 
     return (
         <div className="min-h-screen bg-ultra-dark relative">
@@ -73,18 +73,18 @@ export const NavEazeLandingPage: React.FC = () => {
                         <h2 className="text-5xl font-poppins font-black text-white mb-6">
                             {mode === 'architect' ? (
                                 <>
-                                    <span className="text-logic-blue">Data-Driven</span> Insights
+                                    <span className="text-logic-blue">Eradicate</span> The Black Box
                                 </>
                             ) : (
                                 <>
-                                    <span className="text-naveaze-red">Human-Centered</span> Navigation
+                                    <span className="text-naveaze-red">Certainty</span> in Chaos
                                 </>
                             )}
                         </h2>
                         <p className="text-xl font-inter text-white/70 max-w-3xl mx-auto">
                             {mode === 'architect'
-                                ? 'Transform crowd movement into actionable intelligence. Track ROI, CDV (Crowd Density Value), and optimize your event operations with real-time analytics.'
-                                : 'Never lose your friends in the crowd. NavEaze keeps your tribe together with intuitive wayfinding, group tracking, and psychological safety features.'}
+                                ? 'Transform crowd movement into actionable intelligence. Justify safety to insurers, monitor real-time CDV (Crowd Density Value), and prevent bottlenecks before they happen.'
+                                : 'Navigate "concrete data holes" with zero friction. No app downloads required. We are the invisible layer that provides psychological safety and keeps your tribe together.'}
                         </p>
                     </div>
                 </div>
@@ -129,18 +129,18 @@ export const NavEazeLandingPage: React.FC = () => {
                         {/* Architect Feature Grid */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-16">
                             <FeatureCard
-                                title="ROI Tracking"
-                                description="Measure event success with comprehensive analytics and crowd flow optimization."
+                                title="Financial Assurance"
+                                description="Digitize the emergency response audit trail to provide insurers and OHS auditors with exact timestamped data."
                                 color="logic-blue"
                             />
                             <FeatureCard
-                                title="CDV Metrics"
-                                description="Crowd Density Value calculations for safety compliance and capacity planning."
+                                title="The Red Alert Engine"
+                                description="Automated logic that monitors CDV (Crowd Density Value) to dictate crowd flow and trigger emergency protocols."
                                 color="logic-blue"
                             />
                             <FeatureCard
-                                title="Heat Mapping"
-                                description="Visual density overlays showing high-traffic zones and bottlenecks in real-time."
+                                title="QR-Anchoring Logic"
+                                description="Infinitely scalable, zero CapEx solution to fix GPS drift in massive concrete venues without expensive Bluetooth beacons."
                                 color="logic-blue"
                             />
                         </div>
@@ -223,18 +223,18 @@ export const NavEazeLandingPage: React.FC = () => {
                         {/* Companion Feature Grid */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-16">
                             <FeatureCard
-                                title="Find Your Tribe"
-                                description="Keep track of your friends with real-time location sharing and group features."
+                                title="The Invisible Guardian"
+                                description="A Tech-Lite PWA with zero downloads required. We stay perfectly invisible until you need us."
                                 color="naveaze-red"
                             />
                             <FeatureCard
-                                title="Safe Navigation"
-                                description="Avoid crowded areas and find the fastest routes with psychological safety in mind."
+                                title="The Distress Pin"
+                                description="Drop secure emergency markers that instantly alert on-ground staff to your exact VIP location."
                                 color="naveaze-red"
                             />
                             <FeatureCard
-                                title="Social Features"
-                                description="Connect with attendees, share experiences, and never feel lost in the crowd."
+                                title="POPIA Compliant"
+                                description="Complete privacy by design. Navigate as an anonymous coordinate without handing over personal data."
                                 color="naveaze-red"
                             />
                         </div>
