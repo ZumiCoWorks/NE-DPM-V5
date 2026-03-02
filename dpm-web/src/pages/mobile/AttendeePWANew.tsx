@@ -235,7 +235,7 @@ const AttendeePWANew: React.FC = () => {
     const newDistance = calculateDistance(currentGPS, targetGPS);
     const newBearing = calculateBearing(currentGPS, targetGPS);
 
-    if (Math.abs(newDistance - distanceToTarget) > 1) {
+    if (Math.abs(newDistance - distanceToTarget) > 0.5) {
       setDistanceToTarget(newDistance);
       console.log('📍 Distance to', targetName + ':', newDistance.toFixed(1) + 'm');
     }
@@ -570,35 +570,33 @@ const AttendeePWANew: React.FC = () => {
               });
           }
 
-          // Convert GPS to floorplan coordinates if we have event bounds
           if (event.gps_bounds_ne_lat && event.gps_bounds_sw_lat) {
             const gpsBounds: GPSBounds = {
               ne: { lat: event.gps_bounds_ne_lat, lng: event.gps_bounds_ne_lng! },
               sw: { lat: event.gps_bounds_sw_lat, lng: event.gps_bounds_sw_lng! }
             };
 
-            if (isWithinBounds(gps, gpsBounds)) {
-              let floorplanCoord = gpsToFloorplan(gps, gpsBounds, { width: 1000, height: 1000 });
+            let floorplanCoord = gpsToFloorplan(gps, gpsBounds, { width: 1000, height: 1000 });
 
-              // Apply GPS snapping if accuracy is good and we have graph data
-              if (isGPSAccuracyGood(accuracy) && graphSegments.length > 0) {
-                const snapped = snapToNearestPathSegment(
-                  floorplanCoord,
-                  graphSegments,
-                  graphNodes,
-                  50 // max 50px (~5m) snap distance
-                );
-                floorplanCoord = snapped;
-                console.log('📍 GPS snapped to path');
-              }
-
-              setCurrentLocation({
-                x: floorplanCoord.x,
-                y: floorplanCoord.y,
-                source: 'gps',
-                accuracy
-              });
+            // Apply GPS snapping if accuracy is good and we have graph data
+            if (isGPSAccuracyGood(accuracy) && graphSegments.length > 0) {
+              // Only snap if we are reasonably close to the venue or path
+              const snapped = snapToNearestPathSegment(
+                floorplanCoord,
+                graphSegments,
+                graphNodes,
+                50 // max 50px (~5m) snap distance
+              );
+              floorplanCoord = snapped;
+              console.log('📍 GPS snapped to path');
             }
+
+            setCurrentLocation({
+              x: floorplanCoord.x,
+              y: floorplanCoord.y,
+              source: 'gps',
+              accuracy
+            });
           }
         },
         (error: any) => {
@@ -617,7 +615,7 @@ const AttendeePWANew: React.FC = () => {
     if (!selectedEvent?.id || !supabase) return;
     setSosLoading(true);
     try {
-      await (supabase.from('safety_alerts') as any).insert({
+      const { error } = await (supabase.from('safety_alerts') as any).insert({
         event_id: selectedEvent.id,
         user_id: attendeeId,
         type: 'sos',
@@ -625,6 +623,9 @@ const AttendeePWANew: React.FC = () => {
         gps_lat: null,
         gps_lng: null
       });
+
+      if (error) throw error;
+
       setShowSosModal(false);
       alert('Emergency alert sent to onsite security.');
     } catch (e) {
@@ -632,9 +633,7 @@ const AttendeePWANew: React.FC = () => {
     } finally {
       setSosLoading(false);
     }
-  };
-
-  // Handle event selection
+  };    // Handle event selection
   const handleEventSelect = async (event: EventData) => {
     console.log('🎯 Event selected:', event.name, event.id);
     setSelectedEvent(event);
@@ -937,6 +936,16 @@ const AttendeePWANew: React.FC = () => {
       setCameraStream(null);
     }
   };
+
+  // E2E test hook — Playwright injects QR payloads without needing a real camera.
+  // Dispatching: window.dispatchEvent(new CustomEvent('e2e:qr-inject', { detail: '{"x":400,"y":300}' }))
+  const qrHandlerRef = useRef(handleQRCodeDetected);
+  useEffect(() => { qrHandlerRef.current = handleQRCodeDetected; });
+  useEffect(() => {
+    const handler = (e: Event) => qrHandlerRef.current((e as CustomEvent<string>).detail);
+    window.addEventListener('e2e:qr-inject', handler);
+    return () => window.removeEventListener('e2e:qr-inject', handler);
+  }, []);
 
   // Display temporary message
   const displayMessage = (msg: string, duration: number = 3000) => {
@@ -1266,17 +1275,38 @@ const AttendeePWANew: React.FC = () => {
             </div>
           </div>
 
-          {/* Brand arrow — exact wave animation from AD-Instagram-2025 SVGs */}
+          {/* Brand arrow — flowing animated chevron */}
           {(() => {
-            // Convert smoothly rotating compass bearing to discrete turn-by-turn chevron directions
+            // Priority 1: If following a path, lock the chevron to the turn direction
             let chevronRotation = 0; // Default: Straight Up
-            let normBearing = relativeBearing % 360;
-            if (normBearing > 180) normBearing -= 360;
-            if (normBearing < -180) normBearing += 360;
 
-            if (normBearing > 45 && normBearing <= 135) chevronRotation = 90; // Turn Right
-            else if (normBearing < -45 && normBearing >= -135) chevronRotation = -90; // Turn Left
-            else if (normBearing > 135 || normBearing < -135) chevronRotation = 180; // Turn Around
+            if (currentWaypoint) {
+              // Path-based rotation overlay
+              if (!isPointingCorrect) {
+                if (relativeBearing > 0 && relativeBearing < 150) {
+                  chevronRotation = 90; // Turn Right
+                } else if (relativeBearing < 0 && relativeBearing > -150) {
+                  chevronRotation = -90; // Turn Left
+                } else if (Math.abs(relativeBearing) >= 150) {
+                  chevronRotation = 180; // Turn Around
+                }
+              }
+            } else {
+              // Priority 2: Direct compass direction if no path
+              let normBearing = relativeBearing % 360;
+              if (normBearing > 180) normBearing -= 360;
+              if (normBearing < -180) normBearing += 360;
+
+              if (Math.abs(normBearing) < 30) {
+                chevronRotation = 0;
+              } else if (normBearing > 30 && normBearing <= 150) {
+                chevronRotation = 90;
+              } else if (normBearing < -30 && normBearing >= -150) {
+                chevronRotation = -90;
+              } else {
+                chevronRotation = 180;
+              }
+            }
 
             return (
               <div className="relative flex flex-col items-center mb-8">

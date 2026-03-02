@@ -179,7 +179,18 @@ export default function SecurityDashboard() {
                 console.log('🚨 REALTIME ALERT RECEIVED:', payload);
                 const newAlert = payload.new as Alert;
                 setAlerts(prev => [newAlert, ...prev]);
-                new Audio('/notification.mp3').play().catch((e) => console.log('Audio play failed:', e));
+                // Safe audio playback for E2E tests
+                if (typeof Audio !== 'undefined') {
+                    try {
+                        const audio = new Audio('/notification.mp3');
+                        const playPromise = audio.play();
+                        if (playPromise !== undefined) {
+                            playPromise.catch(e => console.log('Audio autoplay prevented by browser (common in tests/e2e):', e));
+                        }
+                    } catch (e) {
+                        console.error('Failed to instantiate Audio object:', e);
+                    }
+                }
             })
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'safety_alerts' }, (payload: any) => {
                 console.log('🔄 REALTIME UPDATE RECEIVED:', payload);

@@ -45,3 +45,7 @@ CREATE TRIGGER waitlist_updated_at
     BEFORE UPDATE ON waitlist
     FOR EACH ROW
     EXECUTE FUNCTION update_waitlist_updated_at();
+
+-- Grant necessary permissions to anonymous and authenticated users
+GRANT INSERT ON waitlist TO anon;
+GRANT INSERT, SELECT ON waitlist TO authenticated;

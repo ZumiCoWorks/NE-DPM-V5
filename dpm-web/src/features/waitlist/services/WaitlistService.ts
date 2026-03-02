@@ -25,7 +25,7 @@ export class WaitlistService {
     }> {
         try {
             if (!supabase) throw new Error('Supabase client not initialized');
-            const { data, error } = await supabase
+            const { error } = await supabase
                 .from('waitlist')
                 .insert([
                     {
@@ -33,9 +33,7 @@ export class WaitlistService {
                         email: signup.email,
                         organization: signup.organization || null,
                     },
-                ])
-                .select()
-                .single();
+                ]);
 
             if (error) {
                 // Check for duplicate email
@@ -50,7 +48,6 @@ export class WaitlistService {
 
             return {
                 success: true,
-                data: data as WaitlistSignup,
             };
         } catch (error) {
             console.error('Error adding to waitlist:', error);

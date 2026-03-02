@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { LoadingSpinner } from '../../components/ui/loadingSpinner'
-import { ArrowLeft, CheckCircle2, Lock, Circle } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, Lock, Circle, Copy } from 'lucide-react'
 
 interface Event {
     id: string
@@ -28,6 +28,24 @@ export const EventSetupPage: React.FC = () => {
     const [hasFloorplan, setHasFloorplan] = useState(false)
     const [hasGPSBounds, setHasGPSBounds] = useState(false)
     const [hasNavigationPoints, setHasNavigationPoints] = useState(false)
+
+    // Magic Link Generator State
+    const [attendeePrefix, setAttendeePrefix] = useState('')
+    const [generatedLink, setGeneratedLink] = useState('')
+
+    const handleGenerateLink = () => {
+        if (!attendeePrefix) return;
+        const id = `${attendeePrefix.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${Math.floor(Math.random() * 10000)}`
+        const baseUrl = window.location.hostname === 'localhost' ? 'http://localhost:5173' : 'https://naveaze-attendee-app.vercel.app'
+        setGeneratedLink(`${baseUrl}?attendee_id=${id}&event_id=${eventId}`)
+    }
+
+    const copyToClipboard = () => {
+        if (generatedLink) {
+            navigator.clipboard.writeText(generatedLink)
+            alert('Magic link copied to clipboard!')
+        }
+    }
 
     useEffect(() => {
         if (eventId) {
@@ -298,6 +316,45 @@ export const EventSetupPage: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            {/* Magic Link Generator */}
+            <div className="bg-white shadow rounded-lg p-6 border-2 border-brand-yellow/30 relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-1 h-full bg-brand-yellow"></div>
+                <h2 className="text-lg font-bold text-gray-900 mb-2">Generate Attendee Magic Link (WhatsApp)</h2>
+                <p className="text-sm text-gray-600 mb-4">
+                    Create persistent, trackable links to distribute via WhatsApp. These bypass the volatile in-app browser cache.
+                </p>
+
+                <div className="flex gap-3 mb-4">
+                    <input
+                        type="text"
+                        value={attendeePrefix}
+                        onChange={(e) => setAttendeePrefix(e.target.value)}
+                        placeholder="Enter name or group (e.g. VIP_John)"
+                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-yellow focus:border-brand-yellow outline-none"
+                    />
+                    <button
+                        onClick={handleGenerateLink}
+                        disabled={!attendeePrefix}
+                        className="px-6 py-2 bg-brand-yellow text-brand-black font-bold rounded-lg shadow-sm hover:bg-yellow-400 disabled:opacity-50 transition-colors"
+                    >
+                        Generate URL
+                    </button>
+                </div>
+
+                {generatedLink && (
+                    <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg flex items-center justify-between">
+                        <code className="text-sm text-blue-600 break-all mr-4">{generatedLink}</code>
+                        <button
+                            onClick={copyToClipboard}
+                            className="p-2 bg-gray-200 hover:bg-gray-300 rounded-md transition-colors flex-shrink-0"
+                            title="Copy to clipboard"
+                        >
+                            <Copy className="h-5 w-5 text-gray-700" />
+                        </button>
+                    </div>
+                )}
+            </div>
         </div>
     )
 }

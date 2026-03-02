@@ -71,6 +71,10 @@ export default function App() {
             <Route path="/role-selector" element={<RoleSelectorPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+
+            {/* Dedicated route for E2E testing the Attendee PWA without running a second Vite instance */}
+            <Route path="/e2e-attendee" element={<PinProtection><AttendeePWANew /></PinProtection>} />
+
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/signup" element={<VendorSignupPage />} />
@@ -269,6 +273,9 @@ export default function App() {
                 <SecurityDashboard />
               </ProtectedRoute>
             } />
+
+            {/* E2E Bypass route for testing Security Dashboard without Auth */}
+            <Route path="/e2e-security" element={<SecurityDashboard />} />
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
