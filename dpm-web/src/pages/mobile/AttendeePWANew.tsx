@@ -246,14 +246,16 @@ const AttendeePWANew: React.FC = () => {
       console.log('🧭 Bearing to', targetName + ':', newBearing.toFixed(0) + '°');
     }
 
-    if (newDistance < 5 && navigationPath.length > 0 && currentWaypointIndex < navigationPath.length - 1) {
+    // 15 meters is a reasonable radius for consumer GPS to register hitting a waypoint
+    if (newDistance < 15 && navigationPath.length > 0 && currentWaypointIndex < navigationPath.length - 1) {
       const nextIndex = currentWaypointIndex + 1;
       setCurrentWaypointIndex(nextIndex);
       triggerHaptic('medium');
       console.log('✅ Reached waypoint! Moving to:', navigationPath[nextIndex].name);
     }
 
-    if (newDistance < 3 && distanceToTarget >= 3 && currentWaypointIndex === navigationPath.length - 1) {
+    // 12 meters to trigger arrival modal at final destination
+    if (newDistance < 12 && distanceToTarget >= 12 && currentWaypointIndex === navigationPath.length - 1) {
       triggerHaptic('heavy');
       setShowArrivalModal(true);
     }
@@ -1154,8 +1156,8 @@ const AttendeePWANew: React.FC = () => {
 
   // PRECISION FINDING SCREEN (AirTag-style navigation)
   if (currentScreen === 'precision-finding') {
-    const isClose = distanceToTarget < 10;
-    const isVeryClose = distanceToTarget < 3;
+    const isClose = distanceToTarget < 20;
+    const isVeryClose = distanceToTarget < 12;
     const isPointingCorrect = Math.abs(relativeBearing) < 30;
 
     // Get current waypoint name for path-based navigation
