@@ -17,6 +17,7 @@ L.Icon.Default.mergeOptions({
 });
 
 interface LeafletMapEditorProps {
+    eventId: string;
     floorplanId: string;
     floorplanUrl: string;
     gpsBounds: GPSBounds;
@@ -30,6 +31,8 @@ interface LeafletNode {
     lng: number;
     name: string;
     isPOI: boolean;
+    linkedNodeId?: string;
+    pointType?: string;
 }
 
 interface LeafletSegment {
@@ -62,7 +65,7 @@ function MapClickHandler({
 }
 
 const LeafletMapEditor: React.FC<LeafletMapEditorProps> = ({
-
+    eventId,
     floorplanId,
     floorplanUrl,
     gpsBounds,
@@ -158,7 +161,9 @@ const LeafletMapEditor: React.FC<LeafletMapEditorProps> = ({
                             lat: point.gps_lat,
                             lng: point.gps_lng,
                             name: point.name || point.poi_name || 'Unnamed',
-                            isPOI: point.is_destination || point.point_type === 'poi'
+                            isPOI: point.is_destination || point.point_type === 'poi',
+                            linkedNodeId: point.linked_node_id,
+                            pointType: point.point_type
                         }));
                     setNodes(loadedNodes);
 
@@ -283,7 +288,8 @@ const LeafletMapEditor: React.FC<LeafletMapEditorProps> = ({
                     lat,
                     lng,
                     name: nodeName,
-                    isPOI: drawMode === 'poi'
+                    isPOI: drawMode === 'poi',
+                    pointType: drawMode === 'poi' ? 'poi' : 'node'
                 };
 
                 setNodes([...nodes, newNode]);
@@ -399,10 +405,10 @@ const LeafletMapEditor: React.FC<LeafletMapEditorProps> = ({
         showMessage(`Exported ${graphNodes.length} nodes and ${graphSegments.length} segments`);
     };
 
-    const handleNodeEditSave = (updatedNode: { id: string; name: string; isPOI: boolean }) => {
+    const handleNodeEditSave = (updatedNode: { id: string; name: string; isPOI: boolean; linkedNodeId?: string; pointType?: string }) => {
         setNodes(nodes.map(n =>
             n.id === updatedNode.id
-                ? { ...n, name: updatedNode.name, isPOI: updatedNode.isPOI }
+                ? { ...n, name: updatedNode.name, isPOI: updatedNode.isPOI, linkedNodeId: updatedNode.linkedNodeId, pointType: updatedNode.pointType }
                 : n
         ));
         showMessage(`Updated: ${updatedNode.name}`);
@@ -640,6 +646,8 @@ const LeafletMapEditor: React.FC<LeafletMapEditorProps> = ({
             {/* Edit Modal */}
             {showEditModal && editingNode && (
                 <LeafletNodeEditModal
+                    eventId={eventId}
+                    floorplanId={floorplanId}
                     node={editingNode}
                     onSave={handleNodeEditSave}
                     onDelete={handleNodeDelete}

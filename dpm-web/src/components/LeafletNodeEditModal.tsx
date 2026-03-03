@@ -1,21 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { X, Trash2, MapPin } from 'lucide-react';
+import { X, Trash2, MapPin, Link as LinkIcon } from 'lucide-react';
 
 interface LeafletNodeEditModalProps {
+    eventId: string;
+    floorplanId: string;
     node: {
         id: string;
         lat: number;
         lng: number;
         name: string;
         isPOI: boolean;
+        linkedNodeId?: string;
+        pointType?: string;
     };
-    onSave: (updatedNode: { id: string; name: string; isPOI: boolean }) => void;
+    onSave: (updatedNode: { id: string; name: string; isPOI: boolean; linkedNodeId?: string; pointType?: string }) => void;
     onDelete: (nodeId: string) => void;
     onClose: () => void;
 }
 
 export const LeafletNodeEditModal: React.FC<LeafletNodeEditModalProps> = ({
+    eventId,
+    floorplanId,
     node,
     onSave,
     onDelete,
@@ -23,8 +29,62 @@ export const LeafletNodeEditModal: React.FC<LeafletNodeEditModalProps> = ({
 }) => {
     const [name, setName] = useState(node.name);
     const [isPOI, setIsPOI] = useState(node.isPOI);
+
+    // Transition Node State
+    const [isTransition, setIsTransition] = useState(node.pointType === 'transition' || !!node.linkedNodeId);
+    const [targetFloorplanId, setTargetFloorplanId] = useState<string>('');
+    const [targetNodeId, setTargetNodeId] = useState<string>(node.linkedNodeId || '');
+
+    // Data fetching state
+    const [availableFloorplans, setAvailableFloorplans] = useState<any[]>([]);
+    const [availableNodes, setAvailableNodes] = useState<any[]>([]);
+
     const [saving, setSaving] = useState(false);
     const [deleting, setDeleting] = useState(false);
+
+    // Fetch other floorplans for this event
+    useEffect(() => {
+        const fetchFloorplans = async () => {
+            if (!supabase || !eventId) return;
+            const query: any = supabase
+                .from('floorplans')
+                .select('id, name')
+                .eq('event_id', eventId);
+            const { data } = await query.neq('id', floorplanId);
+
+            if (data) {
+                setAvailableFloorplans(data);
+                // If we already have a linked node, we need to figure out its floorplan ID to populate the dropdown
+                if (node.linkedNodeId) {
+                    const { data: linkedNodeData } = await supabase
+                        .from('navigation_points')
+                        .select('floorplan_id')
+                        .eq('id', node.linkedNodeId)
+                        .single();
+                    if (linkedNodeData) {
+                        setTargetFloorplanId((linkedNodeData as any).floorplan_id);
+                    }
+                }
+            }
+        };
+        fetchFloorplans();
+    }, [eventId, floorplanId, node.linkedNodeId]);
+
+    // Fetch nodes when a target floorplan is selected
+    useEffect(() => {
+        const fetchNodes = async () => {
+            if (!supabase || !targetFloorplanId) {
+                setAvailableNodes([]);
+                return;
+            }
+            const { data } = await supabase
+                .from('navigation_points')
+                .select('id, name')
+                .eq('floorplan_id', targetFloorplanId);
+            if (data) setAvailableNodes(data as any[]);
+        };
+        fetchNodes();
+    }, [targetFloorplanId]);
 
     const handleSave = async () => {
         if (!name.trim()) {
@@ -32,8 +92,15 @@ export const LeafletNodeEditModal: React.FC<LeafletNodeEditModalProps> = ({
             return;
         }
 
+        if (isTransition && (!targetFloorplanId || !targetNodeId)) {
+            alert('Please select a target floorplan and node to link to, or uncheck Transition Node.');
+            return;
+        }
+
         try {
             setSaving(true);
+            const finalPointType = isTransition ? 'transition' : (isPOI ? 'poi' : 'node');
+            const finalLinkedNodeId = isTransition ? targetNodeId : null;
 
             // Update in database if it's a real node (not temp)
             if (supabase && !node.id.startsWith('node-')) {
@@ -41,8 +108,9 @@ export const LeafletNodeEditModal: React.FC<LeafletNodeEditModalProps> = ({
                     .from('navigation_points')
                     .update({
                         name: name.trim(),
-                        point_type: isPOI ? 'poi' : 'node',
-                        is_destination: isPOI
+                        point_type: finalPointType,
+                        is_destination: isPOI,
+                        linked_node_id: finalLinkedNodeId
                     })
                     .eq('id', node.id);
 
@@ -53,7 +121,13 @@ export const LeafletNodeEditModal: React.FC<LeafletNodeEditModalProps> = ({
                 }
             }
 
-            onSave({ id: node.id, name: name.trim(), isPOI });
+            onSave({
+                id: node.id,
+                name: name.trim(),
+                isPOI,
+                pointType: finalPointType,
+                linkedNodeId: finalLinkedNodeId || undefined
+            });
             onClose();
         } catch (err) {
             console.error('Error saving node:', err);
@@ -122,7 +196,7 @@ export const LeafletNodeEditModal: React.FC<LeafletNodeEditModalProps> = ({
                 <div className="flex items-center justify-between p-4 border-b">
                     <h3 className="text-lg font-semibold text-gray-900 flex items-center">
                         <MapPin className="h-5 w-5 mr-2 text-blue-600" />
-                        Edit {node.isPOI ? 'POI' : 'Node'}
+                        Edit {isTransition ? 'Transition Node' : (isPOI ? 'POI' : 'Node')}
                     </h3>
                     <button
                         onClick={onClose}
@@ -135,7 +209,7 @@ export const LeafletNodeEditModal: React.FC<LeafletNodeEditModalProps> = ({
                 {/* Content */}
                 <div className="p-4 space-y-4">
                     {/* GPS Coordinates */}
-                    <div className="bg-gray-50 p-3 rounded-md text-sm text-gray-600">
+                    <div className="bg-gray-50 p-3 rounded-md text-sm text-gray-600 border border-gray-100">
                         <p><strong>GPS:</strong> {node.lat.toFixed(6)}, {node.lng.toFixed(6)}</p>
                     </div>
 
@@ -149,33 +223,106 @@ export const LeafletNodeEditModal: React.FC<LeafletNodeEditModalProps> = ({
                             id="node-name"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            placeholder={isPOI ? "e.g., MTN Booth, Food Court" : "e.g., Intersection A, Waypoint 1"}
+                            placeholder={isTransition ? "e.g., Stairs to Level 5" : (isPOI ? "e.g., MTN Booth" : "e.g., Intersection A")}
                             className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                         />
                     </div>
 
                     {/* Type Toggle */}
-                    <div className="flex items-start space-x-3">
-                        <input
-                            type="checkbox"
-                            id="is-poi"
-                            checked={isPOI}
-                            onChange={(e) => setIsPOI(e.target.checked)}
-                            className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                        />
-                        <div className="flex-1">
-                            <label htmlFor="is-poi" className="font-medium text-gray-900 cursor-pointer">
-                                Mark as POI (Point of Interest)
-                            </label>
-                            <p className="text-sm text-gray-500 mt-1">
-                                POIs are destinations that attendees can navigate to
-                            </p>
+                    <div className="flex flex-col space-y-3 pt-2">
+                        <div className="flex items-start space-x-3">
+                            <input
+                                type="checkbox"
+                                id="is-poi"
+                                checked={isPOI}
+                                onChange={(e) => {
+                                    setIsPOI(e.target.checked);
+                                    if (e.target.checked) setIsTransition(false);
+                                }}
+                                className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            />
+                            <div className="flex-1">
+                                <label htmlFor="is-poi" className="font-medium text-gray-900 cursor-pointer">
+                                    Mark as POI (Point of Interest)
+                                </label>
+                                <p className="text-sm text-gray-500 mt-0.5">
+                                    Destinations that attendees can navigate to
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex items-start space-x-3 pt-2 border-t border-gray-100">
+                            <input
+                                type="checkbox"
+                                id="is-transition"
+                                checked={isTransition}
+                                onChange={(e) => {
+                                    setIsTransition(e.target.checked);
+                                    if (e.target.checked) setIsPOI(false);
+                                }}
+                                className="mt-1 h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                            />
+                            <div className="flex-1">
+                                <label htmlFor="is-transition" className="font-medium text-purple-900 cursor-pointer flex items-center">
+                                    <LinkIcon className="h-4 w-4 mr-1.5" />
+                                    Transition Node (Stairs/Doors)
+                                </label>
+                                <p className="text-sm text-gray-500 mt-0.5">
+                                    Link this node to another floorplan's map
+                                </p>
+                            </div>
                         </div>
                     </div>
+
+                    {/* Transition Linking Controls */}
+                    {isTransition && (
+                        <div className="mt-4 p-4 bg-purple-50 border border-purple-100 rounded-lg space-y-3">
+                            <div>
+                                <label className="block text-sm font-medium text-purple-900 mb-1">
+                                    Target Floorplan
+                                </label>
+                                <select
+                                    value={targetFloorplanId}
+                                    onChange={(e) => {
+                                        setTargetFloorplanId(e.target.value);
+                                        setTargetNodeId('');
+                                    }}
+                                    className="block w-full px-3 py-2 border border-purple-200 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 sm:text-sm bg-white"
+                                >
+                                    <option value="">Select a floorplan...</option>
+                                    {availableFloorplans.map(fp => (
+                                        <option key={fp.id} value={fp.id}>
+                                            {fp.name || 'Unnamed Floorplan'}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {targetFloorplanId && (
+                                <div>
+                                    <label className="block text-sm font-medium text-purple-900 mb-1">
+                                        Target Node
+                                    </label>
+                                    <select
+                                        value={targetNodeId}
+                                        onChange={(e) => setTargetNodeId(e.target.value)}
+                                        className="block w-full px-3 py-2 border border-purple-200 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 sm:text-sm bg-white"
+                                    >
+                                        <option value="">Select a node to link to...</option>
+                                        {availableNodes.map(node => (
+                                            <option key={node.id} value={node.id}>
+                                                {node.name || 'Unnamed Node'}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 {/* Footer */}
-                <div className="flex justify-between p-4 border-t bg-gray-50">
+                <div className="flex justify-between p-4 border-t bg-gray-50 rounded-b-lg">
                     <button
                         onClick={handleDelete}
                         disabled={deleting || saving}
@@ -193,7 +340,7 @@ export const LeafletNodeEditModal: React.FC<LeafletNodeEditModalProps> = ({
                         </button>
                         <button
                             onClick={handleSave}
-                            disabled={saving || deleting || !name.trim()}
+                            disabled={saving || deleting || !name.trim() || (isTransition && (!targetFloorplanId || !targetNodeId))}
                             className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {saving ? 'Saving...' : 'Save Changes'}
@@ -204,3 +351,4 @@ export const LeafletNodeEditModal: React.FC<LeafletNodeEditModalProps> = ({
         </div>
     );
 };
+

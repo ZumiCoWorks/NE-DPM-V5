@@ -76,9 +76,9 @@ export const UnifiedMapEditorPage: React.FC = () => {
     })();
   }, [eventId]);
 
-  // Load floorplan by event_id (same as Classic Editor)
+  // Load specific floorplan
   useEffect(() => {
-    if (!eventId || !supabase) return;
+    if (!eventId || !supabase || !floorplanIdParam) return;
 
     let mounted = true;
     (async () => {
@@ -86,9 +86,7 @@ export const UnifiedMapEditorPage: React.FC = () => {
         const { data, error } = await supabase
           .from('floorplans')
           .select('id, image_url, image_width, image_height, scale_meters_per_pixel, rotation_degrees, is_calibrated')
-          .eq('event_id', eventId)
-          .order('created_at', { ascending: false })
-          .limit(1)
+          .eq('id', floorplanIdParam)
           .single();
 
         if (error) {
@@ -143,21 +141,19 @@ export const UnifiedMapEditorPage: React.FC = () => {
     })();
 
     return () => { mounted = false };
-  }, [eventId]);
+  }, [eventId, floorplanIdParam]);
 
 
   // Fetch GPS bounds for Leaflet editor - use calibrated bounds from floorplan
   useEffect(() => {
-    if (!eventId || !supabase) return
+    if (!eventId || !supabase || !floorplanId) return
 
     (async () => {
-      // First, try to get calibrated bounds from floorplans table
+      // First, try to get calibrated bounds from the specific floorplan
       const { data: floorplanData, error: floorplanError } = await supabase
         .from('floorplans')
         .select('is_calibrated, gps_top_left_lat, gps_top_left_lng, gps_top_right_lat, gps_top_right_lng, gps_bottom_left_lat, gps_bottom_left_lng, gps_bottom_right_lat, gps_bottom_right_lng')
-        .eq('event_id', eventId)
-        .order('created_at', { ascending: false })
-        .limit(1)
+        .eq('id', floorplanId)
         .single()
 
       if (!floorplanError && floorplanData) {
@@ -229,7 +225,7 @@ export const UnifiedMapEditorPage: React.FC = () => {
         }
       }
     })()
-  }, [eventId])
+  }, [eventId, floorplanId])
 
   // Load navigation points for QR code generation
   useEffect(() => {
@@ -818,6 +814,7 @@ export const UnifiedMapEditorPage: React.FC = () => {
 
         {gpsBounds && initialFloorplanUrl ? (
           <LeafletMapEditor
+            eventId={eventId || ''}
             floorplanId={floorplanId || ''}
             floorplanUrl={initialFloorplanUrl}
             gpsBounds={gpsBounds}

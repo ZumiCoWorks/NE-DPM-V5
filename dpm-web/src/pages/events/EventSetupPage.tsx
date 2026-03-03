@@ -11,6 +11,13 @@ interface Event {
     end_date: string
 }
 
+interface Floorplan {
+    id: string
+    name: string
+    image_url: string
+    is_calibrated: boolean
+}
+
 interface SetupStep {
     id: string
     title: string
@@ -25,6 +32,7 @@ export const EventSetupPage: React.FC = () => {
     const navigate = useNavigate()
     const [event, setEvent] = useState<Event | null>(null)
     const [loading, setLoading] = useState(true)
+    const [floorplans, setFloorplans] = useState<Floorplan[]>([])
     const [hasFloorplan, setHasFloorplan] = useState(false)
     const [hasGPSBounds, setHasGPSBounds] = useState(false)
     const [hasNavigationPoints, setHasNavigationPoints] = useState(false)
@@ -69,29 +77,33 @@ export const EventSetupPage: React.FC = () => {
             setEvent(eventData as unknown as Event)
 
             if (!supabase) throw new Error('Supabase client not initialized');
-            // Check for floorplan
+            // Check for floorplans
             const { data: floorplanData, error: floorplanError } = await supabase
                 .from('floorplans')
-                .select('id, is_calibrated')
+                .select('id, name, image_url, is_calibrated')
                 .eq('event_id', eventId)
-                .limit(1)
-                .single()
+                .order('created_at', { ascending: true })
 
             if (floorplanError && (floorplanError as any).code !== 'PGRST116') {
-                console.error('Error loading floorplan:', floorplanError)
+                console.error('Error loading floorplans:', floorplanError)
             }
 
-            const plan = floorplanData as any;
-            setHasFloorplan(!!plan)
-            setHasGPSBounds(!!plan?.is_calibrated)
+            const plans = (floorplanData || []) as Floorplan[];
+            setFloorplans(plans)
+            setHasFloorplan(plans.length > 0)
+            setHasGPSBounds(plans.some(p => p.is_calibrated))
 
             // Check for navigation points (using floorplan-centric schema)
-            if (plan?.id) {
+            if (plans.length > 0) {
                 if (!supabase) throw new Error('Supabase client not initialized');
+
+                // Get all floorplan IDs
+                const planIds = plans.map(p => p.id);
+
                 const { data: navPoints, error: navError } = await supabase
                     .from('navigation_points')
                     .select('id')
-                    .eq('floorplan_id', plan.id)
+                    .in('floorplan_id', planIds)
                     .limit(1)
 
                 if (navError && (navError as any).code !== 'PGRST116') {
@@ -300,22 +312,61 @@ export const EventSetupPage: React.FC = () => {
                             </p>
                         </div>
                     </div>
-                    <div className="mt-4 flex space-x-3">
-                        <Link
-                            to={`/map-editor?eventId=${eventId}`}
-                            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700"
-                        >
-                            View Map Editor
-                        </Link>
-                        <Link
-                            to="/events"
-                            className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50"
-                        >
-                            Back to Events
-                        </Link>
-                    </div>
                 </div>
             )}
+
+            {/* Event Floorplans Gallery */}
+            <div className="bg-white shadow rounded-lg p-6 border-2 border-gray-100">
+                <div className="flex items-center justify-between mb-6">
+                    <div>
+                        <h2 className="text-lg font-bold text-gray-900">Event Floorplans</h2>
+                        <p className="text-sm text-gray-600">Upload multiple floorplans to create a multi-level or hybrid indoor/outdoor campus.</p>
+                    </div>
+                    <Link
+                        to={`/map-editor?eventId=${eventId}`}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md shadow-sm transition-colors"
+                    >
+                        + Add Floorplan
+                    </Link>
+                </div>
+
+                {floorplans.length === 0 ? (
+                    <div className="text-center py-12 bg-gray-50 border border-dashed border-gray-300 rounded-lg">
+                        <p className="text-gray-500">No floorplans uploaded yet.</p>
+                        <p className="text-sm text-gray-400 mt-1">Upload your first map to start building the navigation graph.</p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {floorplans.map((f, i) => (
+                            <div key={f.id} className="group relative bg-gray-50 rounded-xl overflow-hidden border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all">
+                                <Link to={`/map-editor?eventId=${eventId}&floorplanId=${f.id}`} className="block">
+                                    <div className="aspect-[4/3] bg-gray-200 w-full overflow-hidden">
+                                        {f.image_url ? (
+                                            <img src={f.image_url} alt={f.name || `Floorplan ${i + 1}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center text-gray-400">No Image</div>
+                                        )}
+                                    </div>
+                                    <div className="p-4">
+                                        <h3 className="font-semibold text-gray-900 truncate">{f.name || `Floorplan ${i + 1}`}</h3>
+                                        <div className="flex items-center mt-2">
+                                            {f.is_calibrated ? (
+                                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                                    GPS Calibrated
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                                                    Indoor (No GPS)
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </Link>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
 
             {/* Magic Link Generator */}
             <div className="bg-white shadow rounded-lg p-6 border-2 border-brand-yellow/30 relative overflow-hidden">

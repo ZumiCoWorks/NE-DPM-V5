@@ -126,6 +126,7 @@ const AttendeePWANew: React.FC = () => {
   const [navigationPath, setNavigationPath] = useState<GraphNode[]>([]); // Turn-by-turn waypoints
   const [currentWaypointIndex, setCurrentWaypointIndex] = useState<number>(0);
   const [turnByTurnDirections, setTurnByTurnDirections] = useState<string[]>([]); // NEW: Text directions
+  const [currentFloorplanId, setCurrentFloorplanId] = useState<string | null>(null);
 
   // Phase 1: Off-path detection and auto re-routing
   const [isOffPath, setIsOffPath] = useState(false);
@@ -413,7 +414,10 @@ const AttendeePWANew: React.FC = () => {
   };
 
   // Fetch navigation data for selected event
-  const fetchNavigationData = async (eventId: string) => {
+  const fetchNavigationData = async (eventId: string, targetFloorplanId?: string) => {
+    // Determine which floorplan to load
+    const activeFloorplanId = targetFloorplanId || currentFloorplanId;
+
     // Try cache first if offline
     if (!isOnline()) {
       console.log('📴 Offline mode - loading navigation data from cache');
@@ -441,30 +445,43 @@ const AttendeePWANew: React.FC = () => {
         import.meta.env.VITE_SUPABASE_ANON_KEY
       );
 
-      // Fetch navigation points
+      // Fetch Floorplan details
+      const floorplanQuery = supabase
+        .from('floorplans')
+        .select('*');
+
+      if (activeFloorplanId) {
+        floorplanQuery.eq('id', activeFloorplanId);
+      } else {
+        floorplanQuery.eq('event_id', eventId).order('created_at', { ascending: true });
+      }
+
+      const { data: floorplanResults, error: floorplanErr } = await floorplanQuery.maybeSingle();
+
+      const floorplan = floorplanResults;
+      if (floorplanErr) throw floorplanErr;
+
+      if (floorplan) {
+        setCurrentFloorplanId(floorplan.id);
+      }
+
+      // Fetch navigation points for THIS floorplan only
       const { data: points, error: pointsErr } = await supabase
         .from('navigation_points')
         .select('*')
-        .eq('event_id', eventId);
+        .eq('event_id', eventId)
+        .eq('floorplan_id', floorplan?.id);
 
       if (pointsErr) throw pointsErr;
 
-      // Fetch navigation segments
+      // Fetch navigation segments for THIS floorplan only
       const { data: segments, error: segmentsErr } = await supabase
         .from('navigation_segments')
         .select('*')
-        .eq('event_id', eventId);
+        .eq('event_id', eventId)
+        .eq('floorplan_id', floorplan?.id);
 
       if (segmentsErr) throw segmentsErr;
-
-      // Fetch floorplan
-      const { data: floorplan, error: floorplanErr } = await supabase
-        .from('floorplans')
-        .select('*')
-        .eq('event_id', eventId)
-        .maybeSingle();
-
-      if (floorplanErr) throw floorplanErr;
 
       // Extract GPS bounds if available
       let bounds = null;
@@ -635,14 +652,19 @@ const AttendeePWANew: React.FC = () => {
     } finally {
       setSosLoading(false);
     }
-  };    // Handle event selection
-  const handleEventSelect = async (event: EventData) => {
-    console.log('🎯 Event selected:', event.name, event.id);
-    setSelectedEvent(event);
-    localStorage.setItem('selectedEventId', event.id);
+  };
 
-    // Fetch navigation data
-    console.log('📡 Fetching navigation data for event:', event.id);
+  // Handle event selection
+  const handleEventSelect = async (event: EventData) => {
+    setSelectedEvent(event);
+    setLoadingEvents(true);
+    setError('');
+
+    // Clear floorplan state to avoid flashes
+    setFloorplanImageUrl(null);
+    setCurrentFloorplanId(null);
+    setCurrentLocation(null);
+
     await fetchNavigationData(event.id);
 
     // Enable GPS if outdoor/hybrid
@@ -651,6 +673,7 @@ const AttendeePWANew: React.FC = () => {
       enableGPSTracking(event);
     }
 
+    setLoadingEvents(false);
     setCurrentScreen('main');
   };
 
@@ -883,7 +906,7 @@ const AttendeePWANew: React.FC = () => {
 
         const { data: point, error } = await supabase
           .from('navigation_points')
-          .select('x_coord, y_coord, name')
+          .select('x_coord, y_coord, name, floorplan_id')
           .eq('id', parsed.anchor_id)
           .eq('event_id', parsed.event_id)
           .single();
@@ -895,6 +918,14 @@ const AttendeePWANew: React.FC = () => {
         }
 
         console.log('✅ Found navigation point:', point.name);
+
+        // Check if we need to switch maps
+        if (point.floorplan_id && point.floorplan_id !== currentFloorplanId) {
+          console.log('🔄 Switching map to floorplan:', point.floorplan_id);
+          displayMessage(`Switching map: ${point.name}...`, 2000);
+          await fetchNavigationData(parsed.event_id, point.floorplan_id);
+        }
+
         setCurrentLocation({
           x: point.x_coord,
           y: point.y_coord,
@@ -1596,10 +1627,10 @@ const AttendeePWANew: React.FC = () => {
 
   // MAIN APP SCREEN (with tabs)
   return (
-    <div className="flex flex-col h-screen max-w-md mx-auto bg-white shadow-xl">
+    <div className="flex flex-col h-screen max-w-md mx-auto bg-brand-black text-white relative shadow-2xl overflow-hidden font-inter">
       {/* Message Toast */}
       {showMessage && (
-        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-brand-black text-brand-yellow px-6 py-3 rounded-full shadow-lg border-2 border-brand-yellow animate-bounce">
+        <div className="fixed top-6 left-1/2 transform -translate-x-1/2 z-[100] bg-brand-yellow/90 backdrop-blur-md text-brand-black px-6 py-3 rounded-2xl shadow-[0_0_30px_rgba(255,215,0,0.3)] border border-white/20 animate-in fade-in zoom-in duration-300 font-bold uppercase tracking-widest text-xs">
           {message}
         </div>
       )}
@@ -1608,21 +1639,29 @@ const AttendeePWANew: React.FC = () => {
       <div className="flex-1 overflow-hidden relative">
         {/* DIRECTORY TAB */}
         {activeTab === 'directory' && (
-          <div className="flex flex-col h-full bg-gray-50">
-            <div className="p-4 bg-brand-black border-b-4 border-brand-yellow">
-              <div className="flex items-center justify-between">
+          <div className="flex flex-col h-full bg-brand-black">
+            <div className="p-6 bg-brand-black/40 backdrop-blur-xl border-b border-white/10 relative overflow-hidden">
+              {/* Decorative Gradient Flare */}
+              <div className="absolute -top-24 -right-24 w-48 h-48 bg-brand-yellow/10 rounded-full blur-3xl pointer-events-none" />
+
+              <div className="flex items-center justify-between relative z-10">
                 <div>
-                  <h1 className="text-white text-xl font-bold tracking-tight">NavEaze</h1>
-                  <p className="text-gray-300 text-xs mt-0.5">{selectedEvent?.name || 'Event Navigation'}</p>
+                  <h1 className="text-white text-2xl font-black tracking-tighter uppercase italic">
+                    NAV<span className="text-brand-yellow">EAZE</span>
+                  </h1>
+                  <p className="text-white/40 text-xs mt-0.5 font-medium uppercase tracking-widest">{selectedEvent?.name || 'Event Navigation'}</p>
                 </div>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 bg-white/5 px-3 py-1.5 rounded-full border border-white/10">
                   {offlineMode ? (
-                    <WifiOff className="w-5 h-5 text-brand-red" />
+                    <WifiOff className="w-3.5 h-3.5 text-brand-red" />
                   ) : (
-                    <div className="w-2 h-2 bg-brand-yellow rounded-full"></div>
+                    <div className="relative">
+                      <div className="w-2 h-2 bg-brand-yellow rounded-full"></div>
+                      <div className="absolute inset-0 w-2 h-2 bg-brand-yellow rounded-full animate-ping opacity-50"></div>
+                    </div>
                   )}
-                  <span className="text-sm text-gray-300">
-                    {offlineMode ? 'Offline' : 'Online'}
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-white/60">
+                    {offlineMode ? 'Offline' : 'Live'}
                   </span>
                 </div>
               </div>
@@ -1630,33 +1669,33 @@ const AttendeePWANew: React.FC = () => {
 
             {/* GPS Status Banner */}
             {selectedEvent && (selectedEvent.navigation_mode === 'outdoor' || selectedEvent.navigation_mode === 'hybrid') && (
-              <div className={`px-4 py-2 ${gpsEnabled && isGPSAccuracyGood(gpsAccuracy)
-                ? 'bg-green-50 border-b border-green-200'
-                : 'bg-orange-50 border-b border-orange-200'
+              <div className={`px-6 py-2.5 ${gpsEnabled && isGPSAccuracyGood(gpsAccuracy)
+                ? 'bg-green-500/10 border-b border-green-500/20'
+                : 'bg-orange-500/10 border-b border-orange-500/20'
                 }`}>
-                <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center justify-between text-[10px] uppercase font-bold tracking-widest">
                   <div className="flex items-center gap-2">
-                    <Satellite className={`w-4 h-4 ${gpsEnabled && isGPSAccuracyGood(gpsAccuracy)
-                      ? 'text-green-600'
-                      : 'text-orange-600'
+                    <Satellite className={`w-3.5 h-3.5 ${gpsEnabled && isGPSAccuracyGood(gpsAccuracy)
+                      ? 'text-green-400'
+                      : 'text-orange-400'
                       }`} />
-                    <span className={gpsEnabled && isGPSAccuracyGood(gpsAccuracy) ? 'text-green-700' : 'text-orange-700'}>
+                    <span className={gpsEnabled && isGPSAccuracyGood(gpsAccuracy) ? 'text-green-400' : 'text-orange-400'}>
                       {gpsEnabled && isGPSAccuracyGood(gpsAccuracy) ? (
-                        <>GPS Active • ±{gpsAccuracy.toFixed(0)}m</>
+                        <>GPS LOCK • ±{gpsAccuracy.toFixed(0)}m</>
                       ) : gpsEnabled ? (
-                        <>Signal Weak • ±{gpsAccuracy.toFixed(0)}m</>
+                        <>SIGNAL WEAK • ±{gpsAccuracy.toFixed(0)}m</>
                       ) : (
-                        <>Waiting for GPS...</>
+                        <>ACQUIRING SIGNAL...</>
                       )}
                     </span>
                   </div>
                   {!isGPSAccuracyGood(gpsAccuracy) && gpsEnabled && nearestLandmark && (
-                    <span className="text-xs text-orange-600">
-                      Walk to {nearestLandmark.name}
+                    <span className="text-orange-400 animate-pulse">
+                      APPROACH {nearestLandmark.name}
                     </span>
                   )}
                   {currentGPS && (
-                    <span className="text-xs text-gray-500">
+                    <span className="text-white/20">
                       {currentGPS.lat.toFixed(6)}, {currentGPS.lng.toFixed(6)}
                     </span>
                   )}
@@ -1696,27 +1735,37 @@ const AttendeePWANew: React.FC = () => {
               </div>
 
               {pois.length > 0 ? (
-                pois.map((poi) => (
-                  <div key={poi.id} className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4">
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex-1">
-                        <h3 className="text-gray-900 font-medium text-lg">{poi.name}</h3>
-                        <div className="mt-2">
-                          <span className="inline-flex items-center rounded-full bg-yellow-50 text-gray-900 px-2 py-0.5 text-xs font-medium border border-yellow-200">
-                            Point of Interest
-                          </span>
+                <div className="grid grid-cols-1 gap-4 pb-20">
+                  {pois.map((poi) => (
+                    <div key={poi.id} className="group bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 p-4 hover:border-brand-yellow/30 transition-all duration-300 relative overflow-hidden">
+                      {/* Interactive Glow */}
+                      <div className="absolute -inset-1 bg-gradient-to-r from-brand-yellow/0 via-brand-yellow/5 to-brand-yellow/0 opacity-0 group-hover:opacity-100 transition-opacity" />
+
+                      <div className="flex items-center justify-between gap-4 relative z-10">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-white font-bold text-lg tracking-tight truncate">{poi.name}</h3>
+                          <div className="mt-1.5 flex items-center gap-2">
+                            <span className="inline-flex items-center rounded-lg bg-brand-yellow/10 text-brand-yellow px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest border border-brand-yellow/20">
+                              POI
+                            </span>
+                            {poi.isLandmark && (
+                              <span className="inline-flex items-center rounded-lg bg-purple-500/10 text-purple-400 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest border border-purple-500/20">
+                                Landmark
+                              </span>
+                            )}
+                          </div>
                         </div>
+                        <button
+                          onClick={() => handleGetDirections(poi)}
+                          className="bg-brand-yellow text-brand-black px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2 hover:scale-105 active:scale-95 transition-all shadow-[0_0_15px_rgba(255,215,0,0.2)]"
+                        >
+                          <Navigation className="w-3.5 h-3.5 fill-current" />
+                          Go
+                        </button>
                       </div>
-                      <button
-                        onClick={() => handleGetDirections(poi)}
-                        className="bg-accent text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2 hover:bg-red-700 transition-colors"
-                      >
-                        <MapPin className="w-4 h-4" />
-                        Directions
-                      </button>
                     </div>
-                  </div>
-                ))
+                  ))}
+                </div>
               ) : (
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 text-center">
                   <MapPin className="w-16 h-16 text-gray-400 mx-auto mb-4" />
@@ -1765,41 +1814,45 @@ const AttendeePWANew: React.FC = () => {
             )}
 
             {/* Top overlay: GPS pill + destination */}
-            <div className="absolute top-0 left-0 right-0 z-10 flex items-center gap-2 px-3 pt-3 pointer-events-none">
-              <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold shadow-lg pointer-events-auto ${gpsEnabled ? 'bg-green-500/90 text-white' : 'bg-orange-500/90 text-white'
-                }`}>
-                <Satellite className="w-3 h-3" />
-                {gpsEnabled ? `GPS ±${gpsAccuracy.toFixed(0)}m` : 'GPS Searching…'}
-              </div>
-              {selectedPOI && (
-                <div className="flex-1 min-w-0 flex items-center gap-1.5 bg-white/90 px-3 py-1.5 rounded-full shadow-lg pointer-events-auto">
-                  <Navigation className="w-3 h-3 text-red-600 shrink-0" />
-                  <span className="text-xs font-semibold text-gray-900 truncate">→ {selectedPOI.name}</span>
+            <div className="absolute top-0 left-0 right-0 z-10 flex flex-col gap-2 p-4 pointer-events-none">
+              <div className="flex items-center gap-2">
+                <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg pointer-events-auto border transition-colors ${gpsEnabled ? 'bg-green-500/20 border-green-500/50 text-green-400' : 'bg-orange-500/20 border-orange-500/50 text-orange-400'
+                  }`}>
+                  <Satellite className="w-3 h-3" />
+                  {gpsEnabled ? `GPS LOCK ±${gpsAccuracy.toFixed(0)}m` : 'SIGNAL SEARCH...'}
                 </div>
-              )}
+                {selectedPOI && (
+                  <div className="flex-1 min-w-0 flex items-center gap-2 bg-brand-black/60 backdrop-blur-md px-3 py-1.5 rounded-full shadow-xl pointer-events-auto border border-white/10">
+                    <Navigation className="w-3 h-3 text-brand-yellow shrink-0 animate-pulse" />
+                    <span className="text-[10px] font-bold text-white/90 truncate uppercase tracking-widest leading-none mt-0.5">→ {selectedPOI.name}</span>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Bottom sheet */}
-            <div className="absolute bottom-0 left-0 right-0 z-10 bg-white rounded-t-3xl shadow-2xl">
+            <div className="absolute bottom-4 left-4 right-4 z-20 bg-brand-black/80 backdrop-blur-2xl rounded-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)] border border-white/10 overflow-hidden">
               <div className="flex justify-center pt-3 pb-1">
-                <div className="w-10 h-1 bg-gray-200 rounded-full" />
+                <div className="w-12 h-1 bg-white/20 rounded-full" />
               </div>
 
               {selectedPOI ? (
-                <div className="px-4 pt-1 pb-6">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-11 h-11 rounded-2xl bg-red-600 flex items-center justify-center shrink-0">
-                      <Navigation className="w-5 h-5 text-white" />
+                <div className="p-5 pt-1">
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="w-12 h-12 rounded-2xl bg-brand-yellow flex items-center justify-center shrink-0 shadow-[0_0_20px_rgba(255,215,0,0.2)]">
+                      <Navigation className="w-6 h-6 text-brand-black fill-current" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[10px] text-gray-400 uppercase tracking-widest font-semibold">Navigating to</p>
-                      <p className="text-base font-bold text-gray-900 truncate">{selectedPOI.name}</p>
+                      <p className="text-[10px] text-white/40 uppercase tracking-[0.2em] font-black">Navigating Destination</p>
+                      <p className="text-lg font-black text-white truncate leading-tight uppercase italic">{selectedPOI.name}</p>
                     </div>
                   </div>
                   {turnByTurnDirections.length > 0 && (
-                    <div className="bg-gray-50 rounded-2xl p-3 mb-3 flex items-center gap-2">
-                      <Compass className="w-4 h-4 text-gray-500 shrink-0" />
-                      <p className="text-sm text-gray-700">
+                    <div className="bg-white/5 rounded-2xl p-4 mb-4 flex items-center gap-4 border border-white/5">
+                      <div className="w-8 h-8 rounded-full bg-brand-yellow/10 flex items-center justify-center shrink-0">
+                        <Compass className="w-4 h-4 text-brand-yellow shrink-0" />
+                      </div>
+                      <p className="text-sm text-white/90 font-medium leading-relaxed">
                         {turnByTurnDirections[currentWaypointIndex] || turnByTurnDirections[0]}
                       </p>
                     </div>
@@ -1811,41 +1864,43 @@ const AttendeePWANew: React.FC = () => {
                       setNavigationPath([]);
                       setTurnByTurnDirections([]);
                     }}
-                    className="w-full py-3 border-2 border-gray-100 rounded-2xl text-sm font-semibold text-gray-500"
+                    className="w-full py-3.5 bg-white/5 border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-white/40 hover:text-white/60 hover:bg-white/10 transition-all"
                   >
-                    Cancel Navigation
+                    Terminate Mission
                   </button>
                 </div>
               ) : (
-                <div className="px-4 pt-1 pb-6">
-                  <h2 className="text-lg font-bold text-gray-900 mb-3">Where to?</h2>
+                <div className="p-5 pt-1">
+                  <h2 className="text-[10px] font-black text-white/30 uppercase tracking-[0.3em] mb-4">Tactical Intelligence</h2>
                   {pois.length > 0 ? (
-                    <div className="space-y-2 max-h-44 overflow-y-auto">
+                    <div className="space-y-2 max-h-56 overflow-y-auto pr-1 custom-scrollbar">
                       {pois.map(poi => (
                         <button
                           key={poi.id}
                           onClick={() => handleGetDirections(poi)}
-                          className="w-full flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 active:scale-95 transition-transform rounded-2xl text-left"
+                          className="w-full flex items-center gap-4 p-3 bg-white/5 hover:bg-white/10 active:scale-[0.98] transition-all rounded-2xl text-left border border-white/5 group"
                         >
-                          <div className="w-9 h-9 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
-                            <MapPin className="w-4 h-4 text-red-600" />
+                          <div className="w-10 h-10 rounded-xl bg-brand-yellow/10 flex items-center justify-center shrink-0 border border-brand-yellow/20 group-hover:bg-brand-yellow transition-colors">
+                            <MapPin className="w-4 h-4 text-brand-yellow group-hover:text-brand-black transition-colors" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-gray-900 text-sm truncate">{poi.name}</p>
-                            <p className="text-xs text-gray-400">Tap for directions</p>
+                            <p className="font-bold text-white text-sm truncate uppercase tracking-tight">{poi.name}</p>
+                            <p className="text-[9px] text-white/30 font-black uppercase tracking-widest mt-0.5">Initiate Pathfinding</p>
                           </div>
-                          <ChevronRight className="w-4 h-4 text-gray-300 shrink-0" />
+                          <ChevronRight className="w-4 h-4 text-white/20 shrink-0 group-hover:text-brand-yellow transition-colors" />
                         </button>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-gray-400 text-sm text-center py-4">No destinations available</p>
+                    <p className="text-white/30 text-[10px] font-black uppercase tracking-widest text-center py-6">No Tactical Targets Detected</p>
                   )}
                   {!currentLocation && (
-                    <div className="mt-3 flex items-center gap-2 bg-orange-50 rounded-xl px-3 py-2">
-                      <span className="text-sm">📡</span>
-                      <p className="text-xs text-orange-600 font-medium">
-                        {selectedEvent?.navigation_mode === 'outdoor' ? 'Waiting for GPS...' : 'Scan a QR code to place yourself'}
+                    <div className="mt-4 flex items-center gap-3 bg-brand-yellow/10 border border-brand-yellow/20 rounded-xl px-4 py-3">
+                      <Satellite className="w-4 h-4 text-brand-yellow animate-pulse" />
+                      <p className="text-[10px] text-brand-yellow font-black uppercase tracking-widest leading-relaxed">
+                        {selectedEvent?.navigation_mode === 'outdoor'
+                          ? 'Synchronizing GPS Satellite Data...'
+                          : 'Scan Anchor QR to Initialize Position'}
                       </p>
                     </div>
                   )}
@@ -1857,10 +1912,13 @@ const AttendeePWANew: React.FC = () => {
 
         {/* SCANNER TAB */}
         {activeTab === 'scanner' && (
-          <div className="flex flex-col h-full bg-brand-gray-dark">
-            <div className="p-4 bg-brand-black">
-              <h2 className="text-white text-lg font-bold">QR Scanner</h2>
-              <p className="text-gray-400 text-sm">Scan a QR code to set your location</p>
+          <div className="flex flex-col h-full bg-brand-black">
+            <div className="p-6 bg-brand-black/40 backdrop-blur-xl border-b border-white/10 relative overflow-hidden">
+              <div className="absolute -top-24 -left-24 w-48 h-48 bg-brand-yellow/10 rounded-full blur-3xl pointer-events-none" />
+              <div className="relative z-10">
+                <h2 className="text-white text-2xl font-black tracking-tighter uppercase italic">QR <span className="text-brand-yellow">SCANNER</span></h2>
+                <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest mt-1">Acquire Tactical Anchor Position</p>
+              </div>
             </div>
             <div className="flex-1 relative overflow-hidden">
               <video
@@ -1874,28 +1932,32 @@ const AttendeePWANew: React.FC = () => {
               {/* Scanner overlay */}
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="relative">
-                  <div className="w-64 h-64 border-2 border-white/50 rounded-2xl" />
-                  <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-brand-yellow rounded-tl-xl" />
-                  <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-brand-yellow rounded-tr-xl" />
-                  <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-brand-yellow rounded-bl-xl" />
-                  <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-brand-yellow rounded-br-xl" />
-                  <p className="absolute -bottom-10 left-1/2 -translate-x-1/2 text-white/80 text-sm whitespace-nowrap">Point at a NavEaze QR code</p>
+                  <div className="w-64 h-64 border border-white/20 rounded-3xl backdrop-blur-[2px]" />
+                  <div className="absolute top-0 left-0 w-12 h-12 border-t-4 border-l-4 border-brand-yellow rounded-tl-3xl shadow-[0_0_15px_rgba(255,215,0,0.5)]" />
+                  <div className="absolute top-0 right-0 w-12 h-12 border-t-4 border-r-4 border-brand-yellow rounded-tr-3xl shadow-[0_0_15px_rgba(255,215,0,0.5)]" />
+                  <div className="absolute bottom-0 left-0 w-12 h-12 border-b-4 border-l-4 border-brand-yellow rounded-bl-3xl shadow-[0_0_15px_rgba(255,215,0,0.5)]" />
+                  <div className="absolute bottom-0 right-0 w-12 h-12 border-b-4 border-r-4 border-brand-yellow rounded-br-3xl shadow-[0_0_15px_rgba(255,215,0,0.5)]" />
+
+                  {/* Scanning line animation */}
+                  <div className="absolute top-0 left-0 right-0 h-0.5 bg-brand-yellow/50 shadow-[0_0_10px_brand-yellow] animate-[scan_2s_ease-in-out_infinite]" />
+
+                  <p className="absolute -bottom-12 left-1/2 -translate-x-1/2 text-brand-yellow text-[10px] font-black uppercase tracking-[0.3em] whitespace-nowrap animate-pulse">Align with NavEaze Anchor</p>
                 </div>
               </div>
             </div>
             {!cameraStream && (
-              <div className="p-4">
+              <div className="p-8 absolute inset-0 flex items-center justify-center bg-brand-black/80 backdrop-blur-md z-30">
                 <button
                   onClick={async () => {
                     try {
                       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
                       setCameraStream(stream);
                       if (videoRef.current) videoRef.current.srcObject = stream;
-                    } catch (e) { console.error('Camera error', e); }
+                    } catch (e) { displayMessage('Camera Access Denied', 3000); }
                   }}
-                  className="w-full py-3 bg-brand-yellow text-brand-black font-bold rounded-xl"
+                  className="w-full max-w-xs py-4 bg-brand-yellow text-brand-black font-black uppercase tracking-[0.2em] rounded-2xl shadow-[0_0_30px_rgba(255,215,0,0.3)] animate-bounce"
                 >
-                  Start Camera
+                  Enable Optics
                 </button>
               </div>
             )}
@@ -1905,22 +1967,23 @@ const AttendeePWANew: React.FC = () => {
 
       {/* POPIA Consent Overlay */}
       {!hasConsented && (
-        <div className="fixed inset-0 bg-black/95 backdrop-blur-md z-[200] flex flex-col items-center justify-center p-6 text-center">
-          <div className="w-20 h-20 bg-[#1C1C1F] border border-[#2A2A2A] rounded-2xl flex items-center justify-center mb-8">
-            <span className="text-4xl">🍪</span>
+        <div className="fixed inset-0 bg-brand-black/95 backdrop-blur-xl z-[200] flex flex-col items-center justify-center p-8 text-center">
+          <div className="w-24 h-24 bg-white/5 border border-white/10 rounded-3xl flex items-center justify-center mb-10 relative overflow-hidden group">
+            <div className="absolute inset-0 bg-brand-yellow/10 blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+            <ShieldCheck className="w-12 h-12 text-brand-yellow relative z-10" />
           </div>
-          <h2 className="text-2xl font-bold text-white mb-4">Welcome to NavEaze</h2>
-          <p className="text-white/60 mb-8 max-w-sm">
-            To provide continuous navigation and connect you to onsite security, we store a minimal, anonymous session ID on your device. By continuing, you agree to our use of local storage for these essential features.
+          <h2 className="text-3xl font-black text-white mb-6 uppercase italic tracking-tighter">DATA <span className="text-brand-yellow">PROTECTION</span></h2>
+          <p className="text-white/40 mb-10 max-w-sm text-sm font-medium leading-relaxed tracking-wide">
+            NavEaze requires local storage to synchronize tactical movement data and maintain encrypted session identity for security protocols.
           </p>
           <button
             onClick={() => {
               localStorage.setItem('naveaze_consent', 'true');
               setHasConsented(true);
             }}
-            className="w-full max-w-sm py-4 bg-brand-yellow hover:bg-yellow-400 text-black font-bold text-lg rounded-2xl transition-colors shadow-[0_0_20px_rgba(255,215,0,0.3)]"
+            className="w-full max-w-xs py-5 bg-brand-yellow hover:bg-yellow-400 text-brand-black font-black uppercase tracking-[0.2em] rounded-2xl transition-all shadow-[0_0_40px_rgba(255,215,0,0.2)] active:scale-95"
           >
-            Accept & Continue
+            Acknowledge
           </button>
         </div>
       )}
@@ -1930,9 +1993,13 @@ const AttendeePWANew: React.FC = () => {
         <button
           onClick={() => setShowSosModal(true)}
           disabled={sosLoading}
-          className="absolute bottom-20 right-4 w-12 h-12 bg-red-600 rounded-full shadow-[0_0_15px_rgba(220,38,38,0.5)] flex items-center justify-center text-white z-50 transition-transform active:scale-95 border-2 border-white"
+          className="absolute bottom-24 right-6 w-14 h-14 bg-brand-red rounded-full shadow-[0_0_30px_rgba(237,28,36,0.5)] flex items-center justify-center text-white z-50 transition-all active:scale-90 border-4 border-brand-black group"
         >
-          {sosLoading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <AlertTriangle className="w-5 h-5 fill-white text-red-600" />}
+          {sosLoading ? (
+            <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <AlertTriangle className="w-6 h-6 fill-white text-brand-red group-hover:scale-110 transition-transform" />
+          )}
         </button>
       )}
 
@@ -1975,23 +2042,23 @@ const AttendeePWANew: React.FC = () => {
       )}
 
       {/* Bottom Navigation */}
-      <div className="shrink-0 bg-white border-t border-gray-200 relative z-40">
-        <div className="flex">
+      <div className="shrink-0 bg-brand-black/90 backdrop-blur-2xl border-t border-white/5 relative z-40 pb-safe">
+        <div className="flex px-4 py-2 gap-2">
           {([
             { id: 'directory', label: 'Directory', Icon: List },
-            { id: 'map', label: 'Map', Icon: Map },
-            { id: 'scanner', label: 'Scanner', Icon: Scan },
+            { id: 'map', label: 'Tactical', Icon: Map },
+            { id: 'scanner', label: 'Optics', Icon: Scan },
           ] as const).map(({ id, label, Icon }) => (
             <button
               key={id}
               onClick={() => setActiveTab(id)}
-              className={`flex-1 flex flex-col items-center py-3 gap-1 transition-colors ${activeTab === id
-                ? 'text-brand-yellow bg-brand-black'
-                : 'text-gray-500 hover:text-gray-700'
+              className={`flex-1 flex flex-col items-center py-2 gap-1 rounded-2xl transition-all duration-300 ${activeTab === id
+                ? 'bg-brand-yellow shadow-[0_0_20px_rgba(255,215,0,0.2)] text-brand-black'
+                : 'text-white/40 hover:text-white/60 hover:bg-white/5'
                 }`}
             >
-              <Icon className="w-5 h-5" />
-              <span className="text-xs font-medium">{label}</span>
+              <Icon className={`w-5 h-5 ${activeTab === id ? 'fill-current' : ''}`} />
+              <span className="text-[9px] font-black uppercase tracking-widest">{label}</span>
             </button>
           ))}
         </div>
