@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
-import { List, Map, Scan, Navigation, MapPin, Camera, WifiOff, ArrowRight, Trophy, CheckCircle, Satellite, ChevronRight, Compass, AlertTriangle } from 'lucide-react';
+import { List, Map, Scan, Navigation, MapPin, Camera, WifiOff, ArrowRight, Trophy, CheckCircle, Satellite, ChevronRight, Compass, AlertTriangle, ShieldCheck } from 'lucide-react';
 import jsQR from 'jsqr';
 import FloorplanCanvas from '../../components/FloorplanCanvas.jsx';
 import { findShortestNodePath, nearestNodeToPoint, nodePathToCoords, generateTurnByTurnDirections, GraphNode, GraphSegment } from '../../lib/pathfinding';
