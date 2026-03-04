@@ -1553,68 +1553,58 @@ const AttendeePWANew: React.FC = () => {
   // EVENT SELECTION SCREEN
   if (currentScreen === 'event-select') {
     return (
-      <div className="flex flex-col h-screen bg-gray-50">
-        {/* Header */}
-        <div className="bg-brand-black border-b-4 border-brand-yellow p-6">
-          <h1 className="text-white text-2xl font-bold mb-2">Select an Event</h1>
-          <p className="text-gray-300 text-sm">Choose which event you're attending</p>
+      <div className="min-h-screen bg-brand-black text-white font-inter flex flex-col items-center p-8">
+        <div className="w-full max-w-sm mt-12 mb-12 text-center relative">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-brand-yellow/10 rounded-full blur-3xl pointer-events-none" />
+          <h1 className="text-4xl font-black tracking-tighter uppercase italic relative z-10">
+            NAV<span className="text-brand-yellow">EAZE</span>
+          </h1>
+          <p className="text-[10px] font-black tracking-[0.4em] uppercase text-white/40 mt-2">Mission Intelligence</p>
         </div>
 
-        {/* Events List */}
-        <div className="flex-1 overflow-y-auto p-4">
-          {loadingEvents ? (
-            <div className="flex items-center justify-center h-64">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-red mx-auto mb-4"></div>
-                <p className="text-gray-600">Loading events...</p>
-              </div>
-            </div>
-          ) : error ? (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
-              <p className="text-red-600">{error}</p>
-              <button
-                onClick={fetchEvents}
-                className="mt-3 text-red-600 underline text-sm"
-              >
-                Try Again
-              </button>
+        <div className="w-full max-w-sm space-y-6">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-1 h-4 bg-brand-yellow rounded-full"></div>
+            <h2 className="text-lg font-black uppercase tracking-widest italic">Active Sectors</h2>
+          </div>
+
+          {events.length === 0 && loadingEvents ? (
+            <div className="bg-white/5 backdrop-blur-md rounded-2xl p-8 border border-white/10 text-center">
+              <div className="animate-spin w-6 h-6 border-2 border-brand-yellow border-t-transparent rounded-full mx-auto mb-4"></div>
+              <p className="text-xs font-bold uppercase tracking-widest text-white/40">Syncing with HQ...</p>
             </div>
           ) : events.length === 0 ? (
-            <div className="bg-white rounded-lg p-8 text-center">
-              <MapPin className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-gray-900 font-semibold mb-2">No Events Available</h3>
-              <p className="text-gray-600 text-sm">There are no published events at the moment.</p>
+            <div className="bg-white/5 backdrop-blur-md rounded-2xl p-10 border border-white/10 text-center">
+              <MapPin className="w-12 h-12 text-white/10 mx-auto mb-4" />
+              <p className="text-xs font-bold uppercase tracking-widest text-white/40">No Sectors Detected</p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {events.map(event => (
                 <div
                   key={event.id}
                   onClick={() => handleEventSelect(event)}
-                  className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 cursor-pointer hover:shadow-md hover:border-brand-red transition-all"
+                  className="bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 p-5 cursor-pointer hover:border-brand-yellow/30 hover:bg-white/10 transition-all group relative overflow-hidden"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1">
-                      <h3 className="text-gray-900 font-semibold text-lg mb-1">{event.name}</h3>
-                      {event.description && (
-                        <p className="text-gray-600 text-sm mb-3">{event.description}</p>
-                      )}
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-brand-yellow/5 rounded-full blur-2xl -translate-y-12 translate-x-12 group-hover:bg-brand-yellow/10 transition-colors" />
 
-                      {/* Event metadata */}
-                      <div className="flex flex-wrap gap-2">
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-brand-yellow/20 text-brand-gray-dark border border-brand-yellow/30">
-                          {event.navigation_mode === 'outdoor' && '📍 Outdoor GPS'}
-                          {event.navigation_mode === 'indoor' && '🏢 Indoor QR'}
-                          {event.navigation_mode === 'hybrid' && '🌐 Hybrid'}
+                  <div className="flex items-center justify-between gap-4 relative z-10">
+                    <div className="flex-1">
+                      <h3 className="text-white font-black text-lg uppercase tracking-tight italic mb-1 group-hover:text-brand-yellow transition-colors">{event.name}</h3>
+                      <div className="flex flex-wrap gap-2 mt-3">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-brand-yellow/10 text-brand-yellow border border-brand-yellow/20">
+                          {event.navigation_mode}
                         </span>
                         {event.start_date && (
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-white/5 text-white/40 border border-white/10">
                             {new Date(event.start_date).toLocaleDateString()}
                           </span>
                         )}
                       </div>
                     </div>
-                    <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                    <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center group-hover:bg-brand-yellow group-hover:border-brand-yellow transition-all">
+                      <ChevronRight className="w-5 h-5 text-white/40 group-hover:text-brand-black transition-colors" />
+                    </div>
                   </div>
                 </div>
               ))}
