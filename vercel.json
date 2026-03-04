@@ -4,12 +4,30 @@
   "outputDirectory": "dpm-web/dist",
   "installCommand": "cd dpm-web && npm install",
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api" },
-    { "source": "/mobile/attendee/(.*)", "destination": "/mobile/attendee/index.html" },
-    { "source": "/mobile/staff/(.*)", "destination": "/mobile/staff/index.html" },
-    { "source": "/mobile/attendee", "destination": "/mobile/attendee/index.html" },
-    { "source": "/mobile/staff", "destination": "/mobile/staff/index.html" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/api/(.*)",
+      "destination": "/api"
+    },
+    {
+      "source": "/mobile/attendee/(.*)",
+      "destination": "/mobile/attendee/index.html"
+    },
+    {
+      "source": "/mobile/staff/(.*)",
+      "destination": "/mobile/staff/index.html"
+    },
+    {
+      "source": "/mobile/attendee",
+      "destination": "/mobile/attendee/index.html"
+    },
+    {
+      "source": "/mobile/staff",
+      "destination": "/mobile/staff/index.html"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
   ],
   "headers": [
     {
@@ -33,10 +51,5 @@
         }
       ]
     }
-  ],
-  "env": {
-    "NODE_ENV": "production",
-    "VITE_SUPABASE_URL": "@vite_supabase_url",
-    "VITE_SUPABASE_ANON_KEY": "@vite_supabase_anon_key"
-  }
+  ]
 }
