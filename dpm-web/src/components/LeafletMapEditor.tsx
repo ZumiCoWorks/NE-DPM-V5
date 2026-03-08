@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, ImageOverlay, Marker, Polyline, useMapEvents, useMap } from 'react-leaflet';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { MapContainer, TileLayer, Marker, Polyline, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { GraphNode, GraphSegment } from '../lib/pathfinding';
@@ -7,6 +7,61 @@ import { GPSBounds } from '../lib/gpsNavigation';
 import { gpsToFloorplan, floorplanToGPS, calculateGPSDistance } from '../lib/coordinateConversion';
 import { LeafletNodeEditModal } from './LeafletNodeEditModal';
 import { supabase } from '../lib/supabase';
+
+// ── RotatedOverlay ────────────────────────────────────────────────────────────
+// Leaflet's ImageOverlay calls L.DomUtil.setPosition(img, ...) on every zoom/pan,
+// which sets `transform: translate3d(x,y,0)` and OVERWRITES any CSS rotation we
+// applied separately. This component monkey-patches _reset on the raw L.imageOverlay
+// instance so the final transform is always `translate3d(x,y,0) rotate(Ndeg)`,
+// meaning rotation survives every map update.
+function RotatedOverlay({
+    url, bounds, opacity, rotationDeg,
+}: {
+    url: string;
+    bounds: [[number, number], [number, number]];
+    opacity: number;
+    rotationDeg: number;
+}) {
+    const map = useMap();
+    const layerRef = useRef<L.ImageOverlay | null>(null);
+    const rotRef = useRef(rotationDeg);
+    rotRef.current = rotationDeg;
+
+    useEffect(() => {
+        const layer = L.imageOverlay(url, bounds, { opacity });
+
+        // Patch _reset so our rotation is composed with Leaflet's translate.
+        const orig = (layer as any)._reset.bind(layer);
+        (layer as any)._reset = function () {
+            orig();
+            const img: HTMLImageElement | null = (this as any)._image;
+            if (img) {
+                // Leaflet sets transform to translate3d; append our rotation.
+                const t = img.style.transform;
+                img.style.transform = t
+                    ? `${t} rotate(${rotRef.current}deg)`
+                    : `rotate(${rotRef.current}deg)`;
+                img.style.transformOrigin = '50% 50%';
+            }
+        };
+
+        layer.addTo(map);
+        layerRef.current = layer;
+        return () => { layer.remove(); layerRef.current = null; };
+        // Re-create layer only when structural props change
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [map, url,
+        bounds[0][0], bounds[0][1], bounds[1][0], bounds[1][1],
+        opacity]);
+
+    // When rotation changes, trigger a redraw without recreating the layer
+    useEffect(() => {
+        rotRef.current = rotationDeg;
+        (layerRef.current as any)?._reset?.();
+    }, [rotationDeg]);
+
+    return null;
+}
 
 // Fix Leaflet default marker icon issue with Vite
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -22,6 +77,9 @@ interface LeafletMapEditorProps {
     floorplanUrl: string;
     gpsBounds: GPSBounds;
     floorplanSize?: { width: number; height: number };
+    rotationDegrees?: number;  // Clockwise degrees from North — from calibration data
+    scaleMetersPerPixel?: number; // From calibration data — used to compute correct overlay bounds
+    onRotationChange?: (newDeg: number) => void; // Called when user fine-tunes rotation
     onExport?: (nodes: GraphNode[], segments: GraphSegment[]) => void;
 }
 
@@ -45,19 +103,44 @@ interface LeafletSegment {
 type DrawMode = 'point' | 'line' | 'poi' | 'edit' | 'delete' | null;
 
 // Map event handler component
+// containerRotationDeg: how much the map container div is CSS-rotated.
+// We must apply the INVERSE rotation to the click latlng so nodes land at the
+// correct real-world GPS even though the tiles are visually rotated.
 function MapClickHandler({
     mode,
     onMapClick,
-    onMarkerClick
+    onMarkerClick,
+    containerRotationDeg = 0,
 }: {
     mode: DrawMode;
     onMapClick: (lat: number, lng: number) => void;
     onMarkerClick: (id: string) => void;
+    containerRotationDeg?: number;
 }) {
+    const map = useMap();
     useMapEvents({
         click: (e) => {
             if (mode === 'point' || mode === 'poi') {
-                onMapClick(e.latlng.lat, e.latlng.lng);
+                if (containerRotationDeg === 0) {
+                    onMapClick(e.latlng.lat, e.latlng.lng);
+                    return;
+                }
+                // Correct for the CSS-rotated container: rotate the clicked latlng
+                // by +containerRotationDeg around the current map center so the
+                // stored GPS is in true geographic space.
+                const mc = map.getCenter();
+                const cosLat = Math.cos(mc.lat * Math.PI / 180);
+                const degToM = 111320;
+                const dx = (e.latlng.lng - mc.lng) * degToM * cosLat;
+                const dy = (e.latlng.lat - mc.lat) * degToM;
+                const rad = containerRotationDeg * Math.PI / 180;
+                const cos = Math.cos(rad), sin = Math.sin(rad);
+                const dx2 = dx * cos - dy * sin;
+                const dy2 = dx * sin + dy * cos;
+                onMapClick(
+                    mc.lat + dy2 / degToM,
+                    mc.lng + dx2 / (degToM * cosLat)
+                );
             }
         },
     });
@@ -70,6 +153,9 @@ const LeafletMapEditor: React.FC<LeafletMapEditorProps> = ({
     floorplanUrl,
     gpsBounds,
     floorplanSize = { width: 1000, height: 1000 },
+    rotationDegrees = 0,
+    scaleMetersPerPixel = 0,
+    onRotationChange,
     onExport
 }) => {
     const [nodes, setNodes] = useState<LeafletNode[]>([]);
@@ -80,30 +166,61 @@ const LeafletMapEditor: React.FC<LeafletMapEditorProps> = ({
     const [floorplanOpacity, setFloorplanOpacity] = useState<number>(0.7);
     const [editingNode, setEditingNode] = useState<LeafletNode | null>(null);
     const [showEditModal, setShowEditModal] = useState(false);
+    const overlayRef = useRef<any>(null);
+    // Rotation fine-tune: user-adjustable offset on top of calibrated value
+    const [rotationOffset, setRotationOffset] = useState(0);
+    const effectiveRotation = ((rotationDegrees + rotationOffset) % 360 + 360) % 360;
+    const adjustRotation = (delta: number) => {
+        setRotationOffset(prev => {
+            const next = prev + delta;
+            onRotationChange?.((((rotationDegrees + next) % 360) + 360) % 360);
+            return next;
+        });
+    };
 
-    // Calculate map bounds from GPS bounds with safety check
-    const safelyGetBounds = () => {
-        if (!gpsBounds || !gpsBounds.sw || !gpsBounds.ne ||
+    // ── Axis-aligned bbox from gpsBounds — used only for map centering/zoom
+    const bounds = useMemo<[[number, number], [number, number]]>(() => {
+        if (!gpsBounds?.sw || !gpsBounds?.ne ||
             typeof gpsBounds.sw.lat !== 'number' || typeof gpsBounds.sw.lng !== 'number' ||
             typeof gpsBounds.ne.lat !== 'number' || typeof gpsBounds.ne.lng !== 'number') {
-            // Default fallback bounds if data is missing
-            return [
-                [-26.0, 28.0], // Default SW
-                [-25.9, 28.1]  // Default NE
-            ] as [[number, number], [number, number]];
+            return [[-26.0, 28.0], [-25.9, 28.1]];
         }
         return [
             [gpsBounds.sw.lat, gpsBounds.sw.lng],
             [gpsBounds.ne.lat, gpsBounds.ne.lng]
-        ] as [[number, number], [number, number]];
-    };
+        ];
+    }, [gpsBounds?.sw?.lat, gpsBounds?.sw?.lng, gpsBounds?.ne?.lat, gpsBounds?.ne?.lng]);
 
-    const bounds = safelyGetBounds();
-
-    const center: [number, number] = [
+    const center = useMemo<[number, number]>(() => [
         (bounds[0][0] + bounds[1][0]) / 2,
         (bounds[0][1] + bounds[1][1]) / 2
-    ];
+    ], [bounds]);
+
+    // ── Overlay bounds: sized to the ACTUAL building footprint, not the rotated bbox.
+    // The axis-aligned bbox of a rotated rectangle is wider/taller than the original, so
+    // placing an image there and then CSS-rotating produces the wrong scale/position.
+    // Instead, we compute a rectangle matching the true building geographic dimensions
+    // (image pixels × scale m/px), centred at the building midpoint, then CSS-rotate.
+    const overlayBounds = useMemo<[[number, number], [number, number]]>(() => {
+        if (scaleMetersPerPixel > 0 && floorplanSize.width > 0 && floorplanSize.height > 0 &&
+            gpsBounds?.sw && gpsBounds?.ne) {
+            const bldgWidthM = floorplanSize.width * scaleMetersPerPixel;
+            const bldgHeightM = floorplanSize.height * scaleMetersPerPixel;
+            const cLat = (gpsBounds.sw.lat + gpsBounds.ne.lat) / 2;
+            const cLng = (gpsBounds.sw.lng + gpsBounds.ne.lng) / 2;
+            const halfLatDeg = (bldgHeightM / 2) / 111320;
+            const halfLngDeg = (bldgWidthM / 2) / (111320 * Math.cos(cLat * Math.PI / 180));
+            return [
+                [cLat - halfLatDeg, cLng - halfLngDeg],
+                [cLat + halfLatDeg, cLng + halfLngDeg]
+            ];
+        }
+        return bounds; // fall-back before calibration data loads
+    }, [bounds, scaleMetersPerPixel, floorplanSize.width, floorplanSize.height,
+        gpsBounds?.sw?.lat, gpsBounds?.sw?.lng, gpsBounds?.ne?.lat, gpsBounds?.ne?.lng]);
+
+    // (Rotation is now handled inside RotatedOverlay — no separate useEffect needed)
+
 
     // Load existing navigation data from database
     useEffect(() => {
@@ -510,34 +627,48 @@ const LeafletMapEditor: React.FC<LeafletMapEditorProps> = ({
                         </button>
                     </div>
 
-                    <div className="flex gap-3 items-center">
-                        <div className="flex items-center gap-2">
-                            <label className="text-xs text-gray-600 font-medium">Overlay Opacity:</label>
-                            <input
-                                type="range"
-                                min="0"
-                                max="100"
-                                value={floorplanOpacity * 100}
-                                onChange={(e) => setFloorplanOpacity(parseInt(e.target.value) / 100)}
-                                className="w-32 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                                title="Adjust floorplan overlay transparency"
-                            />
-                            <span className="text-xs text-gray-500 font-mono w-8">{Math.round(floorplanOpacity * 100)}%</span>
-                        </div>
-                        <span className="text-sm text-gray-600 px-3 py-2 border-l border-gray-300">
-                            {nodes.length} nodes • {segments.length} paths
-                        </span>
+                    <div className="flex items-center gap-2">
+                        <label className="text-xs text-gray-600 font-medium">Overlay Opacity:</label>
+                        <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={floorplanOpacity * 100}
+                            onChange={(e) => setFloorplanOpacity(parseInt(e.target.value) / 100)}
+                            className="w-32 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                            title="Adjust floorplan overlay transparency"
+                        />
+                        <span className="text-xs text-gray-500 font-mono w-8">{Math.round(floorplanOpacity * 100)}%</span>
                     </div>
-                </div>
 
-                {message && (
-                    <div className="mt-2 bg-blue-50 border border-blue-200 text-blue-700 px-3 py-2 rounded text-sm">
-                        {message}
+                    {/* Rotation fine-tune */}
+                    <div className="flex items-center gap-1 border-l border-gray-300 pl-3">
+                        <span className="text-xs text-gray-600 font-medium mr-1">Rotation:</span>
+                        <button onClick={() => adjustRotation(-5)} className="text-xs px-1.5 py-0.5 bg-gray-100 hover:bg-gray-200 rounded font-mono" title="−5°">−5°</button>
+                        <button onClick={() => adjustRotation(-1)} className="text-xs px-1.5 py-0.5 bg-gray-100 hover:bg-gray-200 rounded font-mono" title="−1°">−1°</button>
+                        <span className="text-xs font-mono w-14 text-center text-blue-700 font-semibold">{effectiveRotation.toFixed(1)}°</span>
+                        <button onClick={() => adjustRotation(1)} className="text-xs px-1.5 py-0.5 bg-gray-100 hover:bg-gray-200 rounded font-mono" title="+1°">+1°</button>
+                        <button onClick={() => adjustRotation(5)} className="text-xs px-1.5 py-0.5 bg-gray-100 hover:bg-gray-200 rounded font-mono" title="+5°">+5°</button>
+                        {rotationOffset !== 0 && (
+                            <button onClick={() => { setRotationOffset(0); onRotationChange?.(rotationDegrees); }}
+                                className="text-xs px-1.5 py-0.5 bg-orange-100 hover:bg-orange-200 text-orange-700 rounded ml-1" title="Reset to calibrated value">
+                                Reset
+                            </button>
+                        )}
                     </div>
-                )}
+
+                    <span className="text-sm text-gray-600 px-3 py-2 border-l border-gray-300">
+                        {nodes.length} nodes • {segments.length} paths
+                    </span>
+                </div>
             </div>
 
-            {/* Map */}
+            {message && (
+                <div className="mt-2 bg-blue-50 border border-blue-200 text-blue-700 px-3 py-2 rounded text-sm">
+                    {message}
+                </div>
+            )}
+
             <div className="flex-1 relative">
                 <MapContainer
                     center={center}
@@ -552,34 +683,27 @@ const LeafletMapEditor: React.FC<LeafletMapEditorProps> = ({
                         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     />
 
-                    {/* Floorplan overlay */}
-                    <ImageOverlay
+                    {/* Floorplan overlay — stays at 0° (natural upload orientation).
+                 The map container itself is CSS-rotated to align tiles with the floorplan. */}
+                    <RotatedOverlay
                         url={floorplanUrl}
-                        bounds={bounds}
+                        bounds={overlayBounds}
                         opacity={floorplanOpacity}
+                        rotationDeg={0}
                     />
 
-                    {/* Map click handler */}
+                    {/* Map click handler — corrects click coordinates for the container rotation */}
                     <MapClickHandler
                         mode={drawMode}
                         onMapClick={handleMapClick}
                         onMarkerClick={handleMarkerClick}
+                        containerRotationDeg={effectiveRotation}
                     />
 
                     {/* Nodes */}
                     {(() => {
-                        const poiNodes = nodes.filter(n => n.isPOI);
-                        console.log(`🎨 Rendering ${nodes.length} nodes:`, {
-                            pois: poiNodes.length,
-                            regular: nodes.filter(n => !n.isPOI).length,
-                            poiIds: poiNodes.map(n => n.id),
-                            poiNames: poiNodes.map(n => n.name)
-                        });
                         return nodes.map(node => {
-                            // Make nodes smaller and less intrusive when placing POIs
                             const isPlacingPOI = drawMode === 'poi';
-
-                            // Use static icon instances to prevent duplicate markers
                             const markerIcon = node.isPOI
                                 ? poiIcon
                                 : (isPlacingPOI ? nodeIconSmall : nodeIcon);
@@ -644,20 +768,22 @@ const LeafletMapEditor: React.FC<LeafletMapEditorProps> = ({
             </div>
 
             {/* Edit Modal */}
-            {showEditModal && editingNode && (
-                <LeafletNodeEditModal
-                    eventId={eventId}
-                    floorplanId={floorplanId}
-                    node={editingNode}
-                    onSave={handleNodeEditSave}
-                    onDelete={handleNodeDelete}
-                    onClose={() => {
-                        setShowEditModal(false);
-                        setEditingNode(null);
-                    }}
-                />
-            )}
-        </div>
+            {
+                showEditModal && editingNode && (
+                    <LeafletNodeEditModal
+                        eventId={eventId}
+                        floorplanId={floorplanId}
+                        node={editingNode}
+                        onSave={handleNodeEditSave}
+                        onDelete={handleNodeDelete}
+                        onClose={() => {
+                            setShowEditModal(false);
+                            setEditingNode(null);
+                        }}
+                    />
+                )
+            }
+        </div >
     );
 };
 

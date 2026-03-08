@@ -6,6 +6,7 @@ import { LoadingSpinner } from '../../components/ui/loadingSpinner'
 import { ArrowLeft, Calendar, MapPin, Users, FileText } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { onboardingService } from '../../features/onboarding/services/OnboardingService'
+import { cn } from '../../lib/utils'
 
 interface Venue {
   id: string
@@ -252,47 +253,49 @@ export const CreateEventPage: React.FC = () => {
       </div>
 
       {/* Form */}
-      <div className="bg-white shadow rounded-lg">
+      <div className="bg-[#111113] border border-[#2A2A2A] shadow-sm rounded-xl overflow-hidden">
         <form onSubmit={handleSubmit} className="space-y-6 p-6">
           {/* Event Name */}
           <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="name" className="block text-sm font-medium text-white/70">
               Event Name *
             </label>
             <div className="mt-1 relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Calendar className="h-5 w-5 text-gray-400" />
+                <Calendar className="h-5 w-5 text-white/30" />
               </div>
               <input
                 type="text"
                 id="name"
                 value={formData.name}
                 onChange={(e) => handleInputChange('name', e.target.value)}
-                className={`block w-full pl-10 pr-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.name ? 'border-red-300' : 'border-gray-300'
-                  }`}
+                className={cn(
+                  "block w-full pl-10 pr-3 py-2 border rounded-lg bg-[#1C1C1F] text-white/90 placeholder-white/30 focus:outline-none focus:ring-1 focus:ring-white/20 focus:border-white/20 transition-colors sm:text-sm",
+                  errors.name ? 'border-red-500/50' : 'border-[#2A2A2A]'
+                )}
                 placeholder="Enter event name"
               />
             </div>
             {errors.name && (
-              <p className="mt-1 text-sm text-red-600">{errors.name}</p>
+              <p className="mt-1 text-sm text-red-500">{errors.name}</p>
             )}
           </div>
 
           {/* Description */}
           <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="description" className="block text-sm font-medium text-white/70">
               Description
             </label>
             <div className="mt-1 relative">
               <div className="absolute top-3 left-3 pointer-events-none">
-                <FileText className="h-5 w-5 text-gray-400" />
+                <FileText className="h-5 w-5 text-white/30" />
               </div>
               <textarea
                 id="description"
                 rows={4}
                 value={formData.description}
                 onChange={(e) => handleInputChange('description', e.target.value)}
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                className="block w-full pl-10 pr-3 py-2 border border-[#2A2A2A] rounded-lg bg-[#1C1C1F] text-white/90 placeholder-white/30 focus:outline-none focus:ring-1 focus:ring-white/20 focus:border-white/20 transition-colors sm:text-sm"
                 placeholder="Describe your event..."
               />
             </div>
@@ -300,7 +303,7 @@ export const CreateEventPage: React.FC = () => {
 
           {/* Quicket Event ID (optional) */}
           <div>
-            <label htmlFor="quicket_event_id" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="quicket_event_id" className="block text-sm font-medium text-white/70">
               Quicket Event ID (optional)
             </label>
             <input
@@ -308,7 +311,7 @@ export const CreateEventPage: React.FC = () => {
               id="quicket_event_id"
               value={formData.quicket_event_id}
               onChange={(e) => handleInputChange('quicket_event_id', e.target.value)}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              className="mt-1 block w-full px-3 py-2 border border-[#2A2A2A] rounded-lg bg-[#1C1C1F] text-white/90 placeholder-white/30 focus:outline-none focus:ring-1 focus:ring-white/20 focus:border-white/20 transition-colors sm:text-sm"
               placeholder="Link to an external Quicket event"
             />
           </div>
@@ -316,7 +319,7 @@ export const CreateEventPage: React.FC = () => {
           {/* Date Range */}
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
             <div>
-              <label htmlFor="start_date" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="start_date" className="block text-sm font-medium text-white/70">
                 Start Date & Time *
               </label>
               <div className="mt-1">
@@ -325,17 +328,19 @@ export const CreateEventPage: React.FC = () => {
                   id="start_date"
                   value={formData.start_date}
                   onChange={(e) => handleInputChange('start_date', e.target.value)}
-                  className={`block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.start_date ? 'border-red-300' : 'border-gray-300'
-                    }`}
+                  className={cn(
+                    "block w-full px-3 py-2 border rounded-lg bg-[#1C1C1F] text-white/90 focus:outline-none focus:ring-1 focus:ring-white/20 focus:border-white/20 transition-colors sm:text-sm [color-scheme:dark]",
+                    errors.start_date ? 'border-red-500/50' : 'border-[#2A2A2A]'
+                  )}
                 />
               </div>
               {errors.start_date && (
-                <p className="mt-1 text-sm text-red-600">{errors.start_date}</p>
+                <p className="mt-1 text-sm text-red-500">{errors.start_date}</p>
               )}
             </div>
 
             <div>
-              <label htmlFor="end_date" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="end_date" className="block text-sm font-medium text-white/70">
                 End Date & Time *
               </label>
               <div className="mt-1">
@@ -344,38 +349,42 @@ export const CreateEventPage: React.FC = () => {
                   id="end_date"
                   value={formData.end_date}
                   onChange={(e) => handleInputChange('end_date', e.target.value)}
-                  className={`block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.end_date ? 'border-red-300' : 'border-gray-300'
-                    }`}
+                  className={cn(
+                    "block w-full px-3 py-2 border rounded-lg bg-[#1C1C1F] text-white/90 focus:outline-none focus:ring-1 focus:ring-white/20 focus:border-white/20 transition-colors sm:text-sm [color-scheme:dark]",
+                    errors.end_date ? 'border-red-500/50' : 'border-[#2A2A2A]'
+                  )}
                 />
               </div>
               {errors.end_date && (
-                <p className="mt-1 text-sm text-red-600">{errors.end_date}</p>
+                <p className="mt-1 text-sm text-red-500">{errors.end_date}</p>
               )}
             </div>
           </div>
 
           {/* Venue Selection */}
           <div>
-            <label htmlFor="venue_id" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="venue_id" className="block text-sm font-medium text-white/70">
               Venue *
             </label>
             <div className="mt-1 relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <MapPin className="h-5 w-5 text-gray-400" />
+                <MapPin className="h-5 w-5 text-white/30" />
               </div>
               <select
                 id="venue_id"
                 value={formData.venue_id}
                 onChange={(e) => handleInputChange('venue_id', e.target.value)}
                 disabled={venuesLoading}
-                className={`block w-full pl-10 pr-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.venue_id ? 'border-red-300' : 'border-gray-300'
-                  }`}
+                className={cn(
+                  "block w-full pl-10 pr-3 py-2 border rounded-lg bg-[#1C1C1F] text-white/90 focus:outline-none focus:ring-1 focus:ring-white/20 focus:border-white/20 transition-colors sm:text-sm appearance-none",
+                  errors.venue_id ? 'border-red-500/50' : 'border-[#2A2A2A]'
+                )}
               >
-                <option value="">
+                <option value="" className="bg-[#1C1C1F]">
                   {venuesLoading ? 'Loading venues...' : 'Select a venue'}
                 </option>
                 {venues.map((venue) => (
-                  <option key={venue.id} value={venue.id}>
+                  <option key={venue.id} value={venue.id} className="bg-[#1C1C1F]">
                     {venue.name} - {venue.address}
                   </option>
                 ))}
@@ -385,32 +394,32 @@ export const CreateEventPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowNewVenue((v) => !v)}
-                className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-700 bg-white hover:bg-gray-50"
+                className="inline-flex items-center px-3 py-1.5 border border-[#3A3A3A] rounded-lg text-xs font-medium text-white/70 bg-[#1C1C1F] hover:bg-[#2A2A2A] hover:text-white transition-colors"
               >
                 {showNewVenue ? 'Cancel' : 'Add Venue'}
               </button>
             </div>
             {showNewVenue && (
-              <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 p-4 bg-[#1C1C1F]/50 rounded-lg border border-[#2A2A2A]">
                 <div>
-                  <label htmlFor="new_venue_name" className="block text-sm font-medium text-gray-700">Name</label>
+                  <label htmlFor="new_venue_name" className="block text-sm font-medium text-white/70">Name</label>
                   <input
                     id="new_venue_name"
                     type="text"
                     value={newVenueName}
                     onChange={(e) => setNewVenueName(e.target.value)}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="mt-1 block w-full px-3 py-2 border border-[#2A2A2A] rounded-md bg-[#1C1C1F] text-white/90 placeholder-white/30 focus:outline-none focus:ring-1 focus:ring-white/20"
                     placeholder="Venue name"
                   />
                 </div>
                 <div>
-                  <label htmlFor="new_venue_address" className="block text-sm font-medium text-gray-700">Address</label>
+                  <label htmlFor="new_venue_address" className="block text-sm font-medium text-white/70">Address</label>
                   <input
                     id="new_venue_address"
                     type="text"
                     value={newVenueAddress}
                     onChange={(e) => setNewVenueAddress(e.target.value)}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="mt-1 block w-full px-3 py-2 border border-[#2A2A2A] rounded-md bg-[#1C1C1F] text-white/90 placeholder-white/30 focus:outline-none focus:ring-1 focus:ring-white/20"
                     placeholder="Venue address"
                   />
                 </div>
@@ -419,7 +428,7 @@ export const CreateEventPage: React.FC = () => {
                     type="button"
                     onClick={handleQuickAddVenue}
                     disabled={newVenueLoading || !newVenueName.trim() || !newVenueAddress.trim()}
-                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 transition-colors"
                   >
                     {newVenueLoading ? 'Saving...' : 'Save Venue'}
                   </button>
@@ -427,18 +436,18 @@ export const CreateEventPage: React.FC = () => {
               </div>
             )}
             {errors.venue_id && (
-              <p className="mt-1 text-sm text-red-600">{errors.venue_id}</p>
+              <p className="mt-1 text-sm text-red-500">{errors.venue_id}</p>
             )}
           </div>
 
           {/* Max Attendees */}
           <div>
-            <label htmlFor="max_attendees" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="max_attendees" className="block text-sm font-medium text-white/70">
               Maximum Attendees
             </label>
             <div className="mt-1 relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Users className="h-5 w-5 text-gray-400" />
+                <Users className="h-5 w-5 text-white/30" />
               </div>
               <input
                 type="number"
@@ -446,19 +455,21 @@ export const CreateEventPage: React.FC = () => {
                 min="1"
                 value={formData.max_attendees}
                 onChange={(e) => handleInputChange('max_attendees', e.target.value)}
-                className={`block w-full pl-10 pr-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.max_attendees ? 'border-red-300' : 'border-gray-300'
-                  }`}
+                className={cn(
+                  "block w-full pl-10 pr-3 py-2 border rounded-lg bg-[#1C1C1F] text-white/90 placeholder-white/30 focus:outline-none focus:ring-1 focus:ring-white/20 focus:border-white/20 transition-colors sm:text-sm",
+                  errors.max_attendees ? 'border-red-500/50' : 'border-[#2A2A2A]'
+                )}
                 placeholder="Leave empty for unlimited"
               />
             </div>
             {errors.max_attendees && (
-              <p className="mt-1 text-sm text-red-600">{errors.max_attendees}</p>
+              <p className="mt-1 text-sm text-red-500">{errors.max_attendees}</p>
             )}
           </div>
 
           {/* Status */}
           <div>
-            <label htmlFor="status" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="status" className="block text-sm font-medium text-white/70">
               Status
             </label>
             <div className="mt-1">
@@ -466,81 +477,74 @@ export const CreateEventPage: React.FC = () => {
                 id="status"
                 value={formData.status}
                 onChange={(e) => handleInputChange('status', e.target.value as 'draft' | 'published')}
-                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                className="block w-full px-3 py-2 border border-[#2A2A2A] rounded-lg bg-[#1C1C1F] text-white/90 focus:outline-none focus:ring-1 focus:ring-white/20 focus:border-white/20 transition-colors sm:text-sm appearance-none"
               >
-                <option value="draft">Draft</option>
-                <option value="published">Published</option>
+                <option value="draft" className="bg-[#1C1C1F]">Draft</option>
+                <option value="published" className="bg-[#1C1C1F]">Published</option>
               </select>
             </div>
-            <p className="mt-1 text-sm text-gray-500">
+            <p className="mt-1 text-xs text-white/40">
               Draft events are not visible to attendees. Published events are live and accepting registrations.
             </p>
           </div>
 
           {/* Navigation Mode */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
+            <label className="block text-sm font-medium text-white/70 mb-3">
               Navigation Mode *
             </label>
-            <div className="space-y-2">
-              <label className="flex items-center">
+            <div className="space-y-3">
+              <label className="flex items-center cursor-pointer group">
                 <input
                   type="radio"
                   name="navigation_mode"
                   value="indoor"
                   checked={formData.navigation_mode === 'indoor'}
                   onChange={(e) => handleInputChange('navigation_mode', e.target.value)}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                  className="h-4 w-4 bg-[#1C1C1F] border-[#3A3A3A] text-blue-600 focus:ring-blue-500/50"
                 />
-                <span className="ml-2 text-sm text-gray-700">Indoor Only (QR Codes)</span>
+                <span className="ml-3 text-sm text-white/70 group-hover:text-white transition-colors">Indoor Only (QR Codes)</span>
               </label>
-              <label className="flex items-center">
+              <label className="flex items-center cursor-pointer group">
                 <input
                   type="radio"
                   name="navigation_mode"
                   value="outdoor"
                   checked={formData.navigation_mode === 'outdoor'}
                   onChange={(e) => handleInputChange('navigation_mode', e.target.value)}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                  className="h-4 w-4 bg-[#1C1C1F] border-[#3A3A3A] text-blue-600 focus:ring-blue-500/50"
                 />
-                <span className="ml-2 text-sm text-gray-700">Outdoor Only (GPS)</span>
+                <span className="ml-3 text-sm text-white/70 group-hover:text-white transition-colors">Outdoor Only (GPS)</span>
               </label>
-              <label className="flex items-center">
+              <label className="flex items-center cursor-pointer group">
                 <input
                   type="radio"
                   name="navigation_mode"
                   value="hybrid"
                   checked={formData.navigation_mode === 'hybrid'}
                   onChange={(e) => handleInputChange('navigation_mode', e.target.value)}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                  className="h-4 w-4 bg-[#1C1C1F] border-[#3A3A3A] text-blue-600 focus:ring-blue-500/50"
                 />
-                <span className="ml-2 text-sm text-gray-700">Hybrid (GPS + QR Codes)</span>
+                <span className="ml-3 text-sm text-white/70 group-hover:text-white transition-colors">Hybrid (GPS + QR Codes)</span>
               </label>
             </div>
-            <p className="mt-2 text-sm text-gray-500">
+            <p className="mt-3 text-xs text-white/40">
               Hybrid mode uses GPS outdoors and allows QR code calibration for indoor accuracy.
             </p>
           </div>
 
-          {/* GPS Center Coordinates - Removed as per user request (redundant with Map Editor calibration) */}
-          {/* {(formData.navigation_mode === 'outdoor' || formData.navigation_mode === 'hybrid') && (
-            <div className="p-4 bg-blue-50 border border-blue-200 rounded-md">
-              ... GPS Event Center UI removed ...
-            </div>
-          )} */}
-
           {/* Form Actions */}
-          <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+          <div className="flex justify-end space-x-3 pt-6 border-t border-[#2A2A2A]">
             <Link
               to="/events"
-              className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              className="inline-flex items-center px-4 py-2 border border-[#3A3A3A] shadow-sm text-sm font-medium rounded-lg text-white/70 bg-[#1C1C1F] hover:bg-[#2A2A2A] hover:text-white transition-all"
             >
               Cancel
             </Link>
             <button
               type="submit"
               disabled={loading}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center px-6 py-2 border border-transparent text-sm font-semibold rounded-lg shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
               {loading ? (
                 <>

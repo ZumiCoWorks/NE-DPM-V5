@@ -237,14 +237,20 @@ function calculateGPSFromPixel(
     const metersX = dx * scale;
     const metersY = dy * scale;
 
-    // Apply rotation to get north/east offset
-    // rotation is clockwise from north, so we need to rotate the vector
+    // Apply rotation to get north/east offset.
+    // Screen Y is POSITIVE DOWNWARD (south), geographic North is POSITIVE UPWARD.
+    // For a floorplan rotated θ° clockwise from north:
+    //   moving right (+metersX) = bearing (θ + 90°) from north
+    //   moving down  (+metersY) = bearing (θ + 180°) from north (i.e. south)
+    // Therefore:
+    //   northOffset = metersX * (-sin θ) + metersY * (-cos θ)
+    //   eastOffset  = metersX *   cos θ  + metersY * (-sin θ)
     const rotationRad = (rotation * Math.PI) / 180;
-    const northOffset = metersX * Math.sin(rotationRad) - metersY * Math.cos(rotationRad);
-    const eastOffset = metersX * Math.cos(rotationRad) + metersY * Math.sin(rotationRad);
+    const northOffset = -metersX * Math.sin(rotationRad) - metersY * Math.cos(rotationRad);
+    const eastOffset = metersX * Math.cos(rotationRad) - metersY * Math.sin(rotationRad);
 
     // Convert meter offsets to GPS coordinate changes
-    // 1 degree latitude ≈ 111,320 meters
+    // 1 degree latitude  ≈ 111,320 meters
     // 1 degree longitude ≈ 111,320 * cos(latitude) meters
     const latOffset = northOffset / 111320;
     const lngOffset = eastOffset / (111320 * Math.cos((referenceGPS.lat * Math.PI) / 180));
@@ -275,15 +281,16 @@ export function gpsToPixel(
     const lngOffset = gps.lng - originGPS.lng;
 
     // Convert GPS offset to meters
-    // 1 degree latitude ≈ 111,320 meters
-    // 1 degree longitude ≈ 111,320 * cos(latitude) meters
     const northOffset = latOffset * 111320;
     const eastOffset = lngOffset * (111320 * Math.cos((originGPS.lat * Math.PI) / 180));
 
-    // Apply inverse rotation to get pixel-space offset
+    // Apply inverse rotation to get pixel-space offset.
+    // This is the transpose (= inverse for orthogonal matrix) of the forward rotation:
+    //   metersX =  eastOffset * cos θ - northOffset * sin θ
+    //   metersY = -northOffset * cos θ - eastOffset * sin θ
     const rotationRad = (rotation * Math.PI) / 180;
     const metersX = eastOffset * Math.cos(rotationRad) - northOffset * Math.sin(rotationRad);
-    const metersY = eastOffset * Math.sin(rotationRad) + northOffset * Math.cos(rotationRad);
+    const metersY = -northOffset * Math.cos(rotationRad) - eastOffset * Math.sin(rotationRad);
 
     // Convert meters to pixels
     const x = metersX / scale;
@@ -338,9 +345,13 @@ export function validateCalibration(calibration: CalibrationResult): {
         warnings.push(`Estimated accuracy is low (±${calibration.estimated_accuracy_meters.toFixed(1)}m). Consider selecting calibration points farther apart.`);
     }
 
-    // Check GPS bounds are reasonable (not inverted)
+    // Check GPS bounds are reasonable (not inverted).
+    // Note: in the southern hemisphere, latitudes are negative.
+    // "top" (north) should have a LESS-NEGATIVE (higher) lat value than "bottom" (south).
     if (calibration.gps_top_left_lat < calibration.gps_bottom_left_lat) {
-        errors.push('GPS bounds are inverted (top is south of bottom). Check calibration points.');
+        errors.push(`GPS bounds appear inverted (top-left lat ${calibration.gps_top_left_lat.toFixed(6)} < bottom-left lat ${calibration.gps_bottom_left_lat.toFixed(6)}). ` +
+            'The top-left of your floorplan should map to a more northerly coordinate. ' +
+            'Try selecting your calibration points so that Point 1 is the top-left corner and Point 2 is the bottom-right corner.');
     }
 
     return {

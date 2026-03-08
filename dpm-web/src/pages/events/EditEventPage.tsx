@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase'
 import { LoadingSpinner } from '../../components/ui/loadingSpinner'
 import { ArrowLeft, Calendar, MapPin, Users, FileText } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { cn } from '../../lib/utils'
 
 interface Venue {
   id: string
@@ -264,7 +265,7 @@ export const EditEventPage: React.FC = () => {
         <div className="flex items-center space-x-3 mb-4">
           <Link
             to="/events"
-            className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-700"
+            className="inline-flex items-center text-sm font-medium text-white/50 hover:text-white transition-colors"
           >
             <ArrowLeft className="h-4 w-4 mr-1" />
             Back to Events
@@ -272,14 +273,14 @@ export const EditEventPage: React.FC = () => {
         </div>
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Edit Event</h1>
-            <p className="mt-1 text-sm text-gray-500">
+            <h1 className="text-2xl font-bold text-white/90">Edit Event</h1>
+            <p className="mt-1 text-sm text-white/50">
               Update event details and settings.
             </p>
           </div>
           <Link
             to={`/events/${id}/sponsors`}
-            className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            className="inline-flex items-center px-4 py-2 border border-[#3A3A3A] shadow-sm text-sm font-medium rounded-lg text-white/90 bg-[#1C1C1F] hover:bg-[#2A2A2A] transition-all"
           >
             👥 Manage Sponsors
           </Link>
@@ -289,63 +290,67 @@ export const EditEventPage: React.FC = () => {
       {/* Form */}
       <form onSubmit={handleSubmit} className="space-y-6">
         {errors.general && (
-          <div className="rounded-md bg-red-50 p-4">
-            <div className="text-sm text-red-700">{errors.general}</div>
+          <div className="rounded-lg bg-red-500/10 border border-red-500/20 p-4">
+            <div className="text-sm text-red-500">{errors.general}</div>
           </div>
         )}
 
-        <div className="bg-white shadow rounded-lg p-6">
+        <div className="bg-[#111113] border border-[#2A2A2A] shadow-sm rounded-xl p-6">
           {/* Event Name */}
           <div className="mb-6">
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="name" className="block text-sm font-medium text-white/70">
               Event Name *
             </label>
             <div className="mt-1 relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Calendar className="h-5 w-5 text-gray-400" />
+                <Calendar className="h-5 w-5 text-white/30" />
               </div>
               <input
                 type="text"
                 id="name"
                 value={formData.name}
                 onChange={(e) => handleInputChange('name', e.target.value)}
-                className={`block w-full pl-10 pr-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.name ? 'border-red-300' : 'border-gray-300'
-                  }`}
+                className={cn(
+                  "block w-full pl-10 pr-3 py-2 border rounded-lg bg-[#1C1C1F] text-white/90 placeholder-white/30 focus:outline-none focus:ring-1 focus:ring-white/20 focus:border-white/20 transition-colors sm:text-sm",
+                  errors.name ? 'border-red-500/50' : 'border-[#2A2A2A]'
+                )}
                 placeholder="Enter event name"
               />
             </div>
             {errors.name && (
-              <p className="mt-1 text-sm text-red-600">{errors.name}</p>
+              <p className="mt-1 text-sm text-red-500">{errors.name}</p>
             )}
           </div>
 
           {/* Description */}
           <div className="mb-6">
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="description" className="block text-sm font-medium text-white/70">
               Description
             </label>
             <div className="mt-1 relative">
               <div className="absolute top-3 left-0 pl-3 flex items-start pointer-events-none">
-                <FileText className="h-5 w-5 text-gray-400" />
+                <FileText className="h-5 w-5 text-white/30" />
               </div>
               <textarea
                 id="description"
                 rows={4}
                 value={formData.description}
                 onChange={(e) => handleInputChange('description', e.target.value)}
-                className={`block w-full pl-10 pr-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.description ? 'border-red-300' : 'border-gray-300'
-                  }`}
+                className={cn(
+                  "block w-full pl-10 pr-3 py-2 border rounded-lg bg-[#1C1C1F] text-white/90 placeholder-white/30 focus:outline-none focus:ring-1 focus:ring-white/20 focus:border-white/20 transition-colors sm:text-sm",
+                  errors.description ? 'border-red-500/50' : 'border-[#2A2A2A]'
+                )}
                 placeholder="Enter event description"
               />
             </div>
             {errors.description && (
-              <p className="mt-1 text-sm text-red-600">{errors.description}</p>
+              <p className="mt-1 text-sm text-red-500">{errors.description}</p>
             )}
           </div>
 
           {/* Quicket Event ID (optional) */}
           <div className="mb-6">
-            <label htmlFor="quicket_event_id" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="quicket_event_id" className="block text-sm font-medium text-white/70">
               Quicket Event ID (optional)
             </label>
             <div className="mt-1">
@@ -354,19 +359,19 @@ export const EditEventPage: React.FC = () => {
                 id="quicket_event_id"
                 value={formData.quicket_event_id}
                 onChange={(e) => handleInputChange('quicket_event_id', e.target.value)}
-                className="block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                className="block w-full px-3 py-2 border border-[#2A2A2A] rounded-lg bg-[#1C1C1F] text-white/90 placeholder-white/30 focus:outline-none focus:ring-1 focus:ring-white/20 focus:border-white/20 transition-colors sm:text-sm"
                 placeholder="Link to an external Quicket event"
               />
             </div>
             {errors.quicket_event_id && (
-              <p className="mt-1 text-sm text-red-600">{errors.quicket_event_id}</p>
+              <p className="mt-1 text-sm text-red-500">{errors.quicket_event_id}</p>
             )}
           </div>
 
           {/* Date Range */}
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 mb-6">
             <div>
-              <label htmlFor="start_date" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="start_date" className="block text-sm font-medium text-white/70">
                 Start Date & Time *
               </label>
               <div className="mt-1">
@@ -375,17 +380,19 @@ export const EditEventPage: React.FC = () => {
                   id="start_date"
                   value={formData.start_date}
                   onChange={(e) => handleInputChange('start_date', e.target.value)}
-                  className={`block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.start_date ? 'border-red-300' : 'border-gray-300'
-                    }`}
+                  className={cn(
+                    "block w-full px-3 py-2 border rounded-lg bg-[#1C1C1F] text-white/90 focus:outline-none focus:ring-1 focus:ring-white/20 focus:border-white/20 transition-colors sm:text-sm [color-scheme:dark]",
+                    errors.start_date ? 'border-red-500/50' : 'border-[#2A2A2A]'
+                  )}
                 />
               </div>
               {errors.start_date && (
-                <p className="mt-1 text-sm text-red-600">{errors.start_date}</p>
+                <p className="mt-1 text-sm text-red-500">{errors.start_date}</p>
               )}
             </div>
 
             <div>
-              <label htmlFor="end_date" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="end_date" className="block text-sm font-medium text-white/70">
                 End Date & Time *
               </label>
               <div className="mt-1">
@@ -394,53 +401,57 @@ export const EditEventPage: React.FC = () => {
                   id="end_date"
                   value={formData.end_date}
                   onChange={(e) => handleInputChange('end_date', e.target.value)}
-                  className={`block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.end_date ? 'border-red-300' : 'border-gray-300'
-                    }`}
+                  className={cn(
+                    "block w-full px-3 py-2 border rounded-lg bg-[#1C1C1F] text-white/90 focus:outline-none focus:ring-1 focus:ring-white/20 focus:border-white/20 transition-colors sm:text-sm [color-scheme:dark]",
+                    errors.end_date ? 'border-red-500/50' : 'border-[#2A2A2A]'
+                  )}
                 />
               </div>
               {errors.end_date && (
-                <p className="mt-1 text-sm text-red-600">{errors.end_date}</p>
+                <p className="mt-1 text-sm text-red-500">{errors.end_date}</p>
               )}
             </div>
           </div>
 
           {/* Venue */}
           <div className="mb-6">
-            <label htmlFor="venue_id" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="venue_id" className="block text-sm font-medium text-white/70">
               Venue *
             </label>
             <div className="mt-1 relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <MapPin className="h-5 w-5 text-gray-400" />
+                <MapPin className="h-5 w-5 text-white/30" />
               </div>
               <select
                 id="venue_id"
                 value={formData.venue_id}
                 onChange={(e) => handleInputChange('venue_id', e.target.value)}
-                className={`block w-full pl-10 pr-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.venue_id ? 'border-red-300' : 'border-gray-300'
-                  }`}
+                className={cn(
+                  "block w-full pl-10 pr-3 py-2 border rounded-lg bg-[#1C1C1F] text-white/90 focus:outline-none focus:ring-1 focus:ring-white/20 focus:border-white/20 transition-colors sm:text-sm appearance-none",
+                  errors.venue_id ? 'border-red-500/50' : 'border-[#2A2A2A]'
+                )}
               >
-                <option value="">Select a venue</option>
+                <option value="" className="bg-[#1C1C1F]">Select a venue</option>
                 {venues.map((venue) => (
-                  <option key={venue.id} value={venue.id}>
+                  <option key={venue.id} value={venue.id} className="bg-[#1C1C1F]">
                     {venue.name} - {venue.address}
                   </option>
                 ))}
               </select>
             </div>
             {errors.venue_id && (
-              <p className="mt-1 text-sm text-red-600">{errors.venue_id}</p>
+              <p className="mt-1 text-sm text-red-500">{errors.venue_id}</p>
             )}
           </div>
 
           {/* Max Attendees */}
           <div className="mb-6">
-            <label htmlFor="max_attendees" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="max_attendees" className="block text-sm font-medium text-white/70">
               Maximum Attendees
             </label>
             <div className="mt-1 relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Users className="h-5 w-5 text-gray-400" />
+                <Users className="h-5 w-5 text-white/30" />
               </div>
               <input
                 type="number"
@@ -448,114 +459,109 @@ export const EditEventPage: React.FC = () => {
                 min="1"
                 value={formData.max_attendees}
                 onChange={(e) => handleInputChange('max_attendees', e.target.value)}
-                className={`block w-full pl-10 pr-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.max_attendees ? 'border-red-300' : 'border-gray-300'
-                  }`}
+                className={cn(
+                  "block w-full pl-10 pr-3 py-2 border rounded-lg bg-[#1C1C1F] text-white/90 placeholder-white/30 focus:outline-none focus:ring-1 focus:ring-white/20 focus:border-white/20 transition-colors sm:text-sm",
+                  errors.max_attendees ? 'border-red-500/50' : 'border-[#2A2A2A]'
+                )}
                 placeholder="Leave empty for unlimited"
               />
             </div>
             {errors.max_attendees && (
-              <p className="mt-1 text-sm text-red-600">{errors.max_attendees}</p>
+              <p className="mt-1 text-sm text-red-500">{errors.max_attendees}</p>
             )}
           </div>
 
           {/* Status */}
           <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-3">
+            <label className="block text-sm font-medium text-white/70 mb-3">
               Event Status
             </label>
-            <div className="space-y-2">
-              <label className="flex items-center">
+            <div className="space-y-3">
+              <label className="flex items-center cursor-pointer group">
                 <input
                   type="radio"
                   name="status"
                   value="draft"
                   checked={formData.status === 'draft'}
                   onChange={(e) => handleInputChange('status', e.target.value)}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                  className="h-4 w-4 bg-[#1C1C1F] border-[#3A3A3A] text-blue-600 focus:ring-blue-500/50"
                 />
-                <span className="ml-2 text-sm text-gray-700">Draft</span>
+                <span className="ml-3 text-sm text-white/70 group-hover:text-white transition-colors">Draft</span>
               </label>
-              <label className="flex items-center">
+              <label className="flex items-center cursor-pointer group">
                 <input
                   type="radio"
                   name="status"
                   value="published"
                   checked={formData.status === 'published'}
                   onChange={(e) => handleInputChange('status', e.target.value)}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                  className="h-4 w-4 bg-[#1C1C1F] border-[#3A3A3A] text-blue-600 focus:ring-blue-500/50"
                 />
-                <span className="ml-2 text-sm text-gray-700">Published</span>
+                <span className="ml-3 text-sm text-white/70 group-hover:text-white transition-colors">Published</span>
               </label>
             </div>
-            <p className="mt-2 text-sm text-gray-500">
+            <p className="mt-3 text-xs text-white/40">
               Draft events are not visible to attendees. Published events are live and accepting registrations.
             </p>
           </div>
 
           {/* Navigation Mode */}
           <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-3">
+            <label className="block text-sm font-medium text-white/70 mb-3">
               Navigation Mode *
             </label>
-            <div className="space-y-2">
-              <label className="flex items-center">
+            <div className="space-y-3">
+              <label className="flex items-center cursor-pointer group">
                 <input
                   type="radio"
                   name="navigation_mode"
                   value="indoor"
                   checked={formData.navigation_mode === 'indoor'}
                   onChange={(e) => handleInputChange('navigation_mode', e.target.value)}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                  className="h-4 w-4 bg-[#1C1C1F] border-[#3A3A3A] text-blue-600 focus:ring-blue-500/50"
                 />
-                <span className="ml-2 text-sm text-gray-700">Indoor Only (QR Codes)</span>
+                <span className="ml-3 text-sm text-white/70 group-hover:text-white transition-colors">Indoor Only (QR Codes)</span>
               </label>
-              <label className="flex items-center">
+              <label className="flex items-center cursor-pointer group">
                 <input
                   type="radio"
                   name="navigation_mode"
                   value="outdoor"
                   checked={formData.navigation_mode === 'outdoor'}
                   onChange={(e) => handleInputChange('navigation_mode', e.target.value)}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                  className="h-4 w-4 bg-[#1C1C1F] border-[#3A3A3A] text-blue-600 focus:ring-blue-500/50"
                 />
-                <span className="ml-2 text-sm text-gray-700">Outdoor Only (GPS)</span>
+                <span className="ml-3 text-sm text-white/70 group-hover:text-white transition-colors">Outdoor Only (GPS)</span>
               </label>
-              <label className="flex items-center">
+              <label className="flex items-center cursor-pointer group">
                 <input
                   type="radio"
                   name="navigation_mode"
                   value="hybrid"
                   checked={formData.navigation_mode === 'hybrid'}
                   onChange={(e) => handleInputChange('navigation_mode', e.target.value)}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                  className="h-4 w-4 bg-[#1C1C1F] border-[#3A3A3A] text-blue-600 focus:ring-blue-500/50"
                 />
-                <span className="ml-2 text-sm text-gray-700">Hybrid (GPS + QR Codes)</span>
+                <span className="ml-3 text-sm text-white/70 group-hover:text-white transition-colors">Hybrid (GPS + QR Codes)</span>
               </label>
             </div>
-            <p className="mt-2 text-sm text-gray-500">
+            <p className="mt-3 text-xs text-white/40">
               Hybrid mode uses GPS outdoors and allows QR code calibration for indoor accuracy.
             </p>
           </div>
 
-          {/* GPS Center Coordinates - Removed as per user request (redundant with Map Editor calibration) */}
-          {/* {(formData.navigation_mode === 'outdoor' || formData.navigation_mode === 'hybrid') && (
-            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
-              ... GPS Event Center UI removed ...
-            </div>
-          )} */}
-
           {/* Form Actions */}
-          <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+          <div className="flex justify-end space-x-3 pt-6 border-t border-[#2A2A2A]">
             <Link
               to="/events"
-              className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              className="inline-flex items-center px-4 py-2 border border-[#3A3A3A] shadow-sm text-sm font-medium rounded-lg text-white/70 bg-[#1C1C1F] hover:bg-[#2A2A2A] hover:text-white transition-all"
             >
               Cancel
             </Link>
             <button
               type="submit"
               disabled={submitting}
-              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center px-6 py-2 border border-transparent text-sm font-semibold rounded-lg shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
               {submitting ? (
                 <>

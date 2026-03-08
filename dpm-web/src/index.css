@@ -13,6 +13,38 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/**
+ * Global input baseline reset.
+ * The dark app theme inherits `color: white` into every input element,
+ * making typed text invisible on light-background modals / dialogs.
+ * This rule ensures all inputs are always legible by defaulting to
+ * dark text on a white background. .app-shell overrides apply on top.
+ */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+textarea,
+select {
+  color: #111827;
+  background-color: #ffffff;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"])::placeholder,
+textarea::placeholder {
+  color: #9ca3af;
+}
+
+/* Dark-theme overrides — applied when inside the main app shell */
+.app-shell input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+.app-shell textarea,
+.app-shell select {
+  color: rgba(255, 255, 255, 0.9);
+  background-color: #1c1c1f;
+}
+
+.app-shell input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"])::placeholder,
+.app-shell textarea::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+
 @keyframes arrow-flow {
   0% {
     opacity: 0;
@@ -67,4 +99,65 @@
 /* Layer 1 (Top/Front) - Finishes flow & pulses */
 .animate-arrow-pulse {
   animation: arrow-pulse 2s infinite ease-in-out;
+}
+
+/**
+ * .form-input — Adaptive input class for the whole codebase.
+ * Explicit bg/text/border so text is visible in both light and dark parents.
+ * Usage: add className="form-input" to any <input>, <textarea>, or <select>.
+ */
+.form-input {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  border-radius: 0.5rem;
+  border: 1px solid #D1D5DB;
+  background-color: #FFFFFF;
+  color: #111827;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.form-input::placeholder {
+  color: #9CA3AF;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #3B82F6;
+  box-shadow: 0 0 0 1px #3B82F6;
+}
+
+/* Dark overrides — applied inside .app-shell (Layout.tsx) */
+.app-shell .form-input {
+  border-color: #2A2A2A;
+  background-color: #1C1C1F;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.app-shell .form-input::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.app-shell .form-input:focus {
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2);
+}
+
+/* datetime-local — force dark color scheme in the admin shell */
+.app-shell .form-input[type="datetime-local"] {
+  color-scheme: dark;
+}
+
+.form-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+  color: #374151;
+}
+
+.app-shell .form-label {
+  color: rgba(255, 255, 255, 0.7);
 }

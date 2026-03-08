@@ -111,26 +111,41 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     if (!supabase) return;
 
-    // Listen for auth changes (but ignore repeated SIGNED_IN events to prevent loops)
+    // Listen for auth changes (but ignore repeated SIGNED_IN events to prevent render storms)
     let lastEvent = '';
     let lastEventTime = 0;
+    let lastSignedInUserId = '';
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      // Prevent duplicate events within 1 second
       const now = Date.now();
-      if (event === lastEvent && event === 'SIGNED_IN' && now - lastEventTime < 1000) {
-        console.log('⏭️ Skipping duplicate SIGNED_IN event');
-        return;
+
+      if (event === 'SIGNED_IN') {
+        const userId = session?.user?.id || '';
+        // Supabase fires SIGNED_IN on every token refresh. Skip if:
+        // (a) same user within 30 seconds, OR (b) same user ID as already loaded profile
+        if (userId === lastSignedInUserId && now - lastEventTime < 30_000) {
+          return;
+        }
+        lastSignedInUserId = userId;
+        lastEventTime = now;
+      } else {
+        lastEvent = event;
+        lastEventTime = now;
       }
-      lastEvent = event;
-      lastEventTime = now;
 
       console.log('Auth state changed:', event);
 
-      // Only fetch profile on specific events
-      if (event === 'INITIAL_SESSION' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
-        // Let the initial session logic handle this
-        if (event === 'INITIAL_SESSION') return;
+      // Events that are safe to ignore — the session is still valid, user is still logged in.
+      // TOKEN_REFRESHED = Supabase renewed the JWT in the background. DO NOT clear the user.
+      if (event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED' || event === 'MFA_CHALLENGE_VERIFIED') {
+        return;
+      }
+
+      // User explicitly signed out — clear the session.
+      if (event === 'SIGNED_OUT') {
+        setUser(null);
+        setLoading(false);
+        return;
       }
 
       if (session?.user && supabase && (event === 'SIGNED_IN' || event === 'USER_UPDATED')) {
@@ -269,8 +284,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           });
         }
       } else {
-        console.log('❌ No session, clearing user');
-        setUser(null);
+        // Unexpected event with no session — only clear user on SIGNED_OUT (handled above)
+        // For any other edge case, preserve existing user state rather than logging out
+        console.warn('⚠️ Auth event with no session:', event, '- preserving current user state');
       }
 
       console.log('✅ Auth loading complete');

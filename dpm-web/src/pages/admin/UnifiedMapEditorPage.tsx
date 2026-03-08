@@ -1,6 +1,6 @@
-import React, { Suspense, useEffect, useState } from 'react'
+import React, { Suspense, useEffect, useRef, useState } from 'react'
 import { LoadingSpinner } from '../../components/ui/loadingSpinner'
-import { useSearchParams, Link } from 'react-router-dom'
+import { useSearchParams, Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { validateGraphConnectivity, ValidationResult } from '../../lib/graphValidation'
@@ -8,6 +8,7 @@ import { GraphNode, GraphSegment } from '../../lib/pathfinding'
 import LeafletMapEditor from '../../components/LeafletMapEditor'
 import { GPSCalibrationWizard } from '../../components/GPSCalibrationWizard'
 import { QRCodeGenerator } from '../../components/QRCodeGenerator'
+import { cn } from '../../lib/utils'
 
 // Type definition for the FloorplanEditor component
 interface FloorplanEditorProps {
@@ -23,6 +24,7 @@ const FloorplanEditor = React.lazy(() => import('../../components/FloorplanEdito
 
 export const UnifiedMapEditorPage: React.FC = () => {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const floorplanIdParam = searchParams.get('floorplanId')
   const initialEventId = searchParams.get('eventId')
@@ -34,12 +36,20 @@ export const UnifiedMapEditorPage: React.FC = () => {
   const [gpsFallbackInstruction, setGpsFallbackInstruction] = useState<string>('')
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null)
   const [isValidating, setIsValidating] = useState(false)
-  const [useLeafletEditor, setUseLeafletEditor] = useState(true) // Default to Leaflet Editor (Classic Editor disabled)
+  const [useLeafletEditor, setUseLeafletEditor] = useState(true)
   const [gpsBounds, setGpsBounds] = useState<any>(null)
   const [showCalibrationWizard, setShowCalibrationWizard] = useState(false)
   const [calibrationStatus, setCalibrationStatus] = useState<{ scale: number; rotation: number } | null>(null)
   const [navigationPoints, setNavigationPoints] = useState<any[]>([])
   const [showQRGenerator, setShowQRGenerator] = useState(false)
+  // Guard against duplicate uploads (e.g. double-click or re-render triggering onChange twice)
+  const isUploadingRef = useRef(false)
+  // Tracks which floorplan ID is already loaded so navigate() changing floorplanIdParam
+  // doesn't re-fire the load effect with the same data we just fetched.
+  const loadedFloorplanRef = useRef<string | null>(null);
+
+  // All floorplans for the event (for the floor switcher)
+  const [allFloorplans, setAllFloorplans] = useState<Array<{ id: string; name: string; is_calibrated: boolean }>>([]);
 
   // Floorplan naming modal state
   const [showNamingModal, setShowNamingModal] = useState(false)
@@ -76,26 +86,40 @@ export const UnifiedMapEditorPage: React.FC = () => {
     })();
   }, [eventId]);
 
-  // Load specific floorplan
+  // Load floorplan — if floorplanIdParam is given, load that specific one.
+  // If NOT given but eventId exists, auto-detect the most recent floorplan for the event.
   useEffect(() => {
-    if (!eventId || !supabase || !floorplanIdParam) return;
+    if (!eventId || !supabase) return;
+    // Guard: if we're being called because navigate() just set floorplanIdParam to the
+    // ID we already loaded moments ago, skip to avoid the dep-loop.
+    if (floorplanIdParam && loadedFloorplanRef.current === floorplanIdParam) return;
 
     let mounted = true;
     (async () => {
       try {
-        const { data, error } = await supabase
+        let query = supabase
           .from('floorplans')
           .select('id, image_url, image_width, image_height, scale_meters_per_pixel, rotation_degrees, is_calibrated')
-          .eq('id', floorplanIdParam)
-          .single();
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (floorplanIdParam) {
+          query = query.eq('id', floorplanIdParam);
+        } else {
+          query = query.eq('event_id', eventId);
+        }
+
+        const { data, error } = await query.single();
 
         if (error) {
-          console.warn('Could not fetch floorplan for event:', error);
+          if ((error as any).code !== 'PGRST116') {
+            console.warn('Could not fetch floorplan:', error);
+          }
           return;
         }
 
         if (mounted && data) {
-          const floorplanData = data as {
+          const fp = data as {
             id: string;
             image_url: string;
             image_width?: number | null;
@@ -105,43 +129,58 @@ export const UnifiedMapEditorPage: React.FC = () => {
             is_calibrated?: boolean | null;
           };
 
-          if (!floorplanData.image_url) return;
+          if (!fp.image_url) return;
 
-          setFloorplanId(floorplanData.id);
-          setInitialFloorplanUrl(floorplanData.image_url);
+          loadedFloorplanRef.current = fp.id; // Mark as loaded BEFORE navigate()
 
-          // Set dimensions if available
-          if (floorplanData.image_width && floorplanData.image_height) {
-            setFloorplanDimensions({
-              width: floorplanData.image_width,
-              height: floorplanData.image_height
-            });
+          setFloorplanId(fp.id);
+          setInitialFloorplanUrl(fp.image_url);
+
+          if (fp.image_width && fp.image_height) {
+            setFloorplanDimensions({ width: fp.image_width, height: fp.image_height });
           } else {
-            // Load image to get dimensions
             const img = new Image();
-            img.onload = () => {
-              setFloorplanDimensions({ width: img.naturalWidth, height: img.naturalHeight });
-            };
-            img.src = floorplanData.image_url;
+            img.onload = () => setFloorplanDimensions({ width: img.naturalWidth, height: img.naturalHeight });
+            img.src = fp.image_url;
           }
 
-          // Set calibration status if available
-          if (floorplanData.is_calibrated && floorplanData.scale_meters_per_pixel !== null && floorplanData.rotation_degrees !== null) {
+          if (fp.is_calibrated && fp.scale_meters_per_pixel != null && fp.rotation_degrees != null) {
             setCalibrationStatus({
-              scale: floorplanData.scale_meters_per_pixel as number,
-              rotation: floorplanData.rotation_degrees as number
+              scale: fp.scale_meters_per_pixel as number,
+              rotation: fp.rotation_degrees as number
             });
           }
 
-          console.log('✅ Loaded floorplan for event:', eventId);
+          // Update the URL so state survives refreshes. The ref guard above prevents
+          // this navigate() from causing the effect to re-fire unnecessarily.
+          if (!floorplanIdParam && eventId) {
+            navigate(`/map-editor?eventId=${eventId}&floorplanId=${fp.id}`, { replace: true });
+          }
+
+          console.log('✅ Loaded floorplan:', fp.id, 'for event:', eventId);
         }
       } catch (err) {
         console.warn('Floorplan fetch failed:', err);
       }
     })();
 
-    return () => { mounted = false };
+    return () => { mounted = false; };
   }, [eventId, floorplanIdParam]);
+
+
+  // Load all floorplans for this event (to power the floor switcher)
+  useEffect(() => {
+    if (!eventId || !supabase) return;
+    (async () => {
+      const { data } = await supabase
+        .from('floorplans')
+        .select('id, name, is_calibrated')
+        .eq('event_id', eventId)
+        .order('created_at', { ascending: true });
+      if (data) setAllFloorplans(data as any[]);
+    })();
+  }, [eventId]);
+
 
 
   // Fetch GPS bounds for Leaflet editor - use calibrated bounds from floorplan
@@ -415,7 +454,7 @@ export const UnifiedMapEditorPage: React.FC = () => {
         .insert({
           event_id: eventId,
           user_id: user.id,
-          name: floorplanName.trim(),
+          name: floorplanName.trim() || 'Floorplan',
           image_url: pendingUpload.publicUrl,
           image_width: pendingUpload.dimensions.width,
           image_height: pendingUpload.dimensions.height,
@@ -427,23 +466,31 @@ export const UnifiedMapEditorPage: React.FC = () => {
       if (dbError) throw dbError;
       if (!floorplanData) throw new Error('No floorplan data returned');
 
-      console.log('✅ Floorplan saved:', floorplanData);
+      const saved = floorplanData as any;
+      console.log('✅ Floorplan saved:', saved);
 
-      // Update state (no reload!)
-      setFloorplanId((floorplanData as any).id);
-      setInitialFloorplanUrl((floorplanData as any).image_url);
-      setFloorplanDimensions({
-        width: (floorplanData as any).image_width,
-        height: (floorplanData as any).image_height
-      });
+      // Update state
+      setFloorplanId(saved.id);
+      setInitialFloorplanUrl(saved.image_url);
+      setFloorplanDimensions({ width: saved.image_width, height: saved.image_height });
 
-      // Close modal and reset state
+      // Update URL so refreshes include floorplanId and state is stable
+      navigate(`/map-editor?eventId=${eventId}&floorplanId=${saved.id}`, { replace: true });
+
+      // Close modal and reset
       setShowNamingModal(false);
       setPendingUpload(null);
       setFloorplanName('');
+      // Refresh the floor switcher list so new tab appears immediately
+      setAllFloorplans(prev => {
+        if (prev.some(f => f.id === saved.id)) return prev;
+        return [...prev, { id: saved.id, name: saved.name, is_calibrated: false }];
+      });
     } catch (err: any) {
       console.error('Save failed:', err);
       alert(`❌ Save failed: ${err.message}`);
+    } finally {
+      isUploadingRef.current = false;
     }
   };
 
@@ -452,6 +499,7 @@ export const UnifiedMapEditorPage: React.FC = () => {
     setShowNamingModal(false);
     setPendingUpload(null);
     setFloorplanName('');
+    isUploadingRef.current = false; // Allow next upload attempt
   };
 
   // Show event selection prompt if no eventId
@@ -508,12 +556,13 @@ export const UnifiedMapEditorPage: React.FC = () => {
 
   return (
     <div className="h-screen flex flex-col">
+      {/* ── Main toolbar ── */}
       <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between shadow-sm z-10">
         <div className="flex items-center space-x-4">
           <Link
-            to="/events"
+            to={eventId ? `/events/${eventId}/setup` : '/events'}
             className="inline-flex items-center p-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-            title="Back to Events"
+            title="Back to Event Setup"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -591,7 +640,71 @@ export const UnifiedMapEditorPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Calibration Status Banner */}
+      {/* ── Floor switcher strip (shows when event has multiple floors) ── */}
+      {eventId && (
+        <div className="bg-gray-50 border-b border-gray-200 px-4 flex items-center gap-1 overflow-x-auto">
+          {allFloorplans.map((fp) => (
+            <button
+              key={fp.id}
+              onClick={() => navigate(`/map-editor?eventId=${eventId}&floorplanId=${fp.id}`)}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-2 text-xs font-semibold whitespace-nowrap border-b-2 transition-colors",
+                fp.id === floorplanId
+                  ? "border-blue-600 text-blue-700 bg-white"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:bg-white"
+              )}
+            >
+              <span>{fp.name}</span>
+              <span className={cn(
+                "inline-block w-1.5 h-1.5 rounded-full",
+                fp.is_calibrated ? "bg-green-500" : "bg-yellow-400"
+              )} />
+            </button>
+          ))}
+          {/* Upload a new floor */}
+          <label
+            className="flex items-center gap-1 px-3 py-2 text-xs font-semibold text-gray-400 hover:text-blue-600 cursor-pointer border-b-2 border-transparent whitespace-nowrap transition-colors"
+            title="Add a new floor plan for this event"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Add Floor
+            <input
+              type="file"
+              accept="image/*"
+              className="sr-only"
+              onChange={async (e) => {
+                if (isUploadingRef.current) return;
+                const file = e.target.files?.[0];
+                if (!file || !eventId || !supabase) return;
+                isUploadingRef.current = true;
+                try {
+                  const fileName = `floorplan_${eventId}_${Date.now()}.${file.name.split('.').pop()}`;
+                  const { error: uploadError } = await supabase.storage
+                    .from('floorplans')
+                    .upload(fileName, file, { upsert: true });
+                  if (uploadError) throw uploadError;
+                  const { data: urlData } = supabase.storage.from('floorplans').getPublicUrl(fileName);
+                  if (!urlData?.publicUrl) throw new Error('Failed to get public URL');
+                  const img = new Image();
+                  img.src = URL.createObjectURL(file);
+                  await new Promise((res) => { img.onload = res; });
+                  setPendingUpload({ file, publicUrl: urlData.publicUrl, dimensions: { width: img.width, height: img.height } });
+                  setFloorplanName(file.name.split('.')[0] || 'New Floor');
+                  setShowNamingModal(true);
+                } catch (err: any) {
+                  alert(`❌ Upload failed: ${err.message}`);
+                  isUploadingRef.current = false;
+                }
+                // Reset input so same file can be re-selected
+                e.target.value = '';
+              }}
+            />
+          </label>
+        </div>
+      )}
+
       {calibrationStatus && (
         <div className="bg-green-50 border-b border-green-200 px-4 py-2 flex items-center justify-between">
           <div className="flex items-center space-x-4">
@@ -756,15 +869,17 @@ export const UnifiedMapEditorPage: React.FC = () => {
                       type="file"
                       accept="image/*"
                       onChange={async (e) => {
+                        // Guard: prevent duplicate uploads from re-renders or double-clicks
+                        if (isUploadingRef.current) return;
                         const file = e.target.files?.[0];
                         if (!file || !eventId || !supabase) return;
 
+                        isUploadingRef.current = true;
                         try {
-                          // Show loading state
                           const fileName = `floorplan_${eventId}_${Date.now()}.${file.name.split('.').pop()}`;
 
                           // Upload to Supabase Storage
-                          const { data: uploadData, error: uploadError } = await supabase.storage
+                          const { error: uploadError } = await supabase.storage
                             .from('floorplans')
                             .upload(fileName, file, { upsert: true });
 
@@ -782,24 +897,22 @@ export const UnifiedMapEditorPage: React.FC = () => {
                           img.src = URL.createObjectURL(file);
                           await new Promise((resolve) => { img.onload = resolve; });
 
-                          // Store upload data and show naming modal
                           setPendingUpload({
                             file,
                             publicUrl: urlData.publicUrl,
                             dimensions: { width: img.width, height: img.height }
                           });
 
-                          // Auto-populate name from filename (without extension)
                           setFloorplanName(file.name.split('.')[0] || 'Floorplan');
-
-                          // Show naming modal
                           setShowNamingModal(true);
+                          // isUploadingRef is cleared in handleSaveFloorplan / handleCancelNaming
                         } catch (err: any) {
                           console.error('Upload failed:', err);
                           alert(`❌ Upload failed: ${err.message}`);
+                          isUploadingRef.current = false;
                         }
                       }}
-                      className="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 file:mr-4 file:py-2 file:px-4 file:rounded-l-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700"
+                      className="block w-full text-sm text-gray-900 dark:text-white/90 border border-gray-300 dark:border-[#2A2A2A] rounded-lg cursor-pointer bg-white dark:bg-[#1C1C1F] focus:outline-none focus:ring-1 focus:ring-blue-500 dark:focus:ring-white/20 file:mr-4 file:py-2 file:px-4 file:rounded-l-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700"
                     />
                   </div>
                 ) : (
@@ -818,6 +931,9 @@ export const UnifiedMapEditorPage: React.FC = () => {
             floorplanId={floorplanId || ''}
             floorplanUrl={initialFloorplanUrl}
             gpsBounds={gpsBounds}
+            rotationDegrees={calibrationStatus?.rotation ?? 0}
+            scaleMetersPerPixel={calibrationStatus?.scale ?? 0}
+            floorplanSize={floorplanDimensions ?? undefined}
             onExport={async (nodes, segments) => {
               if (!supabase || !floorplanId) return;
 
