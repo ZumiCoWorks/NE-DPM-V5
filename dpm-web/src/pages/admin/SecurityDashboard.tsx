@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { Shield, AlertTriangle, CheckCircle, MapPin, Clock, Radio, User, Maximize2, Users, ArrowLeft } from 'lucide-react';
+import { Shield, AlertTriangle, CheckCircle, MapPin, Clock, Radio, User, Maximize2, Users, ArrowLeft, Ticket } from 'lucide-react';
 import { MapContainer, TileLayer, ImageOverlay, Marker, CircleMarker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -22,7 +22,15 @@ interface Alert {
     gps_lng: number;
     created_at: string;
     user_id?: string;
+    /** Populated when the alert was sent by a registered attendee. */
+    attendee_id?: string;
     metadata?: any;
+}
+
+/** Resolved identity info for an attendee, fetched once on demand. */
+interface AttendeeInfo {
+    full_name: string;
+    ticket_type: string;
 }
 
 interface AttendeeLocation {
@@ -122,6 +130,55 @@ export default function SecurityDashboard() {
     const [activeTab, setActiveTab] = useState<'live' | 'history'>('live');
     const [floorplan, setFloorplan] = useState<any>(null);
     const [gpsBounds, setGpsBounds] = useState<[[number, number], [number, number]] | null>(null);
+    /** One-time cache: attendee UUID → resolved identity info. */
+    const [attendeeInfoCache, setAttendeeInfoCache] = useState<Map<string, AttendeeInfo>>(new Map());
+    /** Tracks in-flight attendee lookups to prevent duplicate requests. */
+    const pendingLookups = React.useRef<Set<string>>(new Set());
+
+    /** Escape a string for safe insertion into an HTML template. */
+    const escapeHtml = (str: string): string =>
+        str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+    /**
+     * Look up a single attendee record by their UUID and store the result in
+     * the local cache. The lookup is skipped when the ID is already cached,
+     * a fetch is already in-flight, or the ID looks like an anonymous one.
+     */
+    const fetchAttendeeInfo = useCallback(async (attendeeId: string) => {
+        if (!supabase || !attendeeId || attendeeId.startsWith('anon_')) return;
+        if (pendingLookups.current.has(attendeeId)) return;
+
+        setAttendeeInfoCache(prev => {
+            if (prev.has(attendeeId)) return prev;
+            // Mark as in-flight before starting the async work
+            pendingLookups.current.add(attendeeId);
+            (async () => {
+                try {
+                    const { data, error } = await (supabase as any)
+                        .from('attendees')
+                        .select('first_name, last_name, ticket_type')
+                        .eq('id', attendeeId)
+                        .single();
+
+                    if (error || !data) return;
+
+                    const full_name = [data.first_name, data.last_name].filter(Boolean).join(' ') || 'Unknown';
+                    const ticket_type = data.ticket_type || 'General';
+
+                    setAttendeeInfoCache(cache => {
+                        const next = new Map(cache);
+                        next.set(attendeeId, { full_name, ticket_type });
+                        return next;
+                    });
+                } catch {
+                    // Non-fatal — silently ignore lookup failures
+                } finally {
+                    pendingLookups.current.delete(attendeeId);
+                }
+            })();
+            return prev;
+        });
+    }, []);
 
     // Fetch Alerts & Floorplan
     useEffect(() => {
@@ -136,7 +193,15 @@ export default function SecurityDashboard() {
                 .select('*')
                 .order('created_at', { ascending: false })
                 .limit(50);
-            if (alertsData) setAlerts(alertsData as unknown as Alert[]);
+            if (alertsData) {
+                const fetchedAlerts = alertsData as unknown as Alert[];
+                setAlerts(fetchedAlerts);
+                // Kick off one-time attendee lookups for all loaded alerts
+                fetchedAlerts.forEach(a => {
+                    const id = a.attendee_id || a.user_id;
+                    if (id) fetchAttendeeInfo(id);
+                });
+            }
 
             // 2. Fetch Active Floorplan (Just grab the most recent one for the demo)
             const { data: fpData } = await client
@@ -179,6 +244,9 @@ export default function SecurityDashboard() {
                 console.log('🚨 REALTIME ALERT RECEIVED:', payload);
                 const newAlert = payload.new as Alert;
                 setAlerts(prev => [newAlert, ...prev]);
+                // Trigger one-time identity lookup for the incoming alert
+                const id = newAlert.attendee_id || newAlert.user_id;
+                if (id) fetchAttendeeInfo(id);
                 // Safe audio playback for E2E tests
                 if (typeof Audio !== 'undefined') {
                     try {
@@ -201,7 +269,7 @@ export default function SecurityDashboard() {
             });
 
         return () => { subscription.unsubscribe(); };
-    }, []);
+    }, [fetchAttendeeInfo]);
 
     const updateAlertStatus = async (id: string, status: string) => {
         setAlerts(prev => prev.map(a => a.id === id ? { ...a, status } : a)); // Optimistic
@@ -276,7 +344,10 @@ export default function SecurityDashboard() {
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#09090B]">
-                        {(activeTab === 'live' ? activeAlerts : alerts.filter(a => a.status === 'resolved')).map(alert => (
+                        {(activeTab === 'live' ? activeAlerts : alerts.filter(a => a.status === 'resolved')).map(alert => {
+                            const attendeeId = alert.attendee_id || alert.user_id;
+                            const attendeeInfo = attendeeId ? attendeeInfoCache.get(attendeeId) : undefined;
+                            return (
                             <div key={alert.id} className={`p-4 rounded-xl border transition-all ${alert.status === 'new'
                                 ? 'bg-red-500/5 border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.05)]'
                                 : 'bg-[#1C1C1F] border-[#2A2A2A]'
@@ -295,11 +366,30 @@ export default function SecurityDashboard() {
                                     <span className="text-[10px] font-mono text-white/30">{new Date(alert.created_at).toLocaleTimeString()}</span>
                                 </div>
 
+                                {/* Safety Intelligence: Attendee Identity Panel */}
+                                {attendeeInfo ? (
+                                    <div className="mb-3 pl-6">
+                                        <div className="flex items-start gap-2 p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                                            <User className="w-3.5 h-3.5 text-amber-400 mt-0.5 shrink-0" />
+                                            <div className="min-w-0">
+                                                <p className="text-xs font-bold text-amber-300 truncate" data-testid="alert-attendee-name">{attendeeInfo.full_name}</p>
+                                                <div className="flex items-center gap-1 mt-0.5">
+                                                    <Ticket className="w-2.5 h-2.5 text-amber-500/70" />
+                                                    <p className="text-[10px] text-amber-500/80 font-medium tracking-wide uppercase" data-testid="alert-attendee-ticket">{attendeeInfo.ticket_type}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
                                 <div className="text-sm text-white/70 mb-3 pl-6">
                                     <div className="flex items-center gap-2 mb-1">
                                         <User className="w-3.5 h-3.5 text-white/30" />
-                                        <span className="text-xs">User: {alert.user_id?.slice(0, 6) || 'Guest'}</span>
+                                        <span className="text-xs">User: {attendeeId?.slice(0, 6) || 'Guest'}</span>
                                     </div>
+                                </div>
+                                )}
+
+                                <div className="text-sm text-white/70 mb-3 pl-6">
                                     <div className="flex items-center gap-2">
                                         <MapPin className="w-3.5 h-3.5 text-white/30" />
                                         <span className="text-xs">{alert.gps_lat != null ? `${alert.gps_lat.toFixed(5)}, ${alert.gps_lng.toFixed(5)}` : '📍 Location Unknown'}</span>
@@ -326,7 +416,8 @@ export default function SecurityDashboard() {
                                     </div>
                                 )}
                             </div>
-                        ))}
+                            );
+                        })}
 
                         {activeTab === 'live' && activeAlerts.length === 0 && (
                             <div className="text-center py-12 opacity-40">
@@ -378,19 +469,39 @@ export default function SecurityDashboard() {
                             ))}
 
                             {/* ACTIVE ALERTS LAYER — only render if GPS available */}
-                            {activeAlerts.filter(a => a.gps_lat != null && a.gps_lng != null).map(alert => (
+                            {activeAlerts.filter(a => a.gps_lat != null && a.gps_lng != null).map(alert => {
+                                const attendeeId = alert.attendee_id || alert.user_id;
+                                const info = attendeeId ? attendeeInfoCache.get(attendeeId) : undefined;
+                                // Icon dimensions: [width, height] and anchor point [x, y]
+                                const ICON_WITH_LABEL: [number, number] = [120, 80];
+                                const ANCHOR_WITH_LABEL: [number, number] = [60, 80];
+                                const ICON_DEFAULT: [number, number] = [48, 48];
+                                const ANCHOR_DEFAULT: [number, number] = [24, 48];
+                                const nameLabel = info
+                                    ? `<div style="background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.4);border-radius:6px;padding:4px 8px;margin-bottom:4px;white-space:nowrap;text-align:center;">
+                                          <div style="color:#fbbf24;font-size:11px;font-weight:700;line-height:1.3;">${escapeHtml(info.full_name)}</div>
+                                          <div style="color:#f59e0b;font-size:9px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;">${escapeHtml(info.ticket_type)}</div>
+                                       </div>`
+                                    : '';
+                                return (
                                 <Marker
                                     key={alert.id}
                                     position={[alert.gps_lat, alert.gps_lng]}
                                     icon={new L.DivIcon({
                                         className: 'bg-transparent',
-                                        html: `<div class="relative w-12 h-12 flex items-center justify-center -translate-x-1/2 -translate-y-1/2">
-                                            <div class="absolute inset-0 bg-red-500 rounded-full animate-ping opacity-75"></div>
-                                            <div class="relative w-4 h-4 bg-red-600 border-2 border-white rounded-full shadow-lg"></div>
-                                        </div>`
+                                        html: `<div style="display:flex;flex-direction:column;align-items:center;transform:translate(-50%,-50%);">
+                                            ${nameLabel}
+                                            <div style="position:relative;width:48px;height:48px;display:flex;align-items:center;justify-content:center;">
+                                                <div style="position:absolute;inset:0;background:#ef4444;border-radius:50%;animation:ping 1s cubic-bezier(0,0,0.2,1) infinite;opacity:0.75;"></div>
+                                                <div style="position:relative;width:16px;height:16px;background:#dc2626;border:2px solid white;border-radius:50%;box-shadow:0 4px 6px rgba(0,0,0,0.3);"></div>
+                                            </div>
+                                        </div>`,
+                                        iconSize: info ? ICON_WITH_LABEL : ICON_DEFAULT,
+                                        iconAnchor: info ? ANCHOR_WITH_LABEL : ANCHOR_DEFAULT,
                                     })}
                                 />
-                            ))}
+                                );
+                            })}
 
                             <MapReCenter center={mapCenter} />
                         </MapContainer>
