@@ -33,6 +33,7 @@ import { RegisterPage as VendorSignupPage } from './pages/auth/RegisterPage';
 import AttendeePWANew from './pages/mobile/AttendeePWANew';
 import StaffPWA from './pages/mobile/StaffPWA-new';
 import SecurityDashboard from './pages/admin/SecurityDashboard';
+import AttendeesUploadPage from './pages/admin/AttendeesUploadPage';
 
 
 const APP_TYPE = import.meta.env.VITE_APP_TYPE || 'admin';
@@ -273,6 +274,17 @@ export default function App() {
                 <SecurityDashboard />
               </ProtectedRoute>
             } />
+
+            <Route
+              path="/admin/upload-attendees"
+              element={
+                <ProtectedRoute>
+                  <AdminLayout>
+                    <AttendeesUploadPage />
+                  </AdminLayout>
+                </ProtectedRoute>
+              }
+            />
 
             {/* E2E Bypass route for testing Security Dashboard without Auth */}
             <Route path="/e2e-security" element={<SecurityDashboard />} />
