@@ -91,7 +91,7 @@ router.post('/admin/upload', authenticateToken, async (req: any, res: Response) 
       const company = (r.company || r.Company || '').toString()
       const job_title = (r.job_title || r.JobTitle || r.title || r['Job Title'] || '').toString()
       const ticket_type = (r.ticket_type || r.TicketType || r['Ticket Type'] || r.ticket || '').toString()
-      const event_id = (r.event_id || r.eventId || '').toString()
+      const event_id = (r.event_id || r.eventId || req.body.event_id || '').toString()
 
       // POPIA: hash identifiers — do not store raw email or phone
       const email_hash = rawEmail ? sha256Hex(rawEmail) : null

@@ -1,16 +1,35 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { ShieldCheck } from 'lucide-react'
 
 export default function AttendeesUploadPage() {
   const [csvText, setCsvText] = useState('')
   const [message, setMessage] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [events, setEvents] = useState<{ id: string, name: string }[]>([])
+  const [selectedEventId, setSelectedEventId] = useState('')
+
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        const res = await fetch('/api/events', {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
+        })
+        const json = await res.json()
+        if (json.success && json.data) {
+          setEvents(json.data)
+        }
+      } catch (err) {
+        console.error('Failed to fetch events', err)
+      }
+    }
+    fetchEvents()
+  }, [])
 
   const uploadCsv = async () => {
     setLoading(true)
     setMessage(null)
     try {
-      const payload = { csv: csvText }
+      const payload = { csv: csvText, event_id: selectedEventId }
       const res = await fetch('/api/attendees/admin/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
@@ -65,6 +84,20 @@ export default function AttendeesUploadPage() {
         <li><code>Ticket Type</code> / <code>ticket_type</code></li>
         <li><code>Company</code>, <code>Job Title</code> / <code>job_title</code>, <code>event_id</code></li>
       </ul>
+
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-gray-700 mb-1">Target Event (Optional)</label>
+        <select
+          value={selectedEventId}
+          onChange={(e) => setSelectedEventId(e.target.value)}
+          className="w-full md:w-1/2 border p-2 rounded text-sm bg-white"
+        >
+          <option value="">No specific event</option>
+          {events.map((ev) => (
+            <option key={ev.id} value={ev.id}>{ev.name}</option>
+          ))}
+        </select>
+      </div>
 
       <div className="mb-4">
         <input type="file" accept=".csv" onChange={onFileChange} />

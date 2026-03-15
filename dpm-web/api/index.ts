@@ -23,6 +23,8 @@ import editorRoutes from './routes/editor.js'
 import authRoutes from './routes/auth.js'
 import { getEvents, getEvent, createEvent, updateEvent, deleteEvent } from './events/index'
 import { getVenues, getVenue, createVenue, updateVenue, deleteVenue } from './venues/index'
+import attendeesRoutes from './routes/attendees.js'
+
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -84,6 +86,9 @@ app.use('/api/storage', authenticateToken, storageRoutes)
 // Editor routes
 app.use('/api/editor', editorRoutes)
 
+// Attendees routes
+app.use('/api/attendees', attendeesRoutes)
+
 // Leads routes (for staff mobile app)
 import leadsRoutes from './routes/leads.js'
 app.use('/api/leads', leadsRoutes)
@@ -106,7 +111,7 @@ app.delete('/api/venues/:id', authenticateToken, requireVenueManager, deleteVenu
 app.get('/api/profile', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { supabase } = await import('./lib/supabase')
-    
+
     const { data: profile, error } = await supabase
       .from('profiles')
       .select('id, email, first_name, last_name, role')
@@ -280,7 +285,7 @@ app.get('/api/dashboard/stats', authenticateToken, async (req: AuthenticatedRequ
       // Venue manager sees their venues and events at their venues
       const [venuesResult, eventsResult] = await Promise.all([
         supabase.from('venues').select('id', { count: 'exact' }).eq('organization_id', req.user.organization_id),
-        supabase.from('events').select('id', { count: 'exact' }).in('venue_id', 
+        supabase.from('events').select('id', { count: 'exact' }).in('venue_id',
           (await supabase.from('venues').select('id').eq('organization_id', req.user.organization_id)).data?.map(v => v.id) || []
         ),
       ])
@@ -375,7 +380,7 @@ app.use('*', (req, res) => {
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
   console.error('Unhandled error:', err)
-  
+
   res.status(500).json({
     error: 'Internal server error',
     message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong',
