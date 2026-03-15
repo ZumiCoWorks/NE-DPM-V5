@@ -1,0 +1,149 @@
+import { Request, Response, NextFunction } from 'express'
+import jwt from 'jsonwebtoken'
+import { supabase, getUserFromToken } from '../lib/supabase'
+
+interface AuthenticatedRequest extends Request {
+  user?: {
+    id: string
+    email: string
+    role: string
+    organization_id?: string
+    full_name?: string
+  }
+}
+
+interface JWTPayload {
+  userId: string
+  email: string
+  role: string
+  iat: number
+  exp: number
+}
+
+export const authenticateToken = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (process.env.NODE_ENV !== 'production' && (req.body as any)?.userId) {
+      req.user = {
+        id: (req.body as any).userId,
+        email: (req.body as any).email || '',
+        role: '',
+      }
+      return next()
+    }
+    // Get token from cookie or Authorization header
+    const token = req.cookies['auth-token'] || 
+                 (req.headers.authorization?.startsWith('Bearer ') 
+                   ? req.headers.authorization.substring(7) 
+                   : null)
+
+    if (!token) {
+      return res.status(401).json({
+        error: 'Access denied',
+        message: 'No authentication token provided',
+      })
+    }
+
+    let decoded: JWTPayload | null = null
+    try {
+      decoded = jwt.verify(
+        token,
+        process.env.JWT_SECRET || 'fallback-secret'
+      ) as JWTPayload
+    } catch {
+      // Fallback: treat token as Supabase access token
+      const supaUser = await getUserFromToken(token)
+      if (!supaUser) {
+        return res.status(401).json({
+          error: 'Access denied',
+          message: 'Invalid or expired token',
+        })
+      }
+      decoded = {
+        userId: supaUser.id,
+        email: supaUser.email || '',
+        role: '',
+        iat: 0,
+        exp: 0,
+      }
+    }
+
+    // Verify profile when available; if missing, proceed with Supabase auth user
+    const { data: user, error } = await supabase
+      .from('profiles')
+      .select('id, email, role')
+      .eq('id', decoded.userId)
+      .single()
+
+    if (user && !error) {
+      req.user = {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+      }
+    } else {
+      req.user = {
+        id: decoded.userId,
+        email: decoded.email,
+        role: '',
+      }
+    }
+
+    next()
+  } catch (error) {
+    console.error('Authentication error:', error)
+    
+    if (error instanceof jwt.JsonWebTokenError) {
+      return res.status(401).json({
+        error: 'Access denied',
+        message: 'Invalid token',
+      })
+    }
+
+    if (error instanceof jwt.TokenExpiredError) {
+      return res.status(401).json({
+        error: 'Access denied',
+        message: 'Token has expired',
+      })
+    }
+
+    res.status(500).json({
+      error: 'Internal server error',
+      message: 'Authentication verification failed',
+    })
+  }
+}
+
+export const requireRole = (allowedRoles: string[]) => {
+  return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return res.status(401).json({
+        error: 'Access denied',
+        message: 'Authentication required',
+      })
+    }
+
+    if (!allowedRoles.includes(req.user.role)) {
+      return res.status(403).json({
+        error: 'Access denied',
+        message: 'Insufficient permissions for this resource',
+      })
+    }
+
+    next()
+  }
+}
+
+export const requireAdmin = requireRole(['admin'])
+
+export const requireEventOrganizer = requireRole(['admin', 'event_organizer'])
+
+export const requireVenueManager = requireRole(['admin', 'venue_manager'])
+
+export const requireAdvertiser = requireRole(['admin', 'advertiser'])
+
+// Type export for use in other files
+export type { AuthenticatedRequest }

@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "check": "tsc --noEmit",
-    "server:dev": "tsx watch api/server.ts",
+    "server:dev": "tsx watch server/server.ts",
     "dev:admin": "npm run client:dev",
     "dev:attendee": "VITE_APP_TYPE=attendee npm run client:dev -- --port 5174",
     "dev:staff": "VITE_APP_TYPE=staff npm run client:dev -- --port 5175",
