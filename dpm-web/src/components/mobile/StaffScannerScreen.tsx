@@ -1,11 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Camera, Ticket } from 'lucide-react';
+import { X, Camera, Ticket, CheckCircle, ShieldCheck } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import jsQR from 'jsqr';
 
+interface ScanResult {
+  name: string;
+  ticket_type: string;
+}
+
 interface ScannerScreenProps {
-  onScanSuccess: (data: { name: string; email: string }) => void;
+  onScanSuccess: (data: { name: string; email?: string; ticket_type: string }) => void;
 }
 
 const ScannerScreen: React.FC<ScannerScreenProps> = ({ onScanSuccess }) => {
@@ -13,6 +18,7 @@ const ScannerScreen: React.FC<ScannerScreenProps> = ({ onScanSuccess }) => {
   const [cameraPermission, setCameraPermission] = useState<'pending' | 'granted' | 'denied'>('pending');
   const [ticketInput, setTicketInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameRef = useRef<number>();
@@ -78,13 +84,25 @@ const ScannerScreen: React.FC<ScannerScreenProps> = ({ onScanSuccess }) => {
 
   const handleTicketOrQR = async (raw: string) => {
     setLoading(true);
+    setScanResult(null);
     try {
-      // Try to get attendee data from backend
-      const response = await fetch(`/api/leads/attendee/${raw}`);
+      // Look up attendee by QR code ID via the attendees lookup endpoint
+      const response = await fetch('/api/attendees/lookup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ qr_code_id: raw }),
+      });
       if (!response.ok) throw new Error('Attendee not found');
-      
+
       const data = await response.json();
-      onScanSuccess(data);
+      if (!data.success || !data.attendee) throw new Error('Attendee not found');
+
+      const { first_name, last_name, ticket_type } = data.attendee;
+      const name = [first_name, last_name].filter(Boolean).join(' ') || 'Unknown';
+      const resolvedTicketType = ticket_type || 'General';
+
+      setScanResult({ name, ticket_type: resolvedTicketType });
+      onScanSuccess({ name, ticket_type: resolvedTicketType });
     } catch (e: any) {
       setError(e.message || 'Invalid attendee QR code');
     } finally {
@@ -99,7 +117,10 @@ const ScannerScreen: React.FC<ScannerScreenProps> = ({ onScanSuccess }) => {
   };
 
   const handleDemoScan = () => {
-    onScanSuccess({ name: 'John Doe', email: 'john.doe@university.edu' });
+    const name = 'John Doe';
+    const ticket_type = 'VIP';
+    setScanResult({ name, ticket_type });
+    onScanSuccess({ name, email: 'john.doe@university.edu', ticket_type });
   };
 
   return (
@@ -177,8 +198,39 @@ const ScannerScreen: React.FC<ScannerScreenProps> = ({ onScanSuccess }) => {
         )}
       </div>
 
+      {/* Verification Result Panel */}
+      {scanResult && (
+        <div className="absolute bottom-20 left-4 right-4 z-30 bg-green-600 rounded-2xl p-5 shadow-2xl">
+          <div className="flex items-start gap-4">
+            <div className="shrink-0">
+              <CheckCircle className="w-10 h-10 text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <ShieldCheck className="w-4 h-4 text-green-200" />
+                <span className="text-green-100 text-xs font-semibold uppercase tracking-widest">Verified</span>
+              </div>
+              <p className="text-white font-bold text-lg leading-tight truncate">{scanResult.name}</p>
+              <div className="mt-2 inline-flex items-center gap-1.5 bg-white/20 rounded-full px-3 py-1">
+                <Ticket className="w-3.5 h-3.5 text-white" />
+                <span className="text-white font-black text-sm uppercase tracking-wide">
+                  {scanResult.ticket_type}
+                </span>
+              </div>
+            </div>
+            <button
+              onClick={() => setScanResult(null)}
+              className="shrink-0 text-white/70 hover:text-white mt-0.5"
+              aria-label="Dismiss"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Error Message */}
-      {error && cameraPermission === 'granted' && (
+      {error && !scanResult && cameraPermission === 'granted' && (
         <div className="absolute bottom-20 left-4 right-4 bg-red-500 text-white p-4 rounded-lg flex items-center justify-between">
           <span>{error}</span>
           <button onClick={() => setError('')} className="ml-4">
