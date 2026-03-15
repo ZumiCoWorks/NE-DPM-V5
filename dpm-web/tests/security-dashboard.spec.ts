@@ -105,4 +105,44 @@ test.describe('Security Dashboard — Crowd Density & RAG Status', () => {
         // 4. Verify dashboard shows Active alert (regex accepts Active(1), Active(2) etc. from parallel runs)
         await expect(adminPage.locator('button:has-text("Active")')).toHaveText(/Active \(\d+\)/, { timeout: 10000 });
     });
+
+    test('should display attendee identity panel when alert has a registered attendee_id', async ({ page }) => {
+        // Intercept the Supabase REST call for safety_alerts and return a mock alert with a known attendee_id
+        const MOCK_ATTENDEE_ID = '00000000-aaaa-bbbb-cccc-000000000001';
+
+        await page.route('**/rest/v1/safety_alerts**', route => {
+            route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify([{
+                    id: 'test-alert-001',
+                    type: 'sos',
+                    status: 'new',
+                    gps_lat: null,
+                    gps_lng: null,
+                    created_at: new Date().toISOString(),
+                    user_id: MOCK_ATTENDEE_ID,
+                    attendee_id: MOCK_ATTENDEE_ID,
+                }]),
+            });
+        });
+
+        // Intercept the attendee lookup and return identity info
+        await page.route(`**/rest/v1/attendees?**id=eq.${MOCK_ATTENDEE_ID}**`, route => {
+            route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify([{ first_name: 'Jane', last_name: 'Doe', ticket_type: 'VIP' }]),
+            });
+        });
+
+        await page.goto('/e2e-security');
+        await expect(page.locator('text=SECURITY CMD CENTER')).toBeVisible({ timeout: 15000 });
+
+        // Identity panel should appear with name and ticket type
+        await expect(page.locator('[data-testid="alert-attendee-name"]')).toBeVisible({ timeout: 10000 });
+        await expect(page.locator('[data-testid="alert-attendee-ticket"]')).toBeVisible({ timeout: 10000 });
+
+        await page.screenshot({ path: 'test-results/security-attendee-identity-panel.png' });
+    });
 });
