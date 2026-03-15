@@ -1,5 +1,4 @@
-api/
-api/**/*
+# Removed api ignore to allow serverless deployment
 *.test.ts
 *.test.tsx
 *.spec.ts

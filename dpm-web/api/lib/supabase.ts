@@ -9,7 +9,7 @@ const __dirname = path.dirname(__filename)
 config({ path: path.resolve(__dirname, '../../.env') })
 
 // Environment variables validation
-const supabaseUrl = process.env.SUPABASE_URL
+const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 if (!supabaseUrl) {
