@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { List, Map, Scan, Navigation, MapPin, Camera, WifiOff, ArrowRight, Trophy, CheckCircle, Satellite, ChevronRight, Compass, AlertTriangle, ShieldCheck } from 'lucide-react';
 import jsQR from 'jsqr';
@@ -74,6 +75,8 @@ type Screen = 'splash' | 'event-select' | 'main' | 'precision-finding' | 'ar-pre
 type Tab = 'directory' | 'map' | 'scanner';
 
 const AttendeePWANew: React.FC = () => {
+  const { attendeeUser } = useAuth();
+
   // Arrival modal state
   const [showArrivalModal, setShowArrivalModal] = useState(false);
   const [attendeeId] = useState(() => {
@@ -634,9 +637,12 @@ const AttendeePWANew: React.FC = () => {
     if (!selectedEvent?.id || !supabase) return;
     setSosLoading(true);
     try {
-      const { error } = await (supabase.from('safety_alerts') as any).insert({
+      // Prefer the verified attendee ID from AuthContext; fall back to the
+      // anonymous session UUID so the emergency signal is never silently dropped.
+      const resolvedAttendeeId = attendeeUser?.id ?? attendeeId;
+      const { error } = await (supabase.from('sos_alerts') as any).insert({
         event_id: selectedEvent.id,
-        user_id: attendeeId,
+        attendee_id: resolvedAttendeeId,
         type: 'sos',
         status: 'new',
         gps_lat: null,
