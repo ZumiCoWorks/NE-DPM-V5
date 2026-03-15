@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { ShieldCheck } from 'lucide-react'
 
 export default function AttendeesUploadPage() {
   const [csvText, setCsvText] = useState('')
@@ -41,22 +42,46 @@ export default function AttendeesUploadPage() {
   }
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Admin — Attendees Upload</h1>
-      <p className="mb-4 text-sm text-gray-600">Paste a CSV of attendees or upload a CSV file. Required columns: email, first_name, last_name, company, job_title, ticket_type, event_id</p>
+    <div className="p-6 max-w-3xl">
+      <h1 className="text-2xl font-bold mb-2">Admin — Attendees Upload</h1>
+
+      {/* POPIA compliance notice */}
+      <div className="flex items-start gap-2 mb-4 p-3 bg-blue-50 border border-blue-200 rounded text-sm text-blue-800">
+        <ShieldCheck className="w-4 h-4 mt-0.5 shrink-0 text-blue-600" />
+        <span>
+          <strong>POPIA compliant:</strong> Email and Phone values are hashed with SHA-256 before being stored.
+          Raw PII is never written to the database.
+        </span>
+      </div>
+
+      <p className="mb-4 text-sm text-gray-600">
+        Upload a Quicket guestlist CSV or any attendee CSV. Supported columns:
+      </p>
+      <ul className="mb-4 text-sm text-gray-600 list-disc list-inside space-y-0.5">
+        <li><code>Email</code> or <code>email</code> — attendee email address (will be hashed)</li>
+        <li><code>Phone</code>, <code>phone</code>, or <code>Phone Number</code> — phone number (will be hashed)</li>
+        <li><code>First Name</code> / <code>first_name</code></li>
+        <li><code>Last Name</code> / <code>last_name</code></li>
+        <li><code>Ticket Type</code> / <code>ticket_type</code></li>
+        <li><code>Company</code>, <code>Job Title</code> / <code>job_title</code>, <code>event_id</code></li>
+      </ul>
 
       <div className="mb-4">
         <input type="file" accept=".csv" onChange={onFileChange} />
       </div>
 
-      <textarea value={csvText} onChange={(e) => setCsvText(e.target.value)} rows={12} className="w-full border p-2 rounded" />
+      <textarea value={csvText} onChange={(e) => setCsvText(e.target.value)} rows={12} className="w-full border p-2 rounded font-mono text-sm" placeholder="Paste CSV content here, or use the file picker above…" />
 
       <div className="mt-3 flex items-center gap-3">
-        <button onClick={uploadCsv} disabled={loading} className="px-4 py-2 bg-blue-600 text-white rounded">{loading ? 'Uploading...' : 'Upload CSV'}</button>
+        <button onClick={uploadCsv} disabled={loading} className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50">{loading ? 'Uploading…' : 'Upload CSV'}</button>
         <button onClick={() => setCsvText('')} className="px-3 py-2 border rounded">Clear</button>
       </div>
 
-      {message && <div className="mt-4 p-3 bg-gray-100 rounded">{message}</div>}
+      {message && (
+        <div className={`mt-4 p-3 rounded ${message.startsWith('Imported') ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
+          {message}
+        </div>
+      )}
     </div>
   )
 }
