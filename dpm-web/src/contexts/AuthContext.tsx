@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
+import { sha256Hex } from '../lib/hashUtils';
 
 interface User {
   id: string;
@@ -15,22 +16,46 @@ interface User {
   address?: string;
   bio?: string;
   email_confirmed_at?: string;
+  ticket_type?: string;
+}
+
+/** Lightweight session for a verified ticket-holder (no Supabase auth account required). */
+export interface AttendeeUser {
+  id: string;
+  ticket_type: string;
 }
 
 interface AuthContextType {
   user: User | null;
+  attendeeUser: AttendeeUser | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, fullName: string, role?: 'admin' | 'event_organizer' | 'venue_manager' | 'advertiser' | 'staff') => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
   updateProfile: (updates: Partial<User>) => Promise<void>;
+  /**
+   * Verify a ticket-holder by their email or phone number.
+   * The raw value is hashed client-side (POPIA) before being sent to the API.
+   * Returns true on success and populates `attendeeUser`.
+   */
+  verifyAttendeeIdentity: (identifier: string) => Promise<boolean>;
+  clearAttendeeSession: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [attendeeUser, setAttendeeUser] = useState<AttendeeUser | null>(() => {
+    // Restore a verified attendee session from localStorage on page load
+    try {
+      const raw = localStorage.getItem('naveaze_attendee_session');
+      return raw ? (JSON.parse(raw) as AttendeeUser) : null;
+    } catch {
+      return null;
+    }
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -437,14 +462,54 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  /**
+   * Verify a ticket-holder's identity without a Supabase auth account.
+   * The raw email/phone is hashed (SHA-256) on the client before being sent
+   * to the API, so raw PII never leaves the browser.
+   */
+  const verifyAttendeeIdentity = async (identifier: string): Promise<boolean> => {
+    try {
+      const identifier_hash = await sha256Hex(identifier);
+      const res = await fetch('/api/attendees/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier_hash }),
+      });
+      if (!res.ok) return false;
+      const json = await res.json();
+      if (json && json.success) {
+        const session: AttendeeUser = {
+          id: json.attendee_id,
+          ticket_type: json.ticket_type,
+        };
+        setAttendeeUser(session);
+        // Persist so the user survives a page refresh
+        localStorage.setItem('naveaze_attendee_session', JSON.stringify(session));
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error('verifyAttendeeIdentity error:', err);
+      return false;
+    }
+  };
+
+  const clearAttendeeSession = () => {
+    setAttendeeUser(null);
+    localStorage.removeItem('naveaze_attendee_session');
+  };
+
   const value = {
     user,
+    attendeeUser,
     loading,
     login,
     register,
     logout,
     isAuthenticated: !!user,
     updateProfile,
+    verifyAttendeeIdentity,
+    clearAttendeeSession,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

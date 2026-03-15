@@ -41,3 +41,7 @@ yarn-error.log*
 /playwright/.auth/
 playwright/.auth/
 .env.test.local
+
+# TypeScript build info
+*.tsbuildinfo
+vite.config.d.ts
