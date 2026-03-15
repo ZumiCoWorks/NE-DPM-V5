@@ -937,7 +937,7 @@ const AttendeePWANew: React.FC = () => {
           y: point.y_coord,
           source: 'qr'
         });
-        displayMessage(`Location set: ${point.name}`, 2000);
+        displayMessage('Indoor Position Calibrated', 2000);
         setActiveTab('map');
         return;
       }
@@ -949,7 +949,7 @@ const AttendeePWANew: React.FC = () => {
           y: parsed.y,
           source: 'qr'
         });
-        displayMessage('Location updated from QR code!', 2000);
+        displayMessage('Indoor Position Calibrated', 2000);
         setActiveTab('map');
         return;
       }
