@@ -1,67 +1,13 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { MapContainer, TileLayer, Marker, Polyline, useMapEvents, useMap } from 'react-leaflet';
+import React, { useState, useEffect, useMemo } from 'react';
+import { MapContainer, ImageOverlay, Marker, Polyline, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { GraphNode, GraphSegment } from '../lib/pathfinding';
 import { GPSBounds } from '../lib/gpsNavigation';
-import { gpsToFloorplan, floorplanToGPS, calculateGPSDistance } from '../lib/coordinateConversion';
+import { gpsToPixel as affineGpsToPixel, pixelToGPS as affinePixelToGPS } from '../lib/affineCalibration';
+import { gpsToFloorplan as fallbackGpsToPixel, floorplanToGPS as fallbackPixelToGPS } from '../lib/coordinateConversion';
 import { LeafletNodeEditModal } from './LeafletNodeEditModal';
 import { supabase } from '../lib/supabase';
-
-// ── RotatedOverlay ────────────────────────────────────────────────────────────
-// Leaflet's ImageOverlay calls L.DomUtil.setPosition(img, ...) on every zoom/pan,
-// which sets `transform: translate3d(x,y,0)` and OVERWRITES any CSS rotation we
-// applied separately. This component monkey-patches _reset on the raw L.imageOverlay
-// instance so the final transform is always `translate3d(x,y,0) rotate(Ndeg)`,
-// meaning rotation survives every map update.
-function RotatedOverlay({
-    url, bounds, opacity, rotationDeg,
-}: {
-    url: string;
-    bounds: [[number, number], [number, number]];
-    opacity: number;
-    rotationDeg: number;
-}) {
-    const map = useMap();
-    const layerRef = useRef<L.ImageOverlay | null>(null);
-    const rotRef = useRef(rotationDeg);
-    rotRef.current = rotationDeg;
-
-    useEffect(() => {
-        const layer = L.imageOverlay(url, bounds, { opacity });
-
-        // Patch _reset so our rotation is composed with Leaflet's translate.
-        const orig = (layer as any)._reset.bind(layer);
-        (layer as any)._reset = function () {
-            orig();
-            const img: HTMLImageElement | null = (this as any)._image;
-            if (img) {
-                // Leaflet sets transform to translate3d; append our rotation.
-                const t = img.style.transform;
-                img.style.transform = t
-                    ? `${t} rotate(${rotRef.current}deg)`
-                    : `rotate(${rotRef.current}deg)`;
-                img.style.transformOrigin = '50% 50%';
-            }
-        };
-
-        layer.addTo(map);
-        layerRef.current = layer;
-        return () => { layer.remove(); layerRef.current = null; };
-        // Re-create layer only when structural props change
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [map, url,
-        bounds[0][0], bounds[0][1], bounds[1][0], bounds[1][1],
-        opacity]);
-
-    // When rotation changes, trigger a redraw without recreating the layer
-    useEffect(() => {
-        rotRef.current = rotationDeg;
-        (layerRef.current as any)?._reset?.();
-    }, [rotationDeg]);
-
-    return null;
-}
 
 // Fix Leaflet default marker icon issue with Vite
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -79,7 +25,9 @@ interface LeafletMapEditorProps {
     floorplanSize?: { width: number; height: number };
     rotationDegrees?: number;  // Clockwise degrees from North — from calibration data
     scaleMetersPerPixel?: number; // From calibration data — used to compute correct overlay bounds
-    onRotationChange?: (newDeg: number) => void; // Called when user fine-tunes rotation
+    originGpsLat?: number; // GPS mapping for Top-Left corner 
+    originGpsLng?: number;
+    onRotationChange?: (newDeg: number) => void;
     onExport?: (nodes: GraphNode[], segments: GraphSegment[]) => void;
 }
 
@@ -102,45 +50,11 @@ interface LeafletSegment {
 
 type DrawMode = 'point' | 'line' | 'poi' | 'edit' | 'delete' | null;
 
-// Map event handler component
-// containerRotationDeg: how much the map container div is CSS-rotated.
-// We must apply the INVERSE rotation to the click latlng so nodes land at the
-// correct real-world GPS even though the tiles are visually rotated.
-function MapClickHandler({
-    mode,
-    onMapClick,
-    onMarkerClick,
-    containerRotationDeg = 0,
-}: {
-    mode: DrawMode;
-    onMapClick: (lat: number, lng: number) => void;
-    onMarkerClick: (id: string) => void;
-    containerRotationDeg?: number;
-}) {
-    const map = useMap();
+function MapEventsHandler({ mode, onMapClick }: { mode: DrawMode; onMapClick: (lat: number, lng: number) => void }) {
     useMapEvents({
         click: (e) => {
             if (mode === 'point' || mode === 'poi') {
-                if (containerRotationDeg === 0) {
-                    onMapClick(e.latlng.lat, e.latlng.lng);
-                    return;
-                }
-                // Correct for the CSS-rotated container: rotate the clicked latlng
-                // by +containerRotationDeg around the current map center so the
-                // stored GPS is in true geographic space.
-                const mc = map.getCenter();
-                const cosLat = Math.cos(mc.lat * Math.PI / 180);
-                const degToM = 111320;
-                const dx = (e.latlng.lng - mc.lng) * degToM * cosLat;
-                const dy = (e.latlng.lat - mc.lat) * degToM;
-                const rad = containerRotationDeg * Math.PI / 180;
-                const cos = Math.cos(rad), sin = Math.sin(rad);
-                const dx2 = dx * cos - dy * sin;
-                const dy2 = dx * sin + dy * cos;
-                onMapClick(
-                    mc.lat + dy2 / degToM,
-                    mc.lng + dx2 / (degToM * cosLat)
-                );
+                onMapClick(e.latlng.lat, e.latlng.lng);
             }
         },
     });
@@ -155,7 +69,8 @@ const LeafletMapEditor: React.FC<LeafletMapEditorProps> = ({
     floorplanSize = { width: 1000, height: 1000 },
     rotationDegrees = 0,
     scaleMetersPerPixel = 0,
-    onRotationChange,
+    originGpsLat,
+    originGpsLng,
     onExport
 }) => {
     const [nodes, setNodes] = useState<LeafletNode[]>([]);
@@ -166,110 +81,82 @@ const LeafletMapEditor: React.FC<LeafletMapEditorProps> = ({
     const [floorplanOpacity, setFloorplanOpacity] = useState<number>(0.7);
     const [editingNode, setEditingNode] = useState<LeafletNode | null>(null);
     const [showEditModal, setShowEditModal] = useState(false);
-    const overlayRef = useRef<any>(null);
-    // Rotation fine-tune: user-adjustable offset on top of calibrated value
-    const [rotationOffset, setRotationOffset] = useState(0);
-    const effectiveRotation = ((rotationDegrees + rotationOffset) % 360 + 360) % 360;
-    const adjustRotation = (delta: number) => {
-        setRotationOffset(prev => {
-            const next = prev + delta;
-            onRotationChange?.((((rotationDegrees + next) % 360) + 360) % 360);
-            return next;
-        });
+
+    // Bounds for CRS.Simple: [[y1, x1], [y2, x2]]
+    const overlayBounds = useMemo<[[number, number], [number, number]]>(() => {
+        const height = floorplanSize?.height || 1000;
+        const width = floorplanSize?.width || 1000;
+        return [[0, 0], [height, width]];
+    }, [floorplanSize]);
+
+    // Center map on floorplan image
+    const center = useMemo<[number, number]>(() => {
+        return [floorplanSize.height / 2, floorplanSize.width / 2];
+    }, [floorplanSize]);
+
+    // Hook to auto-fit bounds on mount
+    function AutoFitBounds() {
+        const map = useMap();
+        useEffect(() => {
+            if (overlayBounds && overlayBounds[1][0] !== 0) {
+                map.fitBounds(overlayBounds, { animate: false });
+                setTimeout(() => {
+                    map.invalidateSize();
+                    map.fitBounds(overlayBounds, { animate: false });
+                }, 250);
+            }
+        }, [map, overlayBounds]);
+        return null;
+    }
+
+    // coordinate conversions
+    const getPixelCoords = (lat: number, lng: number): { x: number, y: number } => {
+        if (originGpsLat !== undefined && originGpsLng !== undefined && scaleMetersPerPixel > 0) {
+            return affineGpsToPixel({ lat, lng }, scaleMetersPerPixel, rotationDegrees, { lat: originGpsLat, lng: originGpsLng });
+        }
+        return fallbackGpsToPixel(lat, lng, gpsBounds, floorplanSize);
     };
 
-    // ── Axis-aligned bbox from gpsBounds — used only for map centering/zoom
-    const bounds = useMemo<[[number, number], [number, number]]>(() => {
-        if (!gpsBounds?.sw || !gpsBounds?.ne ||
-            typeof gpsBounds.sw.lat !== 'number' || typeof gpsBounds.sw.lng !== 'number' ||
-            typeof gpsBounds.ne.lat !== 'number' || typeof gpsBounds.ne.lng !== 'number') {
-            return [[-26.0, 28.0], [-25.9, 28.1]];
+    const getGpsCoords = (x: number, y: number): { lat: number, lng: number } => {
+        if (originGpsLat !== undefined && originGpsLng !== undefined && scaleMetersPerPixel > 0) {
+            return affinePixelToGPS({ x, y }, scaleMetersPerPixel, rotationDegrees, { lat: originGpsLat, lng: originGpsLng });
         }
-        return [
-            [gpsBounds.sw.lat, gpsBounds.sw.lng],
-            [gpsBounds.ne.lat, gpsBounds.ne.lng]
-        ];
-    }, [gpsBounds?.sw?.lat, gpsBounds?.sw?.lng, gpsBounds?.ne?.lat, gpsBounds?.ne?.lng]);
+        return fallbackPixelToGPS(x, y, gpsBounds, floorplanSize);
+    };
 
-    const center = useMemo<[number, number]>(() => [
-        (bounds[0][0] + bounds[1][0]) / 2,
-        (bounds[0][1] + bounds[1][1]) / 2
-    ], [bounds]);
+    // Leaflet maps latLng to/from Pixel Coords 
+    // CRS.Simple puts (0,0) at bottom-left. We map our HTML image (0,0 top-left)
+    const toMapLeaflet = (x: number, y: number): [number, number] => {
+        return [floorplanSize.height - y, x];
+    };
 
-    // ── Overlay bounds: sized to the ACTUAL building footprint, not the rotated bbox.
-    // The axis-aligned bbox of a rotated rectangle is wider/taller than the original, so
-    // placing an image there and then CSS-rotating produces the wrong scale/position.
-    // Instead, we compute a rectangle matching the true building geographic dimensions
-    // (image pixels × scale m/px), centred at the building midpoint, then CSS-rotate.
-    const overlayBounds = useMemo<[[number, number], [number, number]]>(() => {
-        if (scaleMetersPerPixel > 0 && floorplanSize.width > 0 && floorplanSize.height > 0 &&
-            gpsBounds?.sw && gpsBounds?.ne) {
-            const bldgWidthM = floorplanSize.width * scaleMetersPerPixel;
-            const bldgHeightM = floorplanSize.height * scaleMetersPerPixel;
-            const cLat = (gpsBounds.sw.lat + gpsBounds.ne.lat) / 2;
-            const cLng = (gpsBounds.sw.lng + gpsBounds.ne.lng) / 2;
-            const halfLatDeg = (bldgHeightM / 2) / 111320;
-            const halfLngDeg = (bldgWidthM / 2) / (111320 * Math.cos(cLat * Math.PI / 180));
-            return [
-                [cLat - halfLatDeg, cLng - halfLngDeg],
-                [cLat + halfLatDeg, cLng + halfLngDeg]
-            ];
-        }
-        return bounds; // fall-back before calibration data loads
-    }, [bounds, scaleMetersPerPixel, floorplanSize.width, floorplanSize.height,
-        gpsBounds?.sw?.lat, gpsBounds?.sw?.lng, gpsBounds?.ne?.lat, gpsBounds?.ne?.lng]);
+    const fromMapLeaflet = (lat: number, lng: number): { x: number, y: number } => {
+        return { x: lng, y: floorplanSize.height - lat };
+    };
 
-    // (Rotation is now handled inside RotatedOverlay — no separate useEffect needed)
-
-
-    // Load existing navigation data from database
     useEffect(() => {
         const loadNavigationData = async () => {
-            if (!floorplanId) {
-                console.log('⏭️ Skipping load: missing floorplanId');
-                return;
-            }
-
-            if (!supabase) {
-                console.error('❌ Supabase client not available');
-                return;
-            }
-
-            console.log(`🔄 Loading navigation data for floorplan ${floorplanId}`);
+            if (!floorplanId || !supabase) return;
 
             try {
                 // Fetch navigation points
                 const { data: points, error: pointsError } = await supabase
                     .from('navigation_points')
                     .select('*')
-
                     .eq('floorplan_id', floorplanId);
 
                 if (pointsError) throw pointsError;
 
-                console.log(`📍 Fetched ${(points as any[] || []).length} points from database`);
-
-                // Filter out points with null GPS coordinates (Classic Editor nodes)
                 const validPoints = ((points as any[]) || []).filter((point: any) =>
-                    point.gps_lat !== null &&
-                    point.gps_lng !== null &&
-                    !isNaN(point.gps_lat) &&
-                    !isNaN(point.gps_lng)
+                    point.gps_lat !== null && point.gps_lng !== null &&
+                    !isNaN(point.gps_lat) && !isNaN(point.gps_lng)
                 );
 
-                if (points && (points as any[]).length > 0) {
-                    if (validPoints.length < (points as any[]).length) {
-                        console.warn(`⚠️ Filtered out ${(points as any[]).length - validPoints.length} nodes with missing GPS coordinates`);
-                    }
-
-                    // Use a Set to track unique node IDs and prevent duplicates
+                if (validPoints.length > 0) {
                     const seenIds = new Set();
                     const loadedNodes: LeafletNode[] = validPoints
                         .filter((point: any) => {
-                            if (seenIds.has(point.id)) {
-                                console.warn(`⚠️ Skipping duplicate point: ${point.id}`);
-                                return false;
-                            }
+                            if (seenIds.has(point.id)) return false;
                             seenIds.add(point.id);
                             return true;
                         })
@@ -283,59 +170,22 @@ const LeafletMapEditor: React.FC<LeafletMapEditorProps> = ({
                             pointType: point.point_type
                         }));
                     setNodes(loadedNodes);
-
-                    // Enhanced logging to identify duplicates
-                    console.log(`✅ Loaded ${loadedNodes.length} nodes with valid GPS`);
-                    console.log('📊 Node breakdown:', {
-                        total: loadedNodes.length,
-                        pois: loadedNodes.filter(n => n.isPOI).length,
-                        regularNodes: loadedNodes.filter(n => !n.isPOI).length
-                    });
-
-                    // Check for duplicate GPS coordinates
-                    const coordMap = new Map();
-                    loadedNodes.forEach(node => {
-                        const coordKey = `${node.lat.toFixed(6)},${node.lng.toFixed(6)}`;
-                        if (!coordMap.has(coordKey)) {
-                            coordMap.set(coordKey, []);
-                        }
-                        coordMap.get(coordKey).push({ id: node.id, name: node.name, isPOI: node.isPOI });
-                    });
-
-                    // Log any duplicate coordinates
-                    coordMap.forEach((nodes, coords) => {
-                        if (nodes.length > 1) {
-                            console.warn(`⚠️ Multiple nodes at ${coords}:`, nodes);
-                        }
-                    });
                 }
 
                 // Fetch segments
                 const { data: segs, error: segsError } = await supabase
                     .from('navigation_segments')
                     .select('*')
-
                     .eq('floorplan_id', floorplanId);
 
                 if (segsError) throw segsError;
 
-                console.log(`🔗 Fetched ${(segs as any[] || []).length} segments from database`);
-
                 if (segs && (segs as any[]).length > 0) {
-                    // Create a Set of valid node IDs (nodes with GPS coordinates)
                     const validNodeIds = new Set(validPoints.map((p: any) => p.id));
-
-                    // Filter segments to only include those where both endpoints have GPS
                     const validSegments = (segs as any[]).filter((seg: any) =>
-                        validNodeIds.has(seg.start_node_id) &&
-                        validNodeIds.has(seg.end_node_id)
+                        validNodeIds.has(seg.start_node_id) && validNodeIds.has(seg.end_node_id)
                     );
 
-                    if (validSegments.length < (segs as any[]).length) {
-                        console.warn(`⚠️ Filtered out ${(segs as any[]).length - validSegments.length} segments with invalid endpoints`);
-                    }
-
-                    // Create a map of node IDs to positions for quick lookup
                     const nodePositions = new Map(validPoints.map((p: any) => [
                         p.id,
                         { lat: p.gps_lat, lng: p.gps_lng }
@@ -344,7 +194,6 @@ const LeafletMapEditor: React.FC<LeafletMapEditorProps> = ({
                     const loadedSegments: LeafletSegment[] = validSegments.map((seg: any) => {
                         const fromPos = nodePositions.get(seg.start_node_id);
                         const toPos = nodePositions.get(seg.end_node_id);
-
                         return {
                             id: seg.id,
                             fromNodeId: seg.start_node_id,
@@ -353,41 +202,38 @@ const LeafletMapEditor: React.FC<LeafletMapEditorProps> = ({
                         };
                     });
                     setSegments(loadedSegments);
-                    console.log(`✅ Loaded ${loadedSegments.length} segments with valid endpoints`);
                 }
             } catch (err) {
-                console.error('❌ Error loading navigation data:', err);
-                showMessage('Failed to load existing navigation data');
+                console.error('Error loading navigation data:', err);
             }
         };
 
         loadNavigationData();
-    }, [floorplanId]);
+    }, [floorplanId, supabase]);
 
     const showMessage = (msg: string) => {
         setMessage(msg);
         setTimeout(() => setMessage(''), 3000);
     };
 
-    const handleMapClick = async (lat: number, lng: number) => {
+    const handleMapClick = async (leafletLat: number, leafletLng: number) => {
         if (drawMode === 'point' || drawMode === 'poi') {
             const nodeName = drawMode === 'poi' ? `POI ${nodes.filter(n => n.isPOI).length + 1}` : `Node ${nodes.length + 1}`;
-
             if (!supabase) return;
 
             try {
-                // Convert GPS to floorplan coordinates
-                const floorplanCoords = gpsToFloorplan(lat, lng, gpsBounds, floorplanSize);
+                // Convert Map click to Pixel and Pixel to real GPS coordinates
+                const { x: pixelX, y: pixelY } = fromMapLeaflet(leafletLat, leafletLng);
+                const { lat, lng } = getGpsCoords(pixelX, pixelY);
 
-                // Save to database immediately
+                // Save to database
                 const { data, error } = await supabase
                     .from('navigation_points')
                     .insert({
-
                         floorplan_id: floorplanId,
                         name: nodeName,
-                        x_coord: Math.round(floorplanCoords.x),
-                        y_coord: Math.round(floorplanCoords.y),
+                        x_coord: Math.round(pixelX),
+                        y_coord: Math.round(pixelY),
                         gps_lat: lat,
                         gps_lng: lng,
                         point_type: drawMode === 'poi' ? 'poi' : 'node',
@@ -399,7 +245,6 @@ const LeafletMapEditor: React.FC<LeafletMapEditorProps> = ({
                 if (error) throw error;
                 if (!data) throw new Error('No data returned');
 
-                // Use real UUID from database
                 const newNode: LeafletNode = {
                     id: (data as any).id,
                     lat,
@@ -419,9 +264,7 @@ const LeafletMapEditor: React.FC<LeafletMapEditorProps> = ({
     };
 
     const handleMarkerClick = async (nodeId: string) => {
-        // Open edit modal when clicking node (unless in specific modes)
         if (drawMode === 'delete') {
-            // Delete handled by modal now
             const node = nodes.find(n => n.id === nodeId);
             if (node) {
                 setEditingNode(node);
@@ -432,19 +275,15 @@ const LeafletMapEditor: React.FC<LeafletMapEditorProps> = ({
                 setSelectedNodeForLine(nodeId);
                 showMessage('Click another node to connect');
             } else if (selectedNodeForLine !== nodeId) {
-                // Create segment and save to database immediately
                 const fromNode = nodes.find(n => n.id === selectedNodeForLine);
                 const toNode = nodes.find(n => n.id === nodeId);
 
                 if (fromNode && toNode) {
                     if (!supabase) return;
-
                     try {
-                        // Save to database immediately
                         const { data, error } = await supabase
                             .from('navigation_segments')
                             .insert({
-
                                 floorplan_id: floorplanId,
                                 start_node_id: selectedNodeForLine,
                                 end_node_id: nodeId,
@@ -456,7 +295,6 @@ const LeafletMapEditor: React.FC<LeafletMapEditorProps> = ({
                         if (error) throw error;
                         if (!data) throw new Error('No data returned');
 
-                        // Use real UUID from database
                         const newSegment: LeafletSegment = {
                             id: (data as any).id,
                             fromNodeId: selectedNodeForLine,
@@ -473,7 +311,6 @@ const LeafletMapEditor: React.FC<LeafletMapEditorProps> = ({
                 setSelectedNodeForLine(null);
             }
         } else if (drawMode === null || drawMode === 'edit') {
-            // Default: open edit modal
             const node = nodes.find(n => n.id === nodeId);
             if (node) {
                 setEditingNode(node);
@@ -483,13 +320,12 @@ const LeafletMapEditor: React.FC<LeafletMapEditorProps> = ({
     };
 
     const handleExport = async () => {
-        // Convert to GraphNode format
         const graphNodes: GraphNode[] = nodes.map(node => {
-            const floorplanCoords = gpsToFloorplan(node.lat, node.lng, gpsBounds, floorplanSize);
+            const { x, y } = getPixelCoords(node.lat, node.lng);
             return {
                 id: node.id,
-                x: floorplanCoords.x,
-                y: floorplanCoords.y,
+                x,
+                y,
                 name: node.name,
                 type: node.isPOI ? 'poi' : 'node',
                 metadata: {
@@ -499,26 +335,13 @@ const LeafletMapEditor: React.FC<LeafletMapEditorProps> = ({
             };
         });
 
-        // Convert to GraphSegment format
-        const graphSegments: GraphSegment[] = segments.map(seg => {
-            const fromNode = nodes.find(n => n.id === seg.fromNodeId);
-            const toNode = nodes.find(n => n.id === seg.toNodeId);
-            const distance = fromNode && toNode ? calculateGPSDistance(
-                { lat: fromNode.lat, lng: fromNode.lng },
-                { lat: toNode.lat, lng: toNode.lng }
-            ) : 0;
+        const graphSegments: GraphSegment[] = segments.map(seg => ({
+            id: seg.id,
+            start_node_id: seg.fromNodeId,
+            end_node_id: seg.toNodeId
+        }));
 
-            return {
-                id: seg.id,
-                start_node_id: seg.fromNodeId,
-                end_node_id: seg.toNodeId
-            };
-        });
-
-        if (onExport) {
-            onExport(graphNodes, graphSegments);
-        }
-
+        if (onExport) onExport(graphNodes, graphSegments);
         showMessage(`Exported ${graphNodes.length} nodes and ${graphSegments.length} segments`);
     };
 
@@ -541,7 +364,6 @@ const LeafletMapEditor: React.FC<LeafletMapEditorProps> = ({
         setEditingNode(null);
     };
 
-    // Custom marker icon for POIs
     const poiIcon = new L.Icon({
         iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
         shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
@@ -551,7 +373,6 @@ const LeafletMapEditor: React.FC<LeafletMapEditorProps> = ({
         shadowSize: [41, 41]
     });
 
-    // Static icons for regular nodes to prevent duplicate markers
     const nodeIcon = new L.Icon({
         iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
         shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
@@ -572,89 +393,20 @@ const LeafletMapEditor: React.FC<LeafletMapEditorProps> = ({
 
     return (
         <div className="flex flex-col h-full">
-            {/* Toolbar */}
             <div className="bg-white border-b border-gray-200 p-4">
                 <div className="flex items-center justify-between">
                     <div className="flex gap-2">
-                        <button
-                            onClick={() => setDrawMode(drawMode === 'point' ? null : 'point')}
-                            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${drawMode === 'point'
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                }`}
-                        >
-                            📍 Add Node
-                        </button>
-                        <button
-                            onClick={() => setDrawMode(drawMode === 'poi' ? null : 'poi')}
-                            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${drawMode === 'poi'
-                                ? 'bg-red-600 text-white'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                }`}
-                        >
-                            🎯 Add POI
-                        </button>
-                        <button
-                            onClick={() => {
-                                setDrawMode(drawMode === 'line' ? null : 'line');
-                                setSelectedNodeForLine(null);
-                            }}
-                            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${drawMode === 'line'
-                                ? 'bg-purple-600 text-white'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                }`}
-                        >
-                            ➖ Draw Path
-                        </button>
-                        <button
-                            onClick={() => setDrawMode(drawMode === 'edit' ? null : 'edit')}
-                            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${drawMode === 'edit'
-                                ? 'bg-green-600 text-white'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                }`}
-                            title="Click nodes to edit name, type, or delete"
-                        >
-                            ✏️ Edit Mode
-                        </button>
-                        <button
-                            onClick={() => setDrawMode(drawMode === 'delete' ? null : 'delete')}
-                            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${drawMode === 'delete'
-                                ? 'bg-red-600 text-white'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                }`}
-                        >
-                            🗑️ Delete
-                        </button>
+                        <button onClick={() => setDrawMode(drawMode === 'point' ? null : 'point')} className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${drawMode === 'point' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>📍 Add Node</button>
+                        <button onClick={() => setDrawMode(drawMode === 'poi' ? null : 'poi')} className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${drawMode === 'poi' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>🎯 Add POI</button>
+                        <button onClick={() => { setDrawMode(drawMode === 'line' ? null : 'line'); setSelectedNodeForLine(null); }} className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${drawMode === 'line' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>➖ Draw Path</button>
+                        <button onClick={() => setDrawMode(drawMode === 'edit' ? null : 'edit')} className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${drawMode === 'edit' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`} title="Click nodes to edit name, type, or delete">✏️ Edit Mode</button>
+                        <button onClick={() => setDrawMode(drawMode === 'delete' ? null : 'delete')} className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${drawMode === 'delete' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>🗑️ Delete</button>
                     </div>
 
                     <div className="flex items-center gap-2">
                         <label className="text-xs text-gray-600 font-medium">Overlay Opacity:</label>
-                        <input
-                            type="range"
-                            min="0"
-                            max="100"
-                            value={floorplanOpacity * 100}
-                            onChange={(e) => setFloorplanOpacity(parseInt(e.target.value) / 100)}
-                            className="w-32 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                            title="Adjust floorplan overlay transparency"
-                        />
+                        <input type="range" min="0" max="100" value={floorplanOpacity * 100} onChange={(e) => setFloorplanOpacity(parseInt(e.target.value) / 100)} className="w-32 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" />
                         <span className="text-xs text-gray-500 font-mono w-8">{Math.round(floorplanOpacity * 100)}%</span>
-                    </div>
-
-                    {/* Rotation fine-tune */}
-                    <div className="flex items-center gap-1 border-l border-gray-300 pl-3">
-                        <span className="text-xs text-gray-600 font-medium mr-1">Rotation:</span>
-                        <button onClick={() => adjustRotation(-5)} className="text-xs px-1.5 py-0.5 bg-gray-100 hover:bg-gray-200 rounded font-mono" title="−5°">−5°</button>
-                        <button onClick={() => adjustRotation(-1)} className="text-xs px-1.5 py-0.5 bg-gray-100 hover:bg-gray-200 rounded font-mono" title="−1°">−1°</button>
-                        <span className="text-xs font-mono w-14 text-center text-blue-700 font-semibold">{effectiveRotation.toFixed(1)}°</span>
-                        <button onClick={() => adjustRotation(1)} className="text-xs px-1.5 py-0.5 bg-gray-100 hover:bg-gray-200 rounded font-mono" title="+1°">+1°</button>
-                        <button onClick={() => adjustRotation(5)} className="text-xs px-1.5 py-0.5 bg-gray-100 hover:bg-gray-200 rounded font-mono" title="+5°">+5°</button>
-                        {rotationOffset !== 0 && (
-                            <button onClick={() => { setRotationOffset(0); onRotationChange?.(rotationDegrees); }}
-                                className="text-xs px-1.5 py-0.5 bg-orange-100 hover:bg-orange-200 text-orange-700 rounded ml-1" title="Reset to calibrated value">
-                                Reset
-                            </button>
-                        )}
                     </div>
 
                     <span className="text-sm text-gray-600 px-3 py-2 border-l border-gray-300">
@@ -663,127 +415,121 @@ const LeafletMapEditor: React.FC<LeafletMapEditorProps> = ({
                 </div>
             </div>
 
-            {message && (
-                <div className="mt-2 bg-blue-50 border border-blue-200 text-blue-700 px-3 py-2 rounded text-sm">
-                    {message}
-                </div>
-            )}
+            {message && <div className="mt-2 bg-blue-50 border border-blue-200 text-blue-700 px-3 py-2 rounded text-sm">{message}</div>}
 
-            <div className="flex-1 relative">
+            <div className="flex-1 relative" style={{ overflow: 'hidden', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                 <MapContainer
+                    crs={L.CRS.Simple}
                     center={center}
-                    zoom={18}
-                    maxZoom={22}
-                    style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, height: '100%', width: '100%' }}
+                    bounds={overlayBounds}
+                    maxZoom={5}
+                    minZoom={-3}
+                    style={{
+                        position: 'absolute',
+                        top: 0, left: 0, right: 0, bottom: 0,
+                        height: '100%', width: '100%',
+                        background: 'transparent'
+                    }}
                     zoomControl={true}
                 >
-                    {/* OpenStreetMap base tiles */}
-                    <TileLayer
-                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    />
+                    <AutoFitBounds />
+                    <ImageOverlay url={floorplanUrl} bounds={overlayBounds} opacity={floorplanOpacity} />
+                    <MapEventsHandler mode={drawMode} onMapClick={handleMapClick} />
 
-                    {/* Floorplan overlay — stays at 0° (natural upload orientation).
-                 The map container itself is CSS-rotated to align tiles with the floorplan. */}
-                    <RotatedOverlay
-                        url={floorplanUrl}
-                        bounds={overlayBounds}
-                        opacity={floorplanOpacity}
-                        rotationDeg={0}
-                    />
+                    {nodes.map(node => {
+                        let px = { x: 0, y: 0 };
+                        if (originGpsLat !== undefined && originGpsLng !== undefined && scaleMetersPerPixel > 0) {
+                            px = affineGpsToPixel({ lat: node.lat, lng: node.lng }, scaleMetersPerPixel, rotationDegrees, { lat: originGpsLat, lng: originGpsLng });
+                        } else {
+                            px = fallbackGpsToPixel(node.lat, node.lng, gpsBounds, floorplanSize);
+                        }
+                        const position = toMapLeaflet(px.x, px.y);
 
-                    {/* Map click handler — corrects click coordinates for the container rotation */}
-                    <MapClickHandler
-                        mode={drawMode}
-                        onMapClick={handleMapClick}
-                        onMarkerClick={handleMarkerClick}
-                        containerRotationDeg={effectiveRotation}
-                    />
-
-                    {/* Nodes */}
-                    {(() => {
-                        return nodes.map(node => {
-                            const isPlacingPOI = drawMode === 'poi';
-                            const markerIcon = node.isPOI
-                                ? poiIcon
-                                : (isPlacingPOI ? nodeIconSmall : nodeIcon);
-
-                            return (
-                                <Marker
-                                    key={node.id}
-                                    position={[node.lat, node.lng]}
-                                    icon={markerIcon}
-                                    opacity={isPlacingPOI ? 0.4 : 1}
-                                    eventHandlers={{
-                                        click: (e) => {
-                                            // Stop event from bubbling to map
-                                            L.DomEvent.stopPropagation(e.originalEvent);
-
-                                            // Disable node clicks when placing POIs
-                                            if (!isPlacingPOI) {
-                                                handleMarkerClick(node.id);
-                                            }
-                                        }
-                                    }}
-                                />
-                            );
-                        });
-                    })()}
-
-                    {/* Segments */}
-                    {segments.map(seg => {
-                        // Make paths more transparent when placing POIs
                         const isPlacingPOI = drawMode === 'poi';
+                        const markerIcon = node.isPOI ? poiIcon : (isPlacingPOI ? nodeIconSmall : nodeIcon);
+
                         return (
-                            <Polyline
-                                key={seg.id}
-                                positions={seg.path}
-                                pathOptions={{
-                                    color: 'blue',
-                                    weight: isPlacingPOI ? 2 : 3,
-                                    opacity: isPlacingPOI ? 0.3 : 0.7
+                            <Marker
+                                key={node.id}
+                                position={position}
+                                icon={markerIcon}
+                                opacity={isPlacingPOI ? 0.4 : 1}
+                                eventHandlers={{
+                                    click: (e) => {
+                                        L.DomEvent.stopPropagation(e.originalEvent);
+                                        if (!isPlacingPOI) handleMarkerClick(node.id);
+                                    }
                                 }}
                             />
                         );
                     })}
 
-                    {/* Highlight selected node for line drawing */}
-                    {selectedNodeForLine && (
-                        <Marker
-                            position={[
-                                nodes.find(n => n.id === selectedNodeForLine)!.lat,
-                                nodes.find(n => n.id === selectedNodeForLine)!.lng
-                            ]}
-                            icon={new L.Icon({
-                                iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-yellow.png',
-                                shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-                                iconSize: [25, 41],
-                                iconAnchor: [12, 41],
-                                popupAnchor: [1, -34],
-                                shadowSize: [41, 41]
-                            })}
-                        />
-                    )}
+                    {segments.map(seg => {
+                        const fromNode = nodes.find(n => n.id === seg.fromNodeId);
+                        const toNode = nodes.find(n => n.id === seg.toNodeId);
+                        if (!fromNode || !toNode) return null;
+
+                        let px1 = { x: 0, y: 0 };
+                        let px2 = { x: 0, y: 0 };
+
+                        if (originGpsLat !== undefined && originGpsLng !== undefined && scaleMetersPerPixel > 0) {
+                            px1 = affineGpsToPixel({ lat: fromNode.lat, lng: fromNode.lng }, scaleMetersPerPixel, rotationDegrees, { lat: originGpsLat, lng: originGpsLng });
+                            px2 = affineGpsToPixel({ lat: toNode.lat, lng: toNode.lng }, scaleMetersPerPixel, rotationDegrees, { lat: originGpsLat, lng: originGpsLng });
+                        } else {
+                            px1 = fallbackGpsToPixel(fromNode.lat, fromNode.lng, gpsBounds, floorplanSize);
+                            px2 = fallbackGpsToPixel(toNode.lat, toNode.lng, gpsBounds, floorplanSize);
+                        }
+
+                        const isPlacingPOI = drawMode === 'poi';
+
+                        return (
+                            <Polyline
+                                key={seg.id}
+                                positions={[toMapLeaflet(px1.x, px1.y), toMapLeaflet(px2.x, px2.y)]}
+                                pathOptions={{ color: 'blue', weight: isPlacingPOI ? 2 : 3, opacity: isPlacingPOI ? 0.3 : 0.7 }}
+                            />
+                        );
+                    })}
+
+                    {selectedNodeForLine && (() => {
+                        const sNode = nodes.find(n => n.id === selectedNodeForLine);
+                        if (!sNode) return null;
+
+                        let px = { x: 0, y: 0 };
+                        if (originGpsLat !== undefined && originGpsLng !== undefined && scaleMetersPerPixel > 0) {
+                            px = affineGpsToPixel({ lat: sNode.lat, lng: sNode.lng }, scaleMetersPerPixel, rotationDegrees, { lat: originGpsLat, lng: originGpsLng });
+                        } else {
+                            px = fallbackGpsToPixel(sNode.lat, sNode.lng, gpsBounds, floorplanSize);
+                        }
+
+                        return (
+                            <Marker
+                                position={toMapLeaflet(px.x, px.y)}
+                                icon={new L.Icon({
+                                    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-yellow.png',
+                                    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+                                    iconSize: [25, 41],
+                                    iconAnchor: [12, 41],
+                                    popupAnchor: [1, -34],
+                                    shadowSize: [41, 41]
+                                })}
+                            />
+                        );
+                    })()}
                 </MapContainer>
             </div>
 
-            {/* Edit Modal */}
-            {
-                showEditModal && editingNode && (
-                    <LeafletNodeEditModal
-                        eventId={eventId}
-                        floorplanId={floorplanId}
-                        node={editingNode}
-                        onSave={handleNodeEditSave}
-                        onDelete={handleNodeDelete}
-                        onClose={() => {
-                            setShowEditModal(false);
-                            setEditingNode(null);
-                        }}
-                    />
-                )
-            }
-        </div >
+            {showEditModal && editingNode && (
+                <LeafletNodeEditModal
+                    eventId={eventId}
+                    floorplanId={floorplanId}
+                    node={editingNode}
+                    onSave={handleNodeEditSave}
+                    onDelete={handleNodeDelete}
+                    onClose={() => { setShowEditModal(false); setEditingNode(null); }}
+                />
+            )}
+        </div>
     );
 };
 

@@ -39,7 +39,7 @@ export const UnifiedMapEditorPage: React.FC = () => {
   const [useLeafletEditor, setUseLeafletEditor] = useState(true)
   const [gpsBounds, setGpsBounds] = useState<any>(null)
   const [showCalibrationWizard, setShowCalibrationWizard] = useState(false)
-  const [calibrationStatus, setCalibrationStatus] = useState<{ scale: number; rotation: number } | null>(null)
+  const [calibrationStatus, setCalibrationStatus] = useState<{ scale: number; rotation: number; originLat?: number; originLng?: number } | null>(null)
   const [navigationPoints, setNavigationPoints] = useState<any[]>([])
   const [showQRGenerator, setShowQRGenerator] = useState(false)
   // Guard against duplicate uploads (e.g. double-click or re-render triggering onChange twice)
@@ -99,7 +99,7 @@ export const UnifiedMapEditorPage: React.FC = () => {
       try {
         let query = supabase
           .from('floorplans')
-          .select('id, image_url, image_width, image_height, scale_meters_per_pixel, rotation_degrees, is_calibrated')
+          .select('id, image_url, image_width, image_height, scale_meters_per_pixel, rotation_degrees, is_calibrated, gps_top_left_lat, gps_top_left_lng')
           .order('created_at', { ascending: false })
           .limit(1);
 
@@ -127,6 +127,8 @@ export const UnifiedMapEditorPage: React.FC = () => {
             scale_meters_per_pixel?: number | null;
             rotation_degrees?: number | null;
             is_calibrated?: boolean | null;
+            gps_top_left_lat?: number | null;
+            gps_top_left_lng?: number | null;
           };
 
           if (!fp.image_url) return;
@@ -147,7 +149,9 @@ export const UnifiedMapEditorPage: React.FC = () => {
           if (fp.is_calibrated && fp.scale_meters_per_pixel != null && fp.rotation_degrees != null) {
             setCalibrationStatus({
               scale: fp.scale_meters_per_pixel as number,
-              rotation: fp.rotation_degrees as number
+              rotation: fp.rotation_degrees as number,
+              originLat: fp.gps_top_left_lat as number | undefined,
+              originLng: fp.gps_top_left_lng as number | undefined
             });
           }
 
@@ -820,7 +824,9 @@ export const UnifiedMapEditorPage: React.FC = () => {
               setGpsBounds(calibrationData.gpsBounds);
               setCalibrationStatus({
                 scale: calibrationData.scale_meters_per_pixel,
-                rotation: calibrationData.rotation_degrees
+                rotation: calibrationData.rotation_degrees,
+                originLat: calibrationData.gps_top_left_lat,
+                originLng: calibrationData.gps_top_left_lng
               });
               setShowCalibrationWizard(false);
 
@@ -933,6 +939,8 @@ export const UnifiedMapEditorPage: React.FC = () => {
             gpsBounds={gpsBounds}
             rotationDegrees={calibrationStatus?.rotation ?? 0}
             scaleMetersPerPixel={calibrationStatus?.scale ?? 0}
+            originGpsLat={calibrationStatus?.originLat}
+            originGpsLng={calibrationStatus?.originLng}
             floorplanSize={floorplanDimensions ?? undefined}
             onExport={async (nodes, segments) => {
               if (!supabase || !floorplanId) return;

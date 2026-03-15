@@ -38,27 +38,39 @@ export function gpsToFloorplanCalibrated(
   calibration: FloorplanCalibration,
   floorplanDims: FloorplanDimensions
 ): FloorplanCoordinate {
-  // Use bilinear interpolation based on the four calibrated corners
-  // This accounts for rotation, skew, and non-perfect rectangles
-  
-  // First, find the relative position within the GPS quadrilateral
-  // Using inverse bilinear interpolation
-  
-  // Simplified: use linear interpolation assuming near-rectangular
+
+  // 1. Center the GPS point around the middle of the calibrated quadrilateral
+  const centerLat = (calibration.topLeft.lat + calibration.bottomRight.lat) / 2;
+  const centerLng = (calibration.topLeft.lng + calibration.bottomRight.lng) / 2;
+
+  // 2. Perform Inverse Rotation before plotting (Affine pre-flight)
+  // Because the map container is CSS rotated, the actual "GPS North" is tilted
+  const angleRad = (calibration.northBearing * Math.PI) / 180;
+
+  // Translating GPS relative to center for rotation
+  const dLat = gps.lat - centerLat;
+  const dLng = gps.lng - centerLng;
+
+  // Mathematical rotation matrix (inverse)
+  const rotatedLat = centerLat + (dLat * Math.cos(-angleRad) - dLng * Math.sin(-angleRad));
+  const rotatedLng = centerLng + (dLat * Math.sin(-angleRad) + dLng * Math.cos(-angleRad));
+
+  // 3. Find percentage along the rotated GPS quadrilateral
   const latRange = calibration.topLeft.lat - calibration.bottomLeft.lat;
   const lngRange = calibration.topRight.lng - calibration.topLeft.lng;
-  
-  const latPct = (calibration.topLeft.lat - gps.lat) / latRange;
-  const lngPct = (gps.lng - calibration.topLeft.lng) / lngRange;
-  
-  // Clamp to 0-1 range
+
+  // Notice we use the unrotated corners but the rotated incoming point
+  const latPct = latRange === 0 ? 0 : (calibration.topLeft.lat - rotatedLat) / latRange;
+  const lngPct = lngRange === 0 ? 0 : (rotatedLng - calibration.topLeft.lng) / lngRange;
+
+  // 4. Clamp to 0-1 range to ensure points don't fly off the edge of the image
   const clampedLatPct = Math.max(0, Math.min(1, latPct));
   const clampedLngPct = Math.max(0, Math.min(1, lngPct));
-  
-  // Convert to pixel coordinates
+
+  // 5. Convert to exact pixel coordinate dimensions
   const x = clampedLngPct * floorplanDims.width;
   const y = clampedLatPct * floorplanDims.height;
-  
+
   return { x, y };
 }
 
@@ -75,15 +87,15 @@ export function gpsToFloorplan(
   // Calculate relative position within GPS bounds (0-1 range)
   const latRange = gpsBounds.ne.lat - gpsBounds.sw.lat;
   const lngRange = gpsBounds.ne.lng - gpsBounds.sw.lng;
-  
+
   const latPct = (gps.lat - gpsBounds.sw.lat) / latRange;
   const lngPct = (gps.lng - gpsBounds.sw.lng) / lngRange;
-  
+
   // Convert to floorplan coordinates
   // Note: Latitude increases northward, but y-axis increases downward in images
   const x = lngPct * floorplanDims.width;
   const y = (1 - latPct) * floorplanDims.height; // Flip Y axis
-  
+
   return { x, y };
 }
 
@@ -98,14 +110,14 @@ export function floorplanToGPS(
   // Calculate position as percentage of floorplan dimensions
   const xPct = floorplanCoord.x / floorplanDims.width;
   const yPct = floorplanCoord.y / floorplanDims.height;
-  
+
   // Convert to GPS coordinates
   const latRange = gpsBounds.ne.lat - gpsBounds.sw.lat;
   const lngRange = gpsBounds.ne.lng - gpsBounds.sw.lng;
-  
+
   const lat = gpsBounds.sw.lat + (1 - yPct) * latRange; // Flip Y axis back
   const lng = gpsBounds.sw.lng + xPct * lngRange;
-  
+
   return { lat, lng };
 }
 
@@ -119,13 +131,13 @@ export function gpsDistance(coord1: GPSCoordinate, coord2: GPSCoordinate): numbe
   const lat2 = coord2.lat * Math.PI / 180;
   const deltaLat = (coord2.lat - coord1.lat) * Math.PI / 180;
   const deltaLng = (coord2.lng - coord1.lng) * Math.PI / 180;
-  
+
   const a = Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
     Math.cos(lat1) * Math.cos(lat2) *
     Math.sin(deltaLng / 2) * Math.sin(deltaLng / 2);
-  
+
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  
+
   return R * c; // Distance in meters
 }
 
@@ -150,7 +162,7 @@ export function getCurrentGPSPosition(): Promise<GPSCoordinate> {
       reject(new Error('Geolocation not supported'));
       return;
     }
-    
+
     navigator.geolocation.getCurrentPosition(
       (position) => {
         resolve({
@@ -180,7 +192,7 @@ export function watchGPSPosition(
   if (!navigator.geolocation) {
     throw new Error('Geolocation not supported');
   }
-  
+
   return navigator.geolocation.watchPosition(
     (position) => {
       callback(
